@@ -19,6 +19,7 @@
 | 8 | *Both desktops move to the gateway switch?* | **Yes, and they have to.** Anything plugged into the Xfinity gateway bypasses the firewall. |
 | — | *M3U or XMLTV for ErsatzTV?* | **Both.** M3U is the channel list and stream URLs (the "tuner"). XMLTV is the program guide. Jellyfin takes one of each. |
 | — | *Can the cabinet's RetroArch play with web (browser) users?* | **Not directly.** RetroArch netplay and browser EmulatorJS netplay are different protocols. Stage 6 covers both of the setups that do work: friends join the cabinet with RetroArch, or everyone plays in the browser. |
+| — | *Does the arcade need a 3rd pod for the web arcade + hiscore sync?* | **You do need a third pod, but not on the arcade.** (1) The **web arcade (RomM/EmulatorJS) runs the game in the player's browser**. The server only hands out ROM files and the web page, so it lives in the `stream` pod next to the ROM storage and stays up when the cabinet is off. (2) **Hiscore sync has to read files RetroArch writes on Windows.** That's a job for a small **native Windows agent** (background service/tray app). Podman on Windows runs inside a WSL2 virtual machine, which doesn't start until someone logs in, and its file-watching doesn't reliably see changes Windows programs make. (3) The **third pod, `hiscore`** (scores API + database + scoreboard website at `scores.elysidrome.com`), runs on a Linux server: gate or stream, decided in the hiscore stage. Flow: cabinet RetroArch writes `.hi` → Windows sync agent → HTTPS + API key → `hiscore` pod stores the raw `.hi` files (your backup against power loss) and the parsed scores → scoreboard page with logins and filters. |
 | — | *IncusOS for security on the gate?* | **No.** IncusOS is an immutable OS whose only job is running Incus (containers/VMs). It isn't a security product, and it can't be installed on Debian. It goes into the R620 lab as a learning VM. |
 | — | *Steam Link / Arch-on-USB Pi-hole?* | **No.** The Steam Link has 512 MB of RAM and frozen firmware, and Pi-hole doesn't support Arch. Both Pi-holes run on hardware that's already on 24/7. |
 | — | *Joe Sandbox?* | It's a commercial product. The free, self-hosted equivalent is **CAPEv2** (Stage 8). |
@@ -126,6 +127,7 @@ At home, Pi-hole answers `*.elysidrome.com` with `10.10.10.10`, so LAN traffic n
 | Dashboard | `home.elysidrome.com` | → gate: Homepage | Authelia 2FA |
 | Status page | `status.elysidrome.com` | → gate: Uptime Kuma | Authelia 2FA |
 | Password vault | `vault.elysidrome.com` | → gate: Vaultwarden | **LAN/VPN only.** Never public. |
+| High-score boards | `scores.elysidrome.com` | → `hiscore` pod (gate or stream; hiscore stage) | Login for viewers. The cabinet's sync agent uses an API key. |
 | Live radio | `radio.elysidrome.com` | → stream: Icecast (Stage 8) | Public |
 | Landing site with buttons | `elysidrome.com` | → gate: static site (Stage 8) | Public page, buttons to the apps above |
 
