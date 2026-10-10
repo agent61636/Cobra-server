@@ -193,3 +193,13 @@ The hiscore app gets designed and built **after the rest of the network is runni
 | Dashboard / monitoring | Homepage tile + Uptime Kuma monitor added at go-live | Stage 7 |
 
 **Port `8090` and the hostname `scores` are reserved.** Don't assign them to anything else.
+
+---
+
+## 9. Future projects (start only after the full build is finished and stable)
+
+| Priority | Project | Notes |
+|---|---|---|
+| **1** | **Jellyfin "commercial break" plugin.** Play a random video from a chosen folder between episodes of a series (and between movies), on demand, not only on Live TV. | First research whether an existing plugin already does this (pre-roll/intro plugins and Jellyfin's intro/"cinema mode" hooks). If nothing does, design and build a custom Jellyfin plugin (C#/.NET, Jellyfin plugin template). Movie pre-rolls are already handled by the "Local Intros"-style plugin you plan to use. **Live TV commercials** are handled by ErsatzTV's filler settings (pre/mid/post-roll), so channels get commercial breaks from day one. |
+| 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.elysidrome.com`. | Slot already reserved (§8). |
+| 3 | Custom CSS + X-Arcade Tankstick code from earlier this month | Landing site, Jellyfin theme, cabinet controls |
