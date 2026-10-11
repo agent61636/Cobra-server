@@ -290,19 +290,9 @@ Stage 2 puts OPNsense behind the Xfinity gateway (router mode, DMZ host → `10.
 
 ## 7. Domain on Cloudflare
 
-### 7.1 Confirm the spelling
+### 7.1 Put the zone on Cloudflare
 
-The overview flags that you've typed both `elysidrome.com` and `elysidrom.com`. Check which one you actually own at your registrar. If it's `elysidrom.com`, find/replace across `docs/manual/` before going further (from a clone of the repo, Git Bash or WSL):
-
-```bash
-grep -rl 'elysidrome\.com' docs/manual | xargs sed -i 's/elysidrome\.com/elysidrom.com/g'
-```
-
-(Only the domain changes. Hostnames like `elysidrome-gate` keep their spelling.)
-
-### 7.2 Put the zone on Cloudflare
-
-**If you don't own the domain yet:** buy it through Cloudflare Registrar (Cloudflare dashboard → **Domain Registration → Register Domains**). It's sold at cost, and the zone is set up for you; skip to §7.3.
+**If you don't own the domain yet:** buy it through Cloudflare Registrar (Cloudflare dashboard → **Domain Registration → Register Domains**). It's sold at cost, and the zone is set up for you; skip to §7.2.
 
 **If it's registered somewhere else:**
 
@@ -317,7 +307,7 @@ grep -rl 'elysidrome\.com' docs/manual | xargs sed -i 's/elysidrome\.com/elysidr
 
 ✅ Checkpoint: `Resolve-DnsName ... -Type NS` returns the two `*.ns.cloudflare.com` servers, and the dashboard shows the zone **Active**.
 
-### 7.3 Record plan (don't create the app records yet)
+### 7.2 Record plan (don't create the app records yet)
 
 Nothing points at your house until OPNsense is guarding it, so **no app records get created in Stage 0**. This is the plan Stage 2 (DDNS) and later stages follow:
 
@@ -333,7 +323,7 @@ Why CNAMEs to the apex: DDNS then has to update one record, not a dozen.
 
 **Cloudflare turns new A/CNAME records orange (proxied) by default.** Every time you add one, click the cloud to grey before saving. Orange would put video through Cloudflare's proxy, which its terms restrict (overview §4).
 
-### 7.4 API tokens
+### 7.3 API tokens
 
 Two least-privilege tokens, one per consumer, so either can be revoked alone.
 
@@ -423,7 +413,7 @@ Stage 1 doesn't touch the house network. **Stage 2 does**: it moves everything w
 - [ ] Both Dell BIOSes updated
 - [ ] USB 3 NIC (RTL8153) in hand, MAC recorded
 - [ ] Xfinity admin password stored, no CGNAT, upload speed recorded
-- [ ] Domain spelling confirmed; zone **Active** on Cloudflare; DNSSEC on
+- [ ] Zone **Active** on Cloudflare; DNSSEC on
 - [ ] `opnsense-ddns` and `gate-acme` tokens verified and stored
 - [ ] Proxmox, Debian and Windows 11 sticks written from verified ISOs; OPNsense ISO verified
 - [ ] Stage 2 window agreed with the household
