@@ -1,7 +1,6 @@
 # Elysidrome Build Manual — 00: Overview & Architecture
 
 > **Read this first.** Every other stage refers back to the names, IPs and ports defined here.
-> If your domain is actually `elysidrom.com` (no "e"), you typed it both ways. Do a find/replace across `docs/manual/` before you start.
 
 ---
 
@@ -10,7 +9,7 @@
 | # | Your question | Answer (with the reasons) |
 |---|---|---|
 | 1 | *Proxmox runs everything from the Latitude: OPNsense, Pi-hole and Jellyfin?* | **Proxmox on the Latitude: yes. Jellyfin on it: no.** The Latitude runs Proxmox with the firewall, Pi-hole #1 and the `elysidrome-gate` VM. Jellyfin moves elsewhere (see #4). |
-| 2 | *Optiplex gets Windows 10 for the arcade?* | **Windows, yes, but Windows 11 rather than 10.** Consumer Windows 10 Extended Security Updates end **Oct 13, 2026**, three days from when this manual was written. After that the cabinet would get no more security patches while sitting on your LAN. Windows 11 installs on the i7-6700 using Rufus's requirement bypass and activates with your existing license. LaunchBox/Big Box is Windows-only, so Windows is the right OS for the cabinet. Full reasoning is in Stage 6. |
+| 2 | *Optiplex gets Windows 10 for the arcade?* | **Windows, yes, but Windows 11 rather than 10.** Consumer Windows 10 Extended Security Updates end on **Oct 13, 2026**. After that the cabinet would get no more security patches while sitting on your LAN. Windows 11 installs on the i7-6700 using Rufus's requirement bypass and activates with your existing license. LaunchBox/Big Box is Windows-only, so Windows is the right OS for the cabinet. Full reasoning is in Stage 6. |
 | 3 | *Does Navidrome go on the Optiplex?* | **No.** Navidrome needs no GPU, and the cabinet should only run games. It goes on `elysidrome-stream` with the rest of the media apps. **One Navidrome instance is enough.** Navidrome 0.58+ supports multiple libraries with per-user access. `eelsmusic.` and `rupaulradio.` are two hostnames for the same instance, and Eels and Rachel each see only their own library. |
 | 4 | *Jellyfin on the gateway box is too much. Shouldn't it go on the Optiplex and use the Intel graphics?* | **You were right to worry: it doesn't belong on the gateway.** That box has 2 cores, 16 GB and the firewall. Putting a media server facing the internet on the same machine that *is* the firewall also widens the damage if it's ever compromised. **The Optiplex is the wrong fix too.** Its HD 530 is Skylake, which has **no hardware decode for HEVC 10-bit**, and that's the format most 4K MKVs use. It would also slow down games on the cabinet. **The SGIN's Celeron N5095A (Jasper Lake) is the best video engine you own.** It does hardware HEVC 10-bit decode and encode plus HDR tone mapping, at about 10 W. So the SGIN becomes **`elysidrome-stream`** and also keeps its jobs as backup server and Pi-hole #2. |
 | 5 | *SGIN = backup server + Pi-hole 2?* | **Yes, plus media** (see #4). It runs Proxmox Backup Server, Pi-hole #2, Samba, and the media pod. |
