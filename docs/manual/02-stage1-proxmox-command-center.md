@@ -1,120 +1,96 @@
 # Elysidrome Build Manual — 02: Stage 1, Proxmox on command-center
 
-> **Goal:** Proxmox VE 9 installed, updated and locked down on the Latitude 5580, with the bridges Stage 2 needs and the installers for Stages 2–4 already on the box.
-> **Time:** ~2 h. **The house network is not touched.** Family internet keeps working.
-> **You need:** the Proxmox USB stick, the USB 3 NIC, one Ethernet cable, and your Windows desktop.
+**Result:** Proxmox VE 9 installed, updated and locked down on the Latitude 5580, with the installers for Stages 2–4 already on it.
+**Time:** ~2 h. **The house network is not touched.**
+**You need:** the Proxmox USB stick, the USB 3 NIC, an Ethernet cable, and your Windows desktop.
+
+Tables are followed top to bottom. **Run** says where: `console` = keyboard on the Latitude, `PS` = PowerShell on your desktop, `ssh` = root shell on command-center over SSH (or the web UI's **Shell** button). Where a step says *File A*, *File B*… the contents are in the box right under that table.
 
 ---
 
-## 1. Proxmox in five minutes
+## Proxmox terms you'll meet
 
-| Proxmox term | What it is | Closest thing you already know |
+| Term | Meaning | You know it as |
 |---|---|---|
-| **Proxmox VE** | Debian 13 + the KVM hypervisor + LXC containers + a web UI (`https://<ip>:8006`). | Debian with a built-in ESXi/Hyper-V Manager |
-| **Node** | One physical Proxmox host. `command-center` is your only node until the R620 joins in Stage 8. | A Hyper-V host |
-| **Datacenter** | The top of the tree in the UI. Holds settings shared by all nodes (users, permissions, storage definitions, firewall). | A vCenter / AD "domain" level |
-| **VM** (QEMU/KVM) | Full virtual machine with its own kernel. Used for OPNsense (VM 100) and the gate (VM 110). | Hyper-V VM |
-| **CT** (LXC container) | Shares the host's kernel, much lighter. Used for Pi-hole (CT 101). | A chroot/jail with its own network stack |
-| **VMID** | Every guest has a number: 100–999 is yours. The plan uses 100, 101, 110. | — |
-| **Storage `local`** | A directory (`/var/lib/vz`) for **files**: ISOs, CT templates, backup files. | A share for install media |
-| **Storage `local-lvm`** | An LVM-thin pool for **guest disks**. Thin means a 32 GB disk only uses what's written. | Dynamic VHDX |
-| **Linux bridge (`vmbrN`)** | A virtual switch inside the host. Physical NIC = uplink port; each guest NIC plugs into a bridge. | Hyper-V virtual switch (external) |
-| **Repositories** | Proxmox ships pointed at the paid **enterprise** repo. Without a subscription you switch to **no-subscription**, which is free and fine for a home lab. | — |
-| **Subscription nag** | A popup at login saying you have no subscription. Harmless; click **OK**. | — |
+| Node | One physical Proxmox host (`command-center`) | Hyper-V host |
+| Datacenter | Top of the UI tree: users, permissions, storage, firewall shared by all nodes | vCenter level |
+| VM | Full virtual machine (OPNsense = VM 100, gate = VM 110) | Hyper-V VM |
+| CT | LXC container, shares the host kernel (pihole-1 = CT 101) | Lightweight jail |
+| `local` | Folder storage for ISOs, CT templates, backup files | Install-media share |
+| `local-lvm` | Thin-provisioned pool for guest disks | Dynamic VHDX |
+| `vmbr0` / `vmbr1` | Linux bridges = virtual switches. Physical NIC is the uplink. | Hyper-V external switch |
+| no-subscription repo | Free update channel. The default "enterprise" one needs a paid key. | — |
+| Subscription popup | Shown at every login. Harmless, click **OK**. | — |
 
-**How your two NICs map to bridges** (this is the heart of the whole build):
+## Wiring (Stage 1 vs. after Stage 2)
 
-```
-                 Latitude (command-center)
-  USB 3 NIC ──► vmbr1 (WAN bridge) ──► OPNsense WAN    (Stage 2)
-  (to Xfinity)    host has NO IP here after Stage 2
+| Port | Bridge | Stage 1 (now) | After Stage 2 |
+|---|---|---|---|
+| USB 3 NIC (`enx…`) | `vmbr1` WAN | Cabled to Xfinity, **temporary DHCP 10.0.0.x**. You manage Proxmox here. | Cabled to Xfinity, **no host IP**. Only OPNsense's WAN uses it. |
+| Onboard I219-LM (`enp0s31f6`) | `vmbr0` LAN | `10.10.10.2/24`, **no gateway, no cable** | `10.10.10.2/24`, gateway `10.10.10.1`, cabled to your switch |
 
-  I219-LM   ──► vmbr0 (LAN bridge) ──► OPNsense LAN, pihole-1, gate
-  (to switch)     host mgmt IP 10.10.10.2
-```
-
-The host itself must never be reachable on the WAN side, so after Stage 2 `vmbr1` carries traffic for OPNsense but has no address of its own.
-
-### The chicken-and-egg problem, and the Stage 1 workaround
-
-The host's real address, `10.10.10.2`, lives on a LAN (`10.10.10.0/24`) that doesn't exist until OPNsense is built in Stage 2. But Proxmox needs internet now for updates.
-
-So for Stage 1 only:
-
-- `vmbr0` gets its final address `10.10.10.2/24` but **no gateway** and no cable (nothing to talk to yet).
-- `vmbr1` (USB NIC) is cabled to the Xfinity gateway or your current switch and **temporarily takes a DHCP address** from Xfinity (`10.0.0.x`). You reach the web UI and SSH on that address from your desktop, and the host gets updates through it.
-
-Stage 2's first step flips this: `vmbr1` loses its address and `vmbr0` gets its gateway back. While it's in this temporary state the host is on the Xfinity LAN, which also has Wi-Fi guests, so do §6 (passwords, 2FA, SSH keys) the same day.
+Why: `10.10.10.0/24` has no router until OPNsense exists, so updates go out through the Xfinity side for now. While the host sits on the Xfinity LAN, finish Table 6 (2FA, SSH keys) the same day.
 
 ---
 
-## 2. BIOS settings on the Latitude
+## Table 1 — BIOS (F2 at the Dell logo)
 
-Power on, tap **F2** at the Dell logo.
+| # | Setting | Set to | Why |
+|---|---|---|---|
+| 1.1 | System Configuration → **SATA Operation** | **AHCI** | "RAID On" hides the NVMe. Skip this and the installer shows no disk. |
+| 1.2 | Virtualization Support → Virtualization | Enabled | KVM needs it |
+| 1.3 | Virtualization Support → VT for Direct I/O | Enabled | For later passthrough |
+| 1.4 | Power Management → AC Behavior → **Wake on AC** | Enabled | Powers back on after an outage |
+| 1.5 | Power Management → Primary Battery Charge Configuration | Custom: start **50**, stop **80** | Battery is your UPS; don't hold it at 100 % |
+| 1.6 | Wireless → Wireless Device Enable | Untick WLAN, Bluetooth | Unused radios on a firewall |
+| 1.7 | Secure Boot | Leave enabled | Proxmox supports it |
+| 1.8 | Security → Admin Password | Generate, store in KeePassXC | Stops USB booting by others |
+| 1.9 | Intel AMT (vPro models only; or Ctrl+P at boot → MEBx) | Disabled | ⚠️ Verify your model has it. AMT listens on the onboard NIC. |
+| 1.10 | **Apply → Exit** | | |
 
-| Setting (Dell BIOS path) | Value | Why |
+## Table 2 — Install
+
+USB NIC **unplugged** during install, so there's only one NIC to pick.
+
+| # | Screen | Enter / choose |
 |---|---|---|
-| System Configuration → **SATA Operation** | **AHCI** | Default "RAID On" hides the NVMe drive from Linux. The installer will show no disk if you skip this. |
-| Virtualization Support → **Virtualization** | Enabled | Required for KVM VMs. |
-| Virtualization Support → **VT for Direct I/O** | Enabled | IOMMU; not needed today, needed for any later passthrough. |
-| Power Management → **AC Behavior → Wake on AC** | Enabled | Box powers itself back on when power returns after the battery ran out. |
-| Power Management → **Primary Battery Charge Configuration** | **Custom**: start 50 %, stop 80 % | It'll be plugged in 24/7; holding at 100 % wears the battery that's acting as your UPS. |
-| Wireless → **Wireless Device Enable** | Untick WLAN and Bluetooth | Unused radios on a firewall host are attack surface. |
-| Secure Boot | Leave **enabled** | Proxmox VE 8.1+ boots with Secure Boot. |
-| Security → Admin Password | Set one (generate it, store in KeePassXC as `Hosts/command-center BIOS`) | Stops anyone booting a USB stick on your firewall. |
+| 2.1 | Boot | Stick in, power on, **F12**, pick the UEFI USB entry |
+| 2.2 | Menu | **Install Proxmox VE (Graphical)** → accept EULA |
+| 2.3 | Target harddisk | 256 GB NVMe. Options → Filesystem **ext4** (default) |
+| 2.4 | Location | Your country, your time zone, keyboard **U.S. English** |
+| 2.5 | Password | Generated, ~20 chars, letters+digits. KeePassXC: `Hosts/command-center root` |
+| 2.6 | Email | Your real address (alerts) |
+| 2.7 | Management interface | Onboard NIC, usually **`enp0s31f6`** (e1000e) |
+| 2.8 | Hostname (FQDN) | **`command-center.home.arpa`** |
+| 2.9 | IP address (CIDR) | **`10.10.10.2/24`** |
+| 2.10 | Gateway | **`10.10.10.1`** |
+| 2.11 | DNS server | **`10.10.10.1`** |
+| 2.12 | "Pin network interface names" (if offered) | **Yes** |
+| 2.13 | Summary | **Install**. Pull the stick when told, let it reboot. |
+| ✅ | Console shows a login prompt mentioning `https://10.10.10.2:8006/` | That URL won't work yet. Expected. |
 
-⚠️ Verify: if your 5580 is a vPro model, Intel AMT can listen on the onboard NIC. Look for **Intel AMT Capability** (or press **Ctrl+P** at boot for MEBx) and disable it.
+`home.arpa` is the domain reserved for home networks. A name under `elysidrome.com` would collide with Pi-hole sending `*.elysidrome.com` to the gate. All internal hostnames use `<name>.home.arpa`; Stage 2 sets the same domain in OPNsense.
 
-**Apply → Exit.**
+ext4 rather than ZFS: ZFS shines with several disks and spare RAM. With one disk and 16 GB it just eats guest memory.
 
----
+## Table 3 — Temporary uplink
 
-## 3. Install
+| # | Run | Do | Expect |
+|---|---|---|---|
+| 3.1 | — | Plug the USB NIC into the Latitude, cable it to the Xfinity gateway (or your current switch). Onboard port stays unplugged. | |
+| 3.2 | console | Log in as `root`, run `ip -br link` | An `enx…` name (the USB NIC). Write it down. |
+| 3.3 | console | `cp /etc/network/interfaces /root/interfaces.installer` | Backup of the original |
+| 3.4 | console | `nano /etc/network/interfaces`, replace the contents with **File A** (your real NIC names) | |
+| 3.5 | console | `ifreload -a` | No errors |
+| 3.6 | console | `ip -4 -br addr show vmbr1` | `vmbr1 UP 10.0.0.x/24`. Write down the `10.0.0.x`. |
+| 3.7 | console | `ping -c3 download.proxmox.com` | 3 replies |
+| 3.7a | console | Only if 3.7 says it can't resolve but `ping -c3 1.1.1.1` works: `printf 'search home.arpa\nnameserver 10.0.0.1\n' > /etc/resolv.conf` | 3.7 now works |
+| 3.8 | browser | `https://10.0.0.x:8006` → accept the certificate warning → `root`, realm **Linux PAM** | Proxmox dashboard. Click OK on the subscription popup. |
+| 3.9 | Xfinity app | Optional: reserve that `10.0.0.x` for the USB NIC's MAC | Address won't move during Stage 1 |
 
-1. Plug in the Proxmox stick. Power on, tap **F12**, pick the USB device (UEFI).
-2. Choose **Install Proxmox VE (Graphical)**.
-3. Accept the EULA.
-4. **Target harddisk:** the 256 GB NVMe. Leave **Options → Filesystem = ext4** (the default gives you `local` + `local-lvm`). ZFS is great with multiple disks and plenty of RAM; on one disk with 16 GB it just eats RAM you want for guests.
-5. **Location/time zone:** your country, your time zone, keyboard **U.S. English**.
-6. **Administration password:** generate one in KeePassXC (letters + digits, ~20 chars; you'll type it at a console). Store it as `Hosts/command-center root`. **Email:** your real address (Proxmox sends alerts here later).
-7. **Management network configuration:**
+From here on, work from the desktop: `ssh root@10.0.0.x`.
 
-   | Field | Value |
-   |---|---|
-   | Management interface | The **onboard** NIC, usually `enp0s31f6` (driver `e1000e`). **Not** the USB NIC (`enx…`, driver `r8152`). Leave the USB NIC unplugged during install so there's only one choice. |
-   | Hostname (FQDN) | `command-center.home.arpa` |
-   | IP address (CIDR) | `10.10.10.2/24` |
-   | Gateway | `10.10.10.1` |
-   | DNS server | `10.10.10.1` |
-
-   If the installer offers to **pin network interface names**, accept it. It stops a future kernel update from renaming NICs and breaking the bridges.
-
-   > **Why `home.arpa`:** it's the domain reserved for home networks (RFC 8375). Using `command-center.elysidrome.com` would collide with Pi-hole answering `*.elysidrome.com → 10.10.10.10` (overview §4). Every internal hostname in this build uses `<name>.home.arpa`; Stage 2 sets the same domain in OPNsense.
-
-8. **Summary → Install.** Remove the stick when it says to, let it reboot.
-
-✅ Checkpoint: the console shows a login prompt with a banner saying `https://10.10.10.2:8006/`. (That URL won't work yet; see §1.)
-
----
-
-## 4. Temporary uplink (console work)
-
-Plug the **USB NIC** into the Latitude and cable it to the Xfinity gateway (or your current switch, which is on the Xfinity LAN). Leave the onboard port **unplugged**.
-
-On command-center (console, as root):
-
-```bash
-ip -br link
-```
-
-You'll see `lo`, the onboard NIC (e.g. `enp0s31f6`), `vmbr0`, and the USB NIC as `enx` followed by its MAC (e.g. `enx00e04c680123`). Write the `enx…` name down.
-
-```bash
-cp /etc/network/interfaces /root/interfaces.installer
-nano /etc/network/interfaces
-```
-
-Make the file look like this (keep your real NIC names):
+**File A — `/etc/network/interfaces`**
 
 ```
 auto lo
@@ -122,7 +98,7 @@ iface lo inet loopback
 
 iface enp0s31f6 inet manual
 
-# LAN bridge: onboard I219-LM -> your switch. Host mgmt 10.10.10.2.
+# LAN bridge: onboard I219-LM -> your switch
 auto vmbr0
 iface vmbr0 inet static
         address 10.10.10.2/24
@@ -133,54 +109,33 @@ iface vmbr0 inet static
 
 iface enx00e04c680123 inet manual
 
-# WAN bridge: USB 3 NIC -> Xfinity gateway. OPNsense WAN plugs in here.
+# WAN bridge: USB 3 NIC -> Xfinity
 auto vmbr1
-iface vmbr1 inet dhcp           # STAGE 1 ONLY. Stage 2 changes this to "manual".
+iface vmbr1 inet dhcp           # STAGE 1 ONLY. Stage 2 changes "dhcp" to "manual".
         bridge-ports enx00e04c680123
         bridge-stp off
         bridge-fd 0
 ```
 
-Apply and check:
+## Table 4 — Repositories and updates
+
+| # | Run | Command | Expect |
+|---|---|---|---|
+| 4.1 | ssh | Paste **File B** | Enterprise repos disabled, no-subscription added |
+| 4.2 | ssh | `apt update` | No `401 Unauthorized` lines |
+| 4.3 | ssh | `apt full-upgrade -y` | Upgrades install. **Never use plain `apt upgrade` on Proxmox**; it can leave it half-updated. |
+| 4.4 | ssh | `apt install -y intel-microcode sudo vim htop curl ethtool bzip2 lm-sensors` | Installs. If `intel-microcode` isn't found, check that `/etc/apt/sources.list.d/debian.sources` lists `non-free-firmware` in **Components:**, add it, re-run 4.2. |
+| 4.5 | ssh | `reboot`, wait 1 min, SSH back in | |
+| 4.6 | ssh | `pveversion` | `pve-manager/9.x…` |
+
+Same thing in the UI if you prefer: node → **Updates → Repositories** → disable both enterprise lines → **Add → No-Subscription**.
+
+**File B — repositories**
 
 ```bash
-ifreload -a
-ip -4 -br addr show vmbr1          # note the 10.0.0.x address
-ip route                           # default via 10.0.0.1 dev vmbr1
-ping -c3 download.proxmox.com
-```
-
-If DNS fails but `ping -c3 1.1.1.1` works, point the resolver at Xfinity for now (Stage 2 sets it back to `10.10.10.1`):
-
-```bash
-printf 'search home.arpa\nnameserver 10.0.0.1\n' > /etc/resolv.conf
-```
-
-✅ Checkpoint: `ping download.proxmox.com` gets replies. From your desktop, `https://10.0.0.x:8006` shows the Proxmox login (accept the self-signed certificate warning; Stage 4's certificates don't cover this host, so the warning is permanent and expected on the LAN). Log in as `root`, realm **Linux PAM**.
-
-Optional but easy: reserve that `10.0.0.x` address for the USB NIC's MAC in the Xfinity app so it doesn't move during Stage 1.
-
-From here on, work from the desktop: web UI **Shell** button, or SSH.
-
-```powershell
-ssh root@10.0.0.x
-```
-
----
-
-## 5. Repositories and updates
-
-Proxmox VE 9 uses the deb822 `.sources` format. Turn off the two enterprise repos and add no-subscription.
-
-On command-center (as root):
-
-```bash
-# Disable enterprise repos (they 401 without a subscription)
 for f in /etc/apt/sources.list.d/pve-enterprise.sources /etc/apt/sources.list.d/ceph.sources; do
   if [ -f "$f" ] && ! grep -q '^Enabled:' "$f"; then echo 'Enabled: no' >> "$f"; fi
 done
-
-# Add the free repo
 cat > /etc/apt/sources.list.d/proxmox.sources <<'EOF'
 Types: deb
 URIs: http://download.proxmox.com/debian/pve
@@ -188,70 +143,39 @@ Suites: trixie
 Components: pve-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
-
-apt update
-apt full-upgrade -y
 ```
 
-**Always `full-upgrade` (or `dist-upgrade`) on Proxmox, never plain `apt upgrade`.** Plain upgrade can hold back packages that must move together and leave Proxmox half-updated.
+## Table 5 — Admin account
 
-Same thing in the UI: node `command-center` → **Updates → Repositories** → select each enterprise line → **Disable**; **Add** → **No-Subscription**.
+`@pam` users are real Linux accounts, so `eels@pam` is one login for SSH, sudo and the web UI.
 
-CPU microcode and a few tools:
+| # | Run | Command | Expect |
+|---|---|---|---|
+| 5.1 | ssh | `adduser eels` | Prompts for password. Generate it, store as `Hosts/command-center eels`. |
+| 5.2 | ssh | `usermod -aG sudo eels` | |
+| 5.3 | ssh | `pveum user add eels@pam --comment "Eels admin"` | |
+| 5.4 | ssh | `pveum acl modify / --users eels@pam --roles Administrator` | |
+| 5.5 | browser | Log out, log in as `eels`, realm Linux PAM | Full tree visible |
 
-```bash
-grep -q non-free-firmware /etc/apt/sources.list.d/debian.sources || \
-  sed -i 's/^Components: main contrib$/Components: main contrib non-free-firmware/' /etc/apt/sources.list.d/debian.sources
-apt update
-apt install -y intel-microcode sudo vim htop curl ethtool bzip2 lm-sensors
-reboot
-```
+## Table 6 — 2FA and SSH keys
 
-✅ Checkpoint (after reboot, SSH back in):
+| # | Run | Do | Expect |
+|---|---|---|---|
+| 6.1 | browser | As `eels`: top right **eels@pam → TFA → Add → TOTP**, scan, confirm code | |
+| 6.2 | browser | **TFA → Add → Recovery Keys**, store them in KeePassXC | |
+| 6.3 | browser | Repeat 6.1–6.2 as `root@pam` | Root still works at the physical console, so no lockout risk |
+| 6.4 | PS | `ssh-keygen -t ed25519 -C "eels@desktop"` (default path, set a passphrase) | |
+| 6.5 | PS | `type $env:USERPROFILE\.ssh\id_ed25519.pub \| ssh eels@10.0.0.x "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"` | Asks for eels' password once |
+| 6.6 | PS | `type $env:USERPROFILE\.ssh\id_ed25519.pub \| ssh root@10.0.0.x "cat >> /root/.ssh/authorized_keys"` | |
+| 6.7 | PS | `ssh eels@10.0.0.x` | Logs in with only the key passphrase |
+| 6.8 | ssh | Paste **File C**, keep this session open | `sshd -t` prints nothing |
+| 6.9 | PS (new window) | `ssh eels@10.0.0.x` | Works |
+| 6.10 | PS | `ssh -o PubkeyAuthentication=no eels@10.0.0.x` | **Permission denied** |
+| ✅ | browser | Log out and in as eels | TOTP code requested |
 
-```bash
-pveversion            # pve-manager/9.x...
-apt update            # no 401/Unauthorized errors, no enterprise lines
-journalctl -k | grep -i microcode | head -3
-```
+Root SSH stays allowed with keys (`prohibit-password`) because joining the R620 to the cluster in Stage 8 needs it.
 
----
-
-## 6. Accounts, 2FA and SSH
-
-### 6.1 The `eels` admin
-
-Proxmox has its own user list (**realms**). `@pam` users are real Linux accounts; `@pve` users exist only inside Proxmox. Using `eels@pam` means the same login works for SSH, sudo and the web UI.
-
-```bash
-adduser eels                       # generate the password, store as Hosts/command-center eels
-usermod -aG sudo eels
-pveum user add eels@pam --comment "Eels admin"
-pveum acl modify / --users eels@pam --roles Administrator
-```
-
-### 6.2 Two-factor on the web UI
-
-Log in to the web UI as `eels` (realm Linux PAM) → top-right **eels@pam → TFA → Add → TOTP**. Scan with your authenticator app, confirm with a code. Then **Add → Recovery Keys**, store them in KeePassXC.
-
-Repeat as `root@pam`. Root keeps working at the physical console regardless, so you can't lock yourself out of the box.
-
-✅ Checkpoint: log out, log back in as `eels@pam`, and you're asked for a TOTP code.
-
-### 6.3 SSH keys, then no passwords over SSH
-
-On the Windows desktop:
-
-```powershell
-ssh-keygen -t ed25519 -C "eels@desktop"          # accept the default path, set a passphrase
-type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.0.0.x "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@10.0.0.x "cat >> /root/.ssh/authorized_keys"
-ssh eels@10.0.0.x                                 # must log in with no password prompt
-```
-
-Proxmox keeps root's `authorized_keys` as a symlink into `/etc/pve`. Appending to it like this is fine.
-
-On command-center (as root):
+**File C — SSH hardening**
 
 ```bash
 cat > /etc/ssh/sshd_config.d/10-elysidrome.conf <<'EOF'
@@ -262,15 +186,20 @@ EOF
 sshd -t && systemctl reload ssh
 ```
 
-`prohibit-password` instead of `no`: Proxmox clustering (the R620 in Stage 8) needs root-to-root SSH with keys.
+## Table 7 — Laptop-as-server settings
 
-✅ Checkpoint: in a **new** PowerShell window, `ssh eels@10.0.0.x` works with the key, and `ssh -o PubkeyAuthentication=no eels@10.0.0.x` is refused. Keep the old session open until both are true.
+| # | Run | Do | Expect |
+|---|---|---|---|
+| 7.1 | ssh | Paste **File D** (lid + screen blank) | `update-grub` ends with `done` |
+| 7.2 | — | Close the lid; `ping 10.0.0.x` from the desktop | Still replies |
+| 7.3 | ssh | `lsusb \| grep -i -E 'realtek\|asix\|ethernet'` | e.g. `ID 0bda:8153 Realtek … RTL8153` |
+| 7.4 | ssh | Paste **File E** (change `0bda`/`8153` if 7.3 differs) | USB NIC never autosuspends (from next boot) |
+| 7.5 | ssh | Paste **File F** (power off at 10 % battery) | Last line shows `state: fully-charged` or `charging` and a percentage |
+| 7.6 | — | Only if `journalctl -k` ever shows `Detected Hardware Unit Hang`: add `post-up /usr/sbin/ethtool -K enp0s31f6 tso off gso off` under `iface vmbr0`, run `ifreload -a` | Known I219 quirk; fixes link drops |
 
----
+Guest start order (OPNsense → Pi-hole → gate) is set on each guest in Stages 2–4 (**Options → Start/Shutdown order**). Proxmox shuts guests down in reverse.
 
-## 7. Laptop-as-server settings
-
-### 7.1 Lid closed, screen off
+**File D — lid and screen**
 
 ```bash
 mkdir -p /etc/systemd/logind.conf.d
@@ -281,35 +210,24 @@ HandleLidSwitchExternalPower=ignore
 HandleLidSwitchDocked=ignore
 EOF
 systemctl restart systemd-logind
-
-# Blank the console after 60 s
 sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 consoleblank=60"/' /etc/default/grub
-grep ^GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub
 update-grub
 ```
 
-✅ Checkpoint: close the lid; `ping 10.0.0.x` from the desktop keeps answering.
-
-### 7.2 Keep the USB NIC awake
-
-USB autosuspend can drop the WAN link. Find the adapter's vendor/product IDs, then pin power on:
+**File E — USB NIC power**
 
 ```bash
-lsusb | grep -i -E 'realtek|asix|ethernet'      # e.g. ID 0bda:8153 Realtek ... RTL8153
 cat > /etc/udev/rules.d/50-usb-nic-power.rules <<'EOF'
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0bda", ATTR{idProduct}=="8153", TEST=="power/control", ATTR{power/control}="on"
 EOF
 udevadm control --reload
 ```
 
-(Change `0bda`/`8153` if `lsusb` shows different IDs.) It takes effect at the next boot or replug.
-
-### 7.3 Shut down cleanly when the battery runs out
-
-Without this, a long outage drains the battery and the firewall loses power mid-write.
+**File F — low-battery shutdown**
 
 ```bash
 apt install -y upower
+mkdir -p /etc/UPower/UPower.conf.d
 cat > /etc/UPower/UPower.conf.d/10-elysidrome.conf <<'EOF'
 [UPower]
 UsePercentageForPolicy=true
@@ -322,111 +240,76 @@ systemctl restart upower
 upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 ```
 
-⚠️ Verify: if `/etc/UPower/UPower.conf.d/` doesn't exist on your version, put the same keys in `/etc/UPower/UPower.conf` instead. Test it once in Stage 7 by unplugging and watching the log (`journalctl -fu upower`), not now.
+⚠️ Verify: if your UPower version ignores the `.conf.d` folder, put the same lines in `/etc/UPower/UPower.conf`. Unplug-test it in Stage 7, not now.
 
-When a power-off happens, Proxmox shuts guests down in reverse start order. Stages 2–4 set the start order (OPNsense first, then Pi-hole, then the gate) on each guest's **Options → Start/Shutdown order**.
+## Table 8 — Put the next stages' installers on Proxmox
 
-### 7.4 Onboard NIC hang (only if you see it)
+| # | Run | Do | Expect |
+|---|---|---|---|
+| 8.1 | browser | Go to `https://opnsense.org/download/`, pick **amd64 / dvd**, a mirror, and copy the `.iso.bz2` link | |
+| 8.2 | ssh | Run **File G**, pasting the link where it says | Two lines ending `: OK`, then the template download finishes |
+| ✅ | browser | **local (command-center) → ISO Images** | OPNsense and Debian 13 netinst ISOs |
+| ✅ | browser | **local (command-center) → CT Templates** | `debian-13-standard_…` |
 
-The I219 (`e1000e`) on some laptops logs `Detected Hardware Unit Hang` under load and drops the link. If you ever see that in `journalctl -k`, add this line under `iface vmbr0` and run `ifreload -a`:
+| Installer | Used in |
+|---|---|
+| OPNsense ISO | Stage 2, VM 100 open-the-box |
+| Debian 13 CT template | Stage 3, CT 101 pihole-1 |
+| Debian 13 netinst ISO | Stage 4, VM 110 elysidrome-gate |
 
-```
-        post-up /usr/sbin/ethtool -K enp0s31f6 tso off gso off
-```
-
----
-
-## 8. Stage the installers for Stages 2–4
-
-`local` storage keeps ISOs in `/var/lib/vz/template/iso/` and container templates in `/var/lib/vz/template/cache/`.
-
-On command-center (as root):
+**File G — downloads with checksum checks**
 
 ```bash
 cd /var/lib/vz/template/iso
-
-# OPNsense (Stage 2): copy the "dvd" amd64 link from https://opnsense.org/download/
 OPN_URL='<paste the .iso.bz2 link>'
 wget "$OPN_URL"
 wget "$(dirname "$OPN_URL")/$(basename "$OPN_URL" | sed 's/-dvd-amd64.iso.bz2/-checksums-amd64.sha256/')"
-sha256sum -c --ignore-missing OPNsense-*-checksums-amd64.sha256   # must print "OK" for your file
+sha256sum -c --ignore-missing OPNsense-*-checksums-amd64.sha256
 bunzip2 OPNsense-*-dvd-amd64.iso.bz2
 
-# Debian 13 netinst (Stage 4 gate VM)
 BASE=https://cdimage.debian.org/debian-cd/current/amd64/iso-cd
 wget -q $BASE/SHA256SUMS
 ISO=$(awk '$2 ~ /^debian-[0-9.]+-amd64-netinst\.iso$/ {print $2}' SHA256SUMS)
 wget $BASE/$ISO
-sha256sum -c --ignore-missing SHA256SUMS                          # must print "<file>: OK"
+sha256sum -c --ignore-missing SHA256SUMS
 rm SHA256SUMS OPNsense-*-checksums-amd64.sha256
 
-# Debian 13 container template (Stage 3 pihole-1)
 pveam update
 TPL=$(pveam available --section system | awk '/debian-13-standard/ {print $2}' | sort -V | tail -1)
 pveam download local "$TPL"
 ```
 
-⚠️ Verify: if the OPNsense checksum file has a different name on the mirror, download it by hand from the same folder as the image. If its line names the `.iso` rather than the `.bz2`, run `bunzip2` first and then `sha256sum -c`.
+⚠️ Verify: if the OPNsense checksum file has another name, download it by hand from the same mirror folder. If its line names the `.iso` instead of the `.bz2`, run `bunzip2` first, then `sha256sum -c`.
 
-✅ Checkpoint: web UI → **local (command-center)** → **ISO Images** lists the OPNsense and Debian ISOs; **CT Templates** lists `debian-13-standard_…`.
+## Table 9 — Save the config off the box
 
----
-
-## 9. Optional: a 10-minute tour
-
-Run this in the same shell as §8 (it reuses `$TPL`). The fastest way to understand guests is to make one and throw it away. CT 999 is a scratch number nothing else uses.
-
-```bash
-pct create 999 local:vztmpl/$TPL --hostname scratch --cores 1 --memory 512 \
-  --rootfs local-lvm:4 --net0 name=eth0,bridge=vmbr1,ip=dhcp --unprivileged 1
-pct start 999
-pct enter 999            # you're root inside the container
-ip -br a; cat /etc/os-release | head -2; exit
-pct stop 999 && pct destroy 999
-```
-
-Watch it appear and disappear in the left tree while you do it. **Unprivileged** means root inside the container is a nobody on the host; every container in this build is unprivileged.
+| # | Run | Command |
+|---|---|---|
+| 9.1 | ssh | `tar czf /root/command-center-stage1-$(date +%F).tgz /etc/network/interfaces /etc/hosts /etc/apt/sources.list.d /etc/ssh/sshd_config.d /etc/systemd/logind.conf.d /etc/udev/rules.d /etc/default/grub /etc/UPower /etc/pve/user.cfg /etc/pve/datacenter.cfg 2>/dev/null` |
+| 9.2 | PS | `scp root@10.0.0.x:/root/command-center-stage1-*.tgz $HOME\Documents\Elysidrome\` |
 
 ---
 
-## 10. Save the host config off the box
+## What Stage 2 changes first (don't do it yet)
 
-```bash
-tar czf /root/command-center-stage1-$(date +%F).tgz \
-  /etc/network/interfaces /etc/hosts /etc/apt/sources.list.d \
-  /etc/ssh/sshd_config.d /etc/systemd/logind.conf.d /etc/udev/rules.d \
-  /etc/default/grub /etc/UPower /etc/pve/user.cfg /etc/pve/datacenter.cfg 2>/dev/null
-```
+| # | Change |
+|---|---|
+| 1 | Create VM 100 OPNsense: net0 → `vmbr1` (WAN), net1 → `vmbr0` (LAN) |
+| 2 | `/etc/network/interfaces`: `vmbr1 inet dhcp` → `inet manual`; uncomment `gateway 10.10.10.1` |
+| 3 | Cable the onboard port to the switch; node → System → DNS → `10.10.10.1` |
+| 4 | Web UI moves to `https://10.10.10.2:8006`, reachable from LAN and WireGuard only |
 
-On the Windows desktop:
+## Stage 1 done when
 
-```powershell
-scp root@10.0.0.x:/root/command-center-stage1-*.tgz $HOME\Documents\Elysidrome\
-```
+| ✔ | Check |
+|---|---|
+| ☐ | BIOS: AHCI, virtualization, Wake on AC, battery 50–80 %, radios off, BIOS password |
+| ☐ | `command-center.home.arpa`, `vmbr0` = `10.10.10.2/24`, `vmbr1` on the USB NIC with temporary DHCP |
+| ☐ | No-subscription repo, full-upgrade done, microcode, rebooted |
+| ☐ | `eels@pam` Administrator; TOTP + recovery keys on `eels` and `root` |
+| ☐ | SSH by key only |
+| ☐ | Lid ignored, console blanks, USB NIC stays awake, low-battery power-off set |
+| ☐ | OPNsense ISO, Debian ISO, Debian CT template on `local` |
+| ☐ | Config tarball on the desktop |
 
----
-
-## 11. What Stage 2 changes (hand-off)
-
-Stage 2 starts by flipping the temporary network from §4. Don't do it yet; it's here so you know what's coming:
-
-1. Create the OPNsense VM with **net0 → vmbr1 (WAN)** and **net1 → vmbr0 (LAN)**.
-2. Edit `/etc/network/interfaces`: `iface vmbr1 inet dhcp` → `iface vmbr1 inet manual`; uncomment `gateway 10.10.10.1` under `vmbr0`.
-3. Cable the onboard port to your switch. Set DNS back to `10.10.10.1` (node → **System → DNS**).
-4. From then on the web UI is `https://10.10.10.2:8006` from the LAN or WireGuard only (overview port map).
-
----
-
-## 12. Stage 1 exit checklist
-
-- [ ] BIOS: AHCI, virtualization on, Wake on AC, battery 50–80 %, radios off, BIOS password set
-- [ ] Proxmox VE 9 installed: `command-center.home.arpa`, `vmbr0` = `10.10.10.2/24` on the onboard NIC
-- [ ] `vmbr1` on the USB NIC, temporary DHCP from Xfinity, internet works
-- [ ] No-subscription repo, `apt full-upgrade` done, microcode installed, rebooted
-- [ ] `eels@pam` is Administrator; TOTP + recovery keys for `eels` and `root`
-- [ ] SSH key login works; password SSH refused
-- [ ] Lid-close ignored, console blanks, USB NIC autosuspend off, low-battery power-off configured
-- [ ] OPNsense ISO, Debian 13 ISO and Debian 13 CT template on `local`, checksums OK
-- [ ] Config tarball copied to the desktop
-
-Next: **Stage 2 — open-the-box (OPNsense)** (`03-stage2-open-the-box-opnsense.md`).
+Next: Stage 2, open-the-box (OPNsense), `03-stage2-open-the-box-opnsense.md`.
