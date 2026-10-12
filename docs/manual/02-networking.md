@@ -26,6 +26,9 @@ Final path of a packet: client → Pi-hole (`10.10.10.3`, DNS) / OPNsense (`10.1
 
 ## 2.2 Create the VM (command-center shell, root)
 
+🔌 Onboard: empty · TP-Link → Xfinity (same as part 1). Manage Proxmox at `https://10.0.0.x:8006`.
+
+
 ```bash
 qm create 100 --name open-the-box --ostype other --cpu host --cores 2 --memory 4096 --balloon 0 \
   --scsihw virtio-scsi-single --scsi0 local-lvm:32,discard=on,iothread=1 \
@@ -46,6 +49,9 @@ UI equivalent: **Create VM** (top right), same values on each tab; OS type **Oth
 
 ## 2.3 Install OPNsense (Proxmox → 100 → Console)
 
+🔌 Onboard: empty · TP-Link → Xfinity
+
+
 - [ ] At the login prompt: user **`installer`**, password **`opnsense`**
 - [ ] Keymap: default (US) → **Install (UFS)** → disk **`da0`** → confirm
 - [ ] Set a generated root password when prompted → **Complete Install** → **Reboot**
@@ -64,6 +70,9 @@ Console menu:
 
 ## 2.4 Cut over (internet down from here)
 
+🔌 Run the commands first (cables unchanged), **then** recable per the table below. Final state: onboard → switch, TP-Link → Xfinity.
+
+
 On command-center, move the host onto the LAN:
 
 ```bash
@@ -79,8 +88,8 @@ Recable:
 
 | Cable | From → To |
 |---|---|
-| Xfinity LAN port | → **USB NIC** on the Latitude (already, from part 1) |
-| Latitude **onboard port** | → your switch |
+| TP-Link USB NIC | stays → Xfinity gateway (from part 1) |
+| Latitude **onboard port** | **now** cable → your switch |
 | Switch's old uplink to Xfinity | **unplug** (nothing else connects to Xfinity by wire) |
 | Both desktops, SGIN, OptiPlex | → switch |
 
@@ -91,6 +100,9 @@ Recable:
 - [ ] OPNsense → Interfaces → Overview → WAN → **Reload** (picks up `10.0.0.2`)
 
 ## 2.5 OPNsense base setup (web UI)
+
+🔌 Final cabling from here on: onboard → switch · TP-Link → Xfinity · nothing else wired to Xfinity
+
 
 **Wizard** (System → Wizard, or it opens on first login):
 

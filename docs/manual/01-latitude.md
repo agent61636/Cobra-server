@@ -6,6 +6,21 @@
 
 ---
 
+## Cables at a glance
+
+"TP-Link" = the USB 3 NIC. "Onboard" = the Latitude's built-in Ethernet port.
+
+| Steps | Onboard port | TP-Link USB NIC |
+|---|---|---|
+| 1.2–1.4 (BIOS, install) | **empty** | **not plugged into the laptop** |
+| 1.5 to end of part 1 | **empty** | plugged into a USB port, cable → **Xfinity gateway** (or the switch that's still connected to Xfinity) |
+| Part 2, 2.2–2.3 | **empty** | → Xfinity (unchanged) |
+| Part 2, 2.4 onward (final) | cable → **your switch** | → **Xfinity gateway** directly |
+
+Each step below starts with a 🔌 line saying what should be plugged in.
+
+---
+
 ## 1.1 Proxmox in one table
 
 Proxmox VE is Debian with a hypervisor and a web UI on top. Everything below can be done in the web UI *or* in a root shell. This guide gives the shell command and names the UI spot.
@@ -47,6 +62,9 @@ Proxmox VE is Debian with a hypervisor and a web UI on top. Everything below can
 
 ## 1.3 BIOS (F2 at the Dell logo)
 
+🔌 Onboard: empty · TP-Link: not plugged in
+
+
 - [ ] System Configuration → SATA Operation → **AHCI** (*default "RAID On" hides the NVMe, and the installer shows no disk*)
 - [ ] Virtualization Support → Virtualization → **Enabled**; VT for Direct I/O → **Enabled**
 - [ ] Power Management → AC Behavior → **Wake on AC** → Enabled (powers back on after an outage)
@@ -59,7 +77,8 @@ Proxmox VE is Debian with a hypervisor and a web UI on top. Everything below can
 
 ## 1.4 Install
 
-USB NIC **unplugged**, so the installer only offers the onboard NIC.
+🔌 Onboard: empty · TP-Link: not plugged in (the installer needs no network)
+
 
 | # | Screen | Choose / type |
 |---|---|---|
@@ -80,7 +99,9 @@ USB NIC **unplugged**, so the installer only offers the onboard NIC.
 
 ## 1.5 Temporary uplink (on the Latitude's own keyboard)
 
-- [ ] Plug the USB NIC into the Latitude; cable it to the Xfinity gateway (or the current switch). Leave the onboard port unplugged.
+🔌 **Now** plug the TP-Link into a USB port and cable it → Xfinity gateway (or the switch that's still on Xfinity). Onboard: stays empty.
+
+
 - [ ] Log in as `root`
 
 ```bash
@@ -131,6 +152,9 @@ From here, work from the desktop: `ssh root@10.0.0.x`, or the UI's **>_ Shell**.
 
 ## 1.6 Repositories and updates
 
+🔌 Onboard: empty · TP-Link → Xfinity
+
+
 Proxmox ships pointed at the paid **enterprise** repo, which fails without a subscription. Switch to the free **no-subscription** repo.
 
 ```bash
@@ -155,6 +179,9 @@ reboot
 - [ ] After reboot: `pveversion` shows `pve-manager/9.x`
 
 ## 1.7 Admin user, 2FA, SSH keys
+
+🔌 Onboard: empty · TP-Link → Xfinity
+
 
 Proxmox has its own user list (**realms**). `@pam` users are normal Linux accounts, so `eels@pam` is one login for the UI, SSH and sudo.
 
@@ -195,6 +222,9 @@ sshd -t && systemctl reload ssh
 
 ## 1.8 Laptop-as-server settings
 
+🔌 Onboard: empty · TP-Link → Xfinity
+
+
 ```bash
 # Keep running with the lid closed
 mkdir -p /etc/systemd/logind.conf.d
@@ -226,6 +256,9 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 - [ ] If `journalctl -k` ever shows `Detected Hardware Unit Hang` (known I219 quirk): add `        post-up /usr/sbin/ethtool -K enp0s31f6 tso off gso off` under `iface vmbr0`, then `ifreload -a`
 
 ## 1.9 Put the next installers on Proxmox
+
+🔌 Onboard: empty · TP-Link → Xfinity
+
 
 ISOs go in `/var/lib/vz/template/iso/` (UI: local → ISO Images); CT templates in `/var/lib/vz/template/cache/` (UI: local → CT Templates → Templates button).
 
