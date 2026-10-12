@@ -1,23 +1,60 @@
 # 3. Set up SGIN (elysidrome-stream, Debian 13, 10.10.10.20)
 
-## Install
+**Result:** the SGIN runs Debian 13 bare metal and serves all storage (Samba), the media apps (one rootless Podman pod), Pi-hole #2 and Proxmox Backup Server.
 
-- [ ] Data backed up; storage drives unplugged during install
-- [ ] Debian netinst USB: hostname `elysidrome-stream`, domain `home.arpa`, root password **blank** (gives `eels` sudo), user `eels`, guided entire disk, tasks: **SSH server + standard utilities** only
-- [ ] OPNsense static mapping `.20` for its MAC
+🔌 SGIN onboard Ethernet → your switch (behind OPNsense, from part 2) for the whole part. Storage drives **unplugged** until "Storage".
+
+## 3.1 Terms
+
+| Term | Meaning |
+|---|---|
+| **Rootless Podman** | Containers run as the unprivileged user `podsvc`, not root. A container escape lands as a nobody. |
+| **Pod** | Group of containers sharing one network namespace: they reach each other on `127.0.0.1`, and only the pod's published ports are reachable from the LAN. |
+| **Quadlet** | A `.pod`/`.container` file in `~/.config/containers/systemd/`. systemd turns each into a service (`jellyfin.container` → `jellyfin.service`; `stream.pod` → `stream-pod.service`). Start/stop/logs with `systemctl --user` / `journalctl --user -u`. |
+| **Linger** | Lets `podsvc`'s services run at boot without anyone logged in. |
+| **`:Z`** on a volume | Relabels the folder for that container only. Don't use it on folders shared with Samba or other containers. |
+| **PBS datastore** | A folder where Proxmox Backup Server keeps deduplicated backups. Proxmox (part 5) backs up VMs/CTs into it. |
+
+## 3.2 Install Debian
+
+- [ ] Back up anything on the SGIN first
+- [ ] Debian netinst USB (Rufus, DD mode) → F7/F11/Esc for the boot menu (varies by mini-PC) → **Install** (text)
+
+| Screen | Value |
+|---|---|
+| Language / location / keyboard | English / yours / American English |
+| Network | Auto (DHCP), it gets `10.10.10.1xx` for now |
+| Hostname / Domain | `elysidrome-stream` / `home.arpa` |
+| Root password | **leave blank** (root is disabled and `eels` gets sudo) |
+| User | full name `Eels`, username `eels`, generated password |
+| Partitioning | Guided, use entire disk (the internal SSD, not a USB drive), all files in one partition |
+| Software selection | untick desktop + GNOME; tick **SSH server** and **standard system utilities** only |
+| GRUB | Yes, on the internal disk |
+
+- [ ] After reboot: OPNsense → DHCP static mapping `10.10.10.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
+- [ ] From the desktop: `ssh eels@10.10.10.20`
+
+## 3.3 Packages
+
+Needs `contrib non-free` for the Intel media driver (Quick Sync).
 
 ```bash
 sudo sed -i 's/^Components: main.*/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null \
   || sudo sed -i 's/ main non-free-firmware$/ main contrib non-free non-free-firmware/' /etc/apt/sources.list
 sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y intel-microcode firmware-misc-nonfree intel-media-va-driver-non-free vainfo \
-  podman crun slirp4netns passt uidmap fuse-overlayfs samba nftables cockpit curl rsync smartmontools
+  podman crun slirp4netns passt uidmap fuse-overlayfs samba nftables cockpit curl rsync smartmontools systemd-container
 sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc   # expect HEVC Main10 decode/encode
 ```
 
-- [ ] SSH key from desktop, then same `10-elysidrome.conf` as part 1 but `PermitRootLogin no`
+- [ ] No `HEVC Main10` lines from vainfo → reboot once (firmware) and re-run; still none → the media driver isn't installed
+- [ ] SSH key from the desktop: `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.10.10.20 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`
+- [ ] Same `/etc/ssh/sshd_config.d/10-elysidrome.conf` as part 1.7, but `PermitRootLogin no`; `sudo sshd -t && sudo systemctl reload ssh`
 
-## Storage
+## 3.4 Storage
+
+🔌 Plug the storage drives into the SGIN now.
+
 
 ```bash
 lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID
@@ -30,7 +67,9 @@ sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/*
 
 Folder layout per drive: `movies tv music/eels music/rachel books audiobooks comics roms pbs`.
 
-## Users
+## 3.5 Users and permissions
+
+`podsvc` runs the containers; group `media` = everyone allowed to write the library (podsvc, eels, the cabinet's Samba login).
 
 ```bash
 sudo groupadd media
@@ -42,7 +81,7 @@ sudo mkdir -p /srv/stream && sudo chown podsvc: /srv/stream
 sudo usermod -aG media eels
 ```
 
-## Samba
+## 3.6 Samba (Windows shares)
 
 ```bash
 sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.orig
@@ -73,7 +112,7 @@ sudo smbpasswd -a eels
 sudo useradd -M -s /usr/sbin/nologin -G media arcade && sudo smbpasswd -a arcade   # cabinet login
 ```
 
-## Firewall
+## 3.7 Firewall (LAN + VPN only)
 
 ```bash
 sudo tee /etc/nftables.conf >/dev/null <<'EOF'
@@ -93,7 +132,9 @@ EOF
 sudo systemctl enable --now nftables
 ```
 
-## Media pod (as podsvc: `sudo machinectl shell podsvc@`)
+## 3.8 Media pod
+
+Run as podsvc: `sudo machinectl shell podsvc@` (a full login session, needed for `systemctl --user`). `exit` to leave.
 
 ```bash
 mkdir -p ~/.config/containers/systemd /srv/stream/{jellyfin/config,jellyfin/cache,ersatztv,abs/config,abs/metadata,kavita,navidrome,romm/resources,romm/assets,romm/config,romm/db}
@@ -194,8 +235,11 @@ EOF
 chmod 600 romm*.container
 systemctl --user daemon-reload
 systemctl --user start stream-pod
-podman ps
+podman ps                                     # 7 containers Up
+# logs: journalctl --user -u jellyfin -f     restart one: systemctl --user restart jellyfin
 ```
+
+- [ ] App URLs: Jellyfin `http://10.10.10.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
 
 - [ ] ⚠️ Verify image names for ErsatzTV and RomM on their docs (they've moved registries before); RomM expects `roms/<platform>/` folders
 - [ ] Don't put `:Z` on `/srv/storage` mounts (shared with Samba)
@@ -203,7 +247,7 @@ podman ps
 - [ ] Navidrome: two libraries (`/media/.../music/eels`, `/media/.../music/rachel`), one user each with only their library
 - [ ] Each app: create admin user now (first visit = admin)
 
-## Pi-hole #2 (as eels)
+## 3.9 Pi-hole #2 (as eels)
 
 ```bash
 curl -sSL https://install.pi-hole.net | sudo bash
@@ -214,7 +258,7 @@ sudo pihole-FTL --config dns.upstreams '["10.10.10.1"]'
 
 - [ ] OPNsense DHCP: DNS servers → `10.10.10.3`, `10.10.10.20`
 
-## Proxmox Backup Server
+## 3.10 Proxmox Backup Server
 
 ```bash
 sudo wget -O /usr/share/keyrings/proxmox-archive-keyring.gpg https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg

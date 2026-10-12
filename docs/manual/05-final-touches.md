@@ -1,6 +1,19 @@
 # 5. Final touches (gate VM 110, public access, backups)
 
-## Gate VM (command-center, root)
+**Result:** `elysidrome-gate` (VM 110 on the Latitude) terminates TLS for `*.elysidrome.com`, puts Authelia 2FA in front of the admin apps, proxies to the SGIN's media apps, and is the only thing reachable from the internet (TCP 443). Nightly backups go to PBS.
+
+🔌 No cable changes. Everything is already wired from part 2.
+
+## 5.1 Terms
+
+| Term | Meaning |
+|---|---|
+| **Reverse proxy (nginx)** | Receives every `https://<name>.elysidrome.com` request and forwards it by hostname to the right app. |
+| **Wildcard cert** | One Let's Encrypt cert for `elysidrome.com` + `*.elysidrome.com`, obtained by DNS challenge (certbot writes a TXT record via the Cloudflare token), so nothing needs to be open to get it. |
+| **Authelia** | Login + TOTP portal at `auth.elysidrome.com`. nginx asks it "is this user logged in?" before serving the protected apps. |
+| **Gate pod** | All gate apps in one rootless Podman pod. Only nginx's 80/443 are published; the apps listen on `127.0.0.1` inside the pod. |
+
+## 5.2 Gate VM (command-center shell, root)
 
 ```bash
 qm create 110 --name elysidrome-gate --ostype l26 --cpu host --cores 2 --memory 6144 \
@@ -10,23 +23,30 @@ qm create 110 --name elysidrome-gate --ostype l26 --cpu host --cores 2 --memory 
 qm start 110
 ```
 
-- [ ] Debian install in console: hostname `elysidrome-gate`, domain `home.arpa`, static `10.10.10.10/24` gw/DNS `10.10.10.1`, root blank, user `eels`, SSH server + standard utilities
-- [ ] `qm set 110 --delete ide2`
+- [ ] Proxmox → 110 → **Console** → Install. Same answers as part 3.2 except:
+
+| Screen | Value |
+|---|---|
+| Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.10.10.10/24`, gateway `10.10.10.1`, DNS `10.10.10.1` |
+| Hostname | `elysidrome-gate` |
+| Disk | the 64 GB virtual disk (`sda`) |
+- [ ] `qm set 110 --ide2 none,media=cdrom`
 
 On gate (eels):
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit certbot python3-certbot-dns-cloudflare nftables
+sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit certbot python3-certbot-dns-cloudflare nftables systemd-container
+# rootless containers may bind 80/443
 echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/90-ports.conf && sudo sysctl --system
 sudo useradd -m -s /bin/bash podsvc && sudo loginctl enable-linger podsvc
 sudo mkdir -p /srv/gate/{nginx/certs,nginx/conf.d,authelia,vaultwarden,paperless/{data,media,consume,export},postgres,redis,metube,homepage,uptime-kuma,hiscore}
 sudo chown -R podsvc: /srv/gate
 ```
 
-- [ ] SSH hardening as part 3 (`PermitRootLogin no`)
+- [ ] SSH key + hardening as part 3.3 (`PermitRootLogin no`)
 
-## Wildcard cert
+## 5.3 Wildcard cert (as eels)
 
 ```bash
 sudo install -m 600 /dev/null /root/cloudflare.ini
@@ -42,7 +62,7 @@ EOF
 sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/gate.sh && sudo /etc/letsencrypt/renewal-hooks/deploy/gate.sh
 ```
 
-## Gate pod (as podsvc: `sudo machinectl shell podsvc@`)
+## 5.4 Gate pod (as podsvc: `sudo machinectl shell podsvc@`)
 
 ```bash
 cd ~ && mkdir -p .config/containers/systemd && cd .config/containers/systemd
@@ -236,13 +256,13 @@ podman exec nginx nginx -t
 - [ ] Vaultwarden: create your account at `https://vault.elysidrome.com`, then set `SIGNUPS_ALLOWED=false`, `systemctl --user restart vaultwarden`. Import the interim password DB.
 - [ ] Paperless admin: `podman exec -it paperless python3 manage.py createsuperuser`
 
-## Go public
+## 5.5 Go public
 
 - [ ] Cloudflare: CNAME → `elysidrome.com`, **DNS only**: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`)
 - [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.10.10.10:443` (and 80 → 80), filter rule auto-added
 - [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
 
-## Backups
+## 5.6 Backups
 
 On command-center:
 
@@ -270,7 +290,7 @@ echo '30 3 * * * root . /root/pbs.env && export PBS_REPOSITORY PBS_PASSWORD PBS_
 - [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901, start, destroy
 - [ ] Offsite copy of `/srv/storage/media1/pbs` + photos to a second disk/cloud
 
-## Monitoring
+## 5.7 Monitoring
 
 - [ ] Uptime Kuma: HTTP monitors for every hostname, TCP for `10.10.10.1:53`, `10.10.10.3:53`, `10.10.10.20:53`, `10.10.10.2:8006`, `10.10.10.20:8007`
 - [ ] Homepage `services.yaml`: tiles for all apps + Proxmox, OPNsense, PBS, both Pi-holes
