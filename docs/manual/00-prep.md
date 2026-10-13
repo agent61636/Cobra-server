@@ -9,7 +9,7 @@ Doing part 1 already (Proxmox on the Latitude)? That's fine. Nothing here touche
 Every part generates passwords and keys "into your password manager". Vaultwarden doesn't exist until part 5, so use an interim one now:
 
 - [ ] Install **KeePassXC** on your Windows desktop (`winget install -e --id KeePassXCTeam.KeePassXC`), create `cobra.kdbx` with a strong master password, and copy it to a USB stick after each session
-- [ ] Part 5 imports it into Vaultwarden (Vaultwarden → Tools → Import → KeePass format)
+- [ ] Part 5 moves it into Vaultwarden: KeePassXC → Database → Export → **CSV**, then Vaultwarden → Tools → Import data → format **KeePassX (csv)**. Delete the CSV file right after; it holds every password in plain text.
 
 ## 0.2 Inventory (fill in as you go)
 

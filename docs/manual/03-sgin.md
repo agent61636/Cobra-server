@@ -7,7 +7,7 @@
 **This part replaces your old server.** The SGIN gets wiped and reinstalled, so the old server's sites go offline here and come back under the new names in part 5. Plan to do parts 3 and 5 close together.
 
 - [ ] Copy anything you need off the SGIN's internal disk (configs, databases, compose files). The USB drives aren't touched; they're unplugged during the install.
-- [ ] After 3.2: OPNsense → delete the `10.6.9.200` static mapping and the port forwards pointing at it (from part 2.4)
+- [ ] In 3.2's last step, **first** delete the old `10.6.9.200` static mapping (it's the same MAC, and OPNsense allows only one mapping per MAC) and the port forwards pointing at `.200` (from part 2.4), **then** add the `.20` mapping
 
 ## 3.1 Terms
 
@@ -36,7 +36,7 @@
 | Software selection | untick desktop + GNOME; tick **SSH server** and **standard system utilities** only |
 | GRUB | Yes, on the internal disk |
 
-- [ ] After reboot: OPNsense → DHCP static mapping `10.6.9.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
+- [ ] After reboot: OPNsense → delete the old `.200` mapping and its port forwards, then add DHCP static mapping `10.6.9.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
 - [ ] From the desktop: `ssh eels@10.6.9.20`
 
 ## 3.3 Packages
@@ -383,6 +383,7 @@ podman ps                                     # 7 containers Up
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
 - [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
 - [ ] Each app: create admin user now (first visit = admin)
+- [ ] If one container keeps restarting with `Permission denied` in `journalctl --user -u <name>`: that image switches to a non-root user inside, so its files must belong to that user. Find it with `podman exec <name> id` (often `1000`), add `UserNS=keep-id:uid=1000,gid=1000` under `[Container]` in its `.container` file, then `systemctl --user daemon-reload && systemctl --user restart <name>`. Your `podsvc` then *is* that user inside the container, so the folders it owns become writable.
 
 ### 3.8a Live TV: ErsatzTV channels inside Jellyfin
 
@@ -447,8 +448,13 @@ curl -sSL https://install.pi-hole.net | sudo bash
 sudo pihole setpassword
 sudo pihole-FTL --config dns.upstreams '["10.6.9.1"]'
 sudo pihole-FTL --config dns.listeningMode ALL      # answer WireGuard clients too; nftables limits who can reach :53
-# copy misc.dnsmasq_lines and dns.hosts exactly as on cobra-pihole-1 (part 2)
+# the same local DNS as cobra-pihole-1 (part 2.9)
+sudo pihole-FTL --config misc.dnsmasq_lines '["address=/songofeo.com/10.6.9.10"]'
+sudo pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
 ```
+
+- [ ] Blocklists: Pi-hole #1 → Settings → Teleporter → Export, then Pi-hole #2 → Teleporter → Import (repeat after you change lists; part 5.7)
+- [ ] From the desktop: `nslookup tv.songofeo.com 10.6.9.20` → `10.6.9.10`, and `nslookup cobra-gate 10.6.9.20` → `10.6.9.10`
 
 - [ ] OPNsense DHCP: DNS servers → `10.6.9.3`, `10.6.9.20`
 
@@ -466,7 +472,7 @@ Components: pbs-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
 sudo apt update && sudo apt install -y proxmox-backup-server
-PBSDISK=dock1a        # an ext4 drive (PBS can't use NTFS) with room to spare; moves to the vault drive later (part 5.6)
+PBSDISK=dock1a        # your label for an ext4 drive (PBS can't use NTFS) with room to spare; part 5.6 adds a second copy on the vault drive
 sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs
 sudo proxmox-backup-manager user create pve@pbs --password "$(openssl rand -base64 24 | tee /dev/stderr)"   # store it
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id pve@pbs
@@ -480,3 +486,7 @@ sudo proxmox-backup-manager cert info | grep Fingerprint
 
 - [ ] `https://10.6.9.20:8007` (PBS), `:9090` (Cockpit), `:8096` Jellyfin plays a 4K HEVC file with transcoding showing `(hw)`
 - [ ] `\\cobra-stream\media` opens from a desktop
+- [ ] `df -h /srv/storage/pool` shows every drive's space combined; a file copied in from a desktop shows up in Jellyfin after a library scan
+- [ ] Jellyfin → Live TV plays an ErsatzTV channel, and the guide fills in (3.8a)
+- [ ] RomM at `:8080` lists your platforms, and one game starts in the browser (3.8b)
+- [ ] `nslookup cobra-stream 10.6.9.20` answers `10.6.9.20` (Pi-hole #2)

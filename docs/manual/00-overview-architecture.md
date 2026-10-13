@@ -14,7 +14,7 @@
 | 4 | *Jellyfin on the gateway box is too much. Shouldn't it go on the Optiplex and use the Intel graphics?* | **You were right to worry: it doesn't belong on the gateway.** That box has 2 cores, 16 GB and the firewall. Putting a media server facing the internet on the same machine that *is* the firewall also widens the damage if it's ever compromised. **The Optiplex is the wrong fix too.** Its HD 530 is Skylake, which has **no hardware decode for HEVC 10-bit**, and that's the format most 4K MKVs use. It would also slow down games on the cabinet. **The SGIN's Celeron N5095A (Jasper Lake) is the best video engine you own.** It does hardware HEVC 10-bit decode and encode plus HDR tone mapping, at about 10 W. So the SGIN becomes **`cobra-stream`** and also keeps its jobs as backup server and Pi-hole #2. |
 | 5 | *SGIN = backup server + Pi-hole 2?* | **Yes, plus media** (see #4). It runs Proxmox Backup Server, Pi-hole #2, Samba, and the media pod. |
 | 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's a later part (not written yet). |
-| 7 | *Seamless networking + SMB from the Windows 11 desktop?* | **Yes.** All storage drives attach to `cobra-stream` and are shared over SMB3 (Samba). Every Windows machine maps the same shares. "Put files wherever I want" means *any machine reads and writes the same library*. |
+| 7 | *Seamless networking + SMB from the Windows 11 desktop?* | **Yes.** All the USB storage drives attach to `cobra-stream`, are pooled into one library and shared over SMB3 (Samba); every Windows machine, the gate and VPN clients use the same shares (part 3.4–3.6). The OptiPlex's internal WD drive stays in the cabinet as its game drive and an extra copy (part 4.6). "Put files wherever I want" means *any machine reads and writes the same library*. |
 | 8 | *Both desktops move to the gateway switch?* | **Yes, and they have to.** Anything plugged into the Xfinity gateway bypasses the firewall. |
 | — | *M3U or XMLTV for ErsatzTV?* | **Both.** M3U is the channel list and stream URLs (the "tuner"). XMLTV is the program guide. Jellyfin takes one of each. |
 | — | *Can the cabinet's RetroArch play with web (browser) users?* | **Not directly.** RetroArch netplay and browser EmulatorJS netplay are different protocols. Both setups that do work are planned: friends join the cabinet with RetroArch, or everyone plays in the browser. |
@@ -29,10 +29,10 @@
 
 | Name | Hardware | OS | Job | Power |
 |---|---|---|---|---|
-| **cobra-command** | Dell Latitude 5580: i7-7600U 2C/4T, 16 GB, 256 GB NVMe, Intel I219-LM + **USB 3 gigabit NIC (~$12–15, the only required purchase)** | Proxmox VE 9 | Hypervisor that runs the firewall, Pi-hole #1 and the gate VM. Its battery acts as a built-in UPS for the firewall. | ~10–20 W |
+| **cobra-command** | Dell Latitude 5580: i7-7600U 2C/4T, 16 GB, 256 GB NVMe, Intel I219-LM + **USB 3 gigabit NIC (~$12–15, the only purchase needed to start)** | Proxmox VE 9 | Hypervisor that runs the firewall, Pi-hole #1 and the gate VM. Its battery acts as a built-in UPS for the firewall. | ~10–20 W |
 | ↳ **cobra-firewall** (VM 100) | 2 vCPU / 4 GB | OPNsense | Firewall, DHCP, Unbound DNS-over-TLS, WireGuard VPN, Suricata IDS/IPS, CrowdSec, DDNS | — |
 | ↳ **cobra-pihole-1** (CT 101) | 1 core / 512 MB | Debian 13 LXC | Primary ad/malware DNS filter + local DNS records | — |
-| ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma, NetAlertX. Also CrowdSec and Cockpit. | — |
+| ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
 | **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
 | **cobra-arcade** | OptiPlex 7040: i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
 | **R620** (later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (2nd node) | On-demand security lab | 110–160 W *only while on* |
@@ -96,13 +96,14 @@
 
 | Host | Service | Port | Who can reach it |
 |---|---|---|---|
-| gate | nginx | 80 → 443 redirect, 443 | Internet (via OPNsense forward) + LAN |
+| gate | nginx | 443 (80 only redirects to 443) | Internet on 443 (OPNsense forward) + LAN + VPN |
 | gate (in pod) | Authelia 9091 · Vaultwarden 8222 · Paperless 8000 · Postgres 5432 · Redis 6379 · MeTube 8081 · Homepage 3000 · Uptime Kuma 3001 | localhost only | Only nginx inside the pod |
 | gate | Cockpit | 9090 | LAN + VPN |
 | stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533 · RomM 8080 | LAN only (nftables) | gate's nginx + LAN clients |
-| stream | Samba | 445 | LAN |
-| stream | Pi-hole #2 | 53, 80/443 (admin) | LAN |
-| stream | PBS | 8007 | LAN |
+| stream | Samba | 445 | LAN + VPN |
+| stream | Pi-hole #2 | 53, 80/443 (admin) | LAN + VPN |
+| stream | Cockpit · SSH | 9090 · 22 | LAN + VPN |
+| stream | PBS | 8007 | LAN + VPN |
 | cobra-command | Proxmox | 8006, 22 | LAN + VPN |
 | cobra-firewall | WireGuard | 51820/udp | Internet |
 
@@ -115,7 +116,7 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 
 | Want | URL | Path after the gate | Login |
 |---|---|---|---|
-| Watch a movie / Live TV | `tv.songofeo.com` | → stream: Jellyfin (+ ErsatzTV channels) | Jellyfin login every time: hidden users, no Quick Connect, sessions revoked every 8 h |
+| Watch a movie / Live TV | `tv.songofeo.com` | → stream: Jellyfin (+ ErsatzTV channels) | Jellyfin login: hidden users (nobody's name is shown on the login page), no Quick Connect |
 | Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | In-app |
 | Comics / graphic novels | `comics.songofeo.com` | → stream: Kavita | In-app *(you had typed `books.` for both; Kavita gets its own hostname)* |
 | Eels' music | `eelsmusic.songofeo.com` | → stream: Navidrome (Eels' library) | In-app, 8 h session |
@@ -186,7 +187,7 @@ Machine names, IPs, shares and backups don't mention the domain, so a swap touch
 | Where | What to change |
 |---|---|
 | Porkbun | Turn on API Access for the new domain; recreate the app CNAMEs (part 5.5); new API keys (or widen the old ones to the new domain) |
-| OPNsense → Dynamic DNS | Zone and hostname (part 2.10) |
+| OPNsense → Dynamic DNS | Hostname (part 2.10) |
 | WireGuard clients | `Endpoint =` in each client config (part 2.8) |
 | Both Pi-holes | The `address=/<domain>/10.6.9.10` line (part 2.9, 3.9) |
 | Gate: lego | New wildcard cert for the new domain (part 5.3): the domain in the first-run command, the renewal service and the deploy script |

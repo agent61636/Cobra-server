@@ -74,13 +74,14 @@ sudo install -m 600 /dev/null /root/smb-gate.cred
 printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
 sudo mkdir -p /srv/storage/pool
 PU=$(id -u podsvc); PG=$(id -g podsvc)
-echo "//cobra-stream.home.arpa/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
+echo "//10.6.9.20/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
   | sudo tee -a /etc/fstab
 sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/pool
 ```
 
 - `file_mode=0666,dir_mode=0777`: Paperless and MeTube run as a non-root user *inside* their containers, which is some unnamed ID on the gate, so the mount lets anyone on the gate write. Only `eels` and `podsvc` log in there. This setting is local to the gate; on the SGIN the files still land as user `gate`, group `media`, mode 664, like everything else written over Samba.
 - `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
+- The share is addressed by IP on purpose: the gate asks OPNsense (Unbound) for DNS, which doesn't know the `home.arpa` names Pi-hole serves, and an IP also mounts before any DNS is up.
 - `/srv/storage/pool` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
 - [ ] `touch /srv/storage/pool/scans/test && rm /srv/storage/pool/scans/test` works as eels
 
