@@ -1,0 +1,80 @@
+# 0. Before you start
+
+**Result:** nothing you care about can be lost, the domain is ready on Porkbun, and every number the later parts ask for is written down in one place.
+
+Doing part 1 already (Proxmox on the Latitude)? That's fine. Nothing here touches the Latitude; just finish this list before part 2's cutover.
+
+## 0.1 A safe place for secrets
+
+Every part generates passwords and keys "into your password manager". Vaultwarden doesn't exist until part 5, so use an interim one now:
+
+- [ ] Install **KeePassXC** on your Windows desktop (`winget install -e --id KeePassXCTeam.KeePassXC`), create `cobra.kdbx` with a strong master password, and copy it to a USB stick after each session
+- [ ] Part 5 imports it into Vaultwarden (Vaultwarden → Tools → Import → KeePass format)
+
+## 0.2 Inventory (fill in as you go)
+
+Copy this table into KeePassXC as a note, or keep it on paper next to the machines.
+
+| What | Where to find it | Value |
+|---|---|---|
+| Latitude onboard NIC MAC | Proxmox shell: `ip -br link` (`enp0s31f6`) | |
+| Latitude USB NIC MAC | same (`enx…`) | |
+| SGIN (old server) MAC and current IP | Xfinity app → Connected devices | |
+| OptiPlex MAC | `ipconfig /all` on it | |
+| Desktop 1 / Desktop 2 MACs | `ipconfig /all` | |
+| Every port forward on Xfinity today | Xfinity app → Advanced → Port forwarding | |
+| What the old server runs, and on which ports | `podman ps` / `docker ps` on the SGIN | |
+| Current public IPv4 | `curl -4 https://ifconfig.me` | |
+| Windows key (OptiPlex) | `(Get-CimInstance SoftwareLicensingService).OA3xOriginalProductKey` | |
+
+## 0.3 Backups before anything is wiped
+
+| Machine | Wiped in | Copy off first |
+|---|---|---|
+| SGIN (old server) | Part 3 | App configs and databases, compose/Quadlet files, anything on its internal disk. The USB drives are not wiped. |
+| OptiPlex | Part 4 | LaunchBox folder, RetroArch `saves states system config playlists`, every `.hi` file, game saves outside RetroArch |
+| Latitude | Part 1 (done) | — |
+
+- [ ] Put the copies on a drive that is **not** one of the SGIN's USB drives (a desktop's disk or the OptiPlex's WD drive), so one failure can't take both the original and the copy
+- [ ] Open one or two files from each copy, to make sure the copy is real
+
+## 0.4 songofeo.com on Porkbun
+
+The domain stays where it is: Porkbun is the registrar **and** the DNS. The build needs plain DNS records pointing at your home IP, plus API access so OPNsense can keep the IP current (part 2.10) and the gate can get its certificate (part 5.3).
+
+- [ ] **Nameservers:** Porkbun → Domain Management → `songofeo.com` → Details → Authoritative Nameservers are Porkbun's own (`*.porkbun.com`). If they point somewhere else (an old Cloudflare setup, say), switch them back to Porkbun's defaults and give it an hour.
+- [ ] **API Access: on** for `songofeo.com` (same Details page). It's off per domain by default, and without it every API call fails.
+- [ ] **Clean the DNS records** (Details → DNS Records):
+  - Delete Porkbun's parking defaults: the **ALIAS** for the bare domain and the **`*` CNAME** pointing at `pixie.porkbun.com` / `uixie.porkbun.com`.
+  - Delete every **AAAA** record (they're what broke things when your IP "turned into IPv6").
+  - Keep any **MX/TXT** records for email you actually use.
+  - If your old server is public now, keep or create one **A** record for the bare domain (host blank) with the IPv4 from 0.2. OPNsense takes it over in part 2.10.
+- [ ] **URL Forwarding** (Details → URL Forwarding): remove any forwards for `songofeo.com` or names you'll use (`tv`, `docs`, …). A forward replaces the DNS answer with Porkbun's redirect servers.
+- [ ] **Two API keys** (Account → API Access → Create API Key):
+  - `cobra-ddns` (for OPNsense) and `cobra-acme` (for the gate)
+  - If the form offers it, limit each key to the domain `songofeo.com` and to DNS permissions. Don't limit by IP; your home IP changes.
+  - Each shows a **secret key once** (`sk1_…`). Store both halves in KeePassXC immediately.
+
+## 0.5 Install media
+
+- [ ] Proxmox VE 9 USB (done)
+- [ ] **Debian 13 netinst** USB for the SGIN (Rufus, DD mode). The OPNsense and gate ISOs are downloaded straight onto Proxmox in part 1.9.
+- [ ] **Windows 11** USB for the OptiPlex (Rufus with the requirement and online-account bypasses ticked; part 4.1)
+
+## 0.6 Shopping list
+
+| Item | Needed for | When |
+|---|---|---|
+| USB 3 gigabit NIC (RTL8153) | OPNsense WAN on the Latitude | Before part 2 |
+| One more Ethernet cable | USB NIC → Xfinity | Before part 2 |
+| 18–20 TB 3.5" NAS drive | The `vault` backup drive (part 5.6) | Soon; until then the library has no backup |
+| Second dual-bay dock | More pool space | Whenever |
+
+## Done when
+
+- [ ] KeePassXC file exists, with a copy on USB
+- [ ] Inventory table filled in, at least the MACs and port forwards
+- [ ] Old server and cabinet backups copied and spot-checked
+- [ ] `songofeo.com` on Porkbun's nameservers with API Access on; no AAAA, parking or URL-forwarding records; both API keys stored
+
+Next: **[1. Set up Latitude](01-latitude.md)**

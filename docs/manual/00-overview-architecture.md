@@ -110,7 +110,7 @@
 
 ## 4. Your user flowcharts (corrected)
 
-All public traffic follows the same path: **user → Cloudflare DNS (grey cloud, DNS only) → your home IP → Xfinity → cobra-firewall (firewall, IDS/IPS, CrowdSec) → cobra-gate (nginx TLS + rate limits [+ Authelia]) → the app.**
+All public traffic follows the same path: **user → Porkbun DNS (plain DNS, no proxy) → your home IP → Xfinity → cobra-firewall (firewall, IDS/IPS, CrowdSec) → cobra-gate (nginx TLS + rate limits [+ Authelia]) → the app.**
 At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never leaves the house.
 
 | Want | URL | Path after the gate | Login |
@@ -133,7 +133,7 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 
 **Why Jellyfin, Audiobookshelf, Kavita, Navidrome and RomM aren't behind Authelia:** putting a login page in front of them breaks their phone and TV apps, which can't complete a web login. They rely on their own logins plus rate limiting, CrowdSec and strong passwords instead.
 
-**Why there's no Cloudflare Tunnel or orange-cloud proxy:** Cloudflare's terms restrict serving video through its proxy and CDN. The records stay DNS-only, and only TCP 443 (plus UDP 51820 for WireGuard) is forwarded.
+**Why plain DNS and no proxy in front:** proxy services like Cloudflare's (the "orange cloud") or Cloudflare Tunnel restrict serving video through them, and a proxy in front of a server that also redirects HTTP to HTTPS is a classic cause of endless redirect loops. Porkbun just answers DNS: the records point straight at your home IP, and only TCP 443 (plus UDP 51820 for WireGuard) is forwarded.
 
 ---
 
@@ -149,7 +149,7 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 
 | Part | File | What you finish with | Est. time |
 |---|---|---|---|
-| — | *(before part 1)* | Backups of every machine verified, `songofeo.com` active on Cloudflare, Proxmox/Debian/Windows USB sticks made | 2–3 h |
+| 0 | [`00-prep.md`](00-prep.md) | Backups verified, `songofeo.com` ready on Porkbun with API keys, inventory, USB sticks made | 2–3 h |
 | 1 | [`01-latitude.md`](01-latitude.md) | Proxmox installed, updated and locked down on the Latitude; installers staged | 2 h |
 | 2 | [`02-networking.md`](02-networking.md) | OPNsense routing the house, DoT, WireGuard, DDNS, IDS/CrowdSec, Pi-hole #1 | 3–5 h |
 | 3 | [`03-sgin.md`](03-sgin.md) | `cobra-stream`: Samba, Quick Sync media pod, Pi-hole #2, PBS | 4–6 h |
@@ -185,11 +185,11 @@ Machine names, IPs, shares and backups don't mention the domain, so a swap touch
 
 | Where | What to change |
 |---|---|
-| Cloudflare | Add the new zone; recreate the apex A record and the app CNAMEs (part 5.5); new API tokens |
+| Porkbun | Turn on API Access for the new domain; recreate the app CNAMEs (part 5.5); new API keys (or widen the old ones to the new domain) |
 | OPNsense → Dynamic DNS | Zone and hostname (part 2.10) |
 | WireGuard clients | `Endpoint =` in each client config (part 2.8) |
 | Both Pi-holes | The `address=/<domain>/10.6.9.10` line (part 2.9, 3.9) |
-| Gate: certbot | New wildcard cert for the new domain (part 5.3); update the deploy hook paths |
+| Gate: lego | New wildcard cert for the new domain (part 5.3): the domain in the first-run command, the renewal service and the deploy script |
 | Gate: nginx | Every `server_name` and the map keys in `songofeo.conf` (part 5.4) |
 | Gate: Authelia | `totp.issuer`, the session cookie `domain` and `authelia_url`, the access rules (part 5.4) |
 | Gate: app settings | `DOMAIN=` (Vaultwarden), `PAPERLESS_URL`, `HOMEPAGE_ALLOWED_HOSTS` |
@@ -204,7 +204,7 @@ The hiscore app gets designed and built **after the rest of the network is runni
 
 | Touch-point | Reservation | Set up in |
 |---|---|---|
-| Public hostname | `scores.songofeo.com` (Cloudflare DNS-only record, created when the app goes live) | Hiscore stage |
+| Public hostname | `scores.songofeo.com` (Porkbun CNAME, created when the app goes live) | Hiscore stage |
 | Local DNS | `scores.songofeo.com → 10.6.9.10` in Pi-hole (already covered by the `address=/songofeo.com/` line) | Part 2 |
 | TLS | Already covered by the `*.songofeo.com` wildcard certificate | Part 5 |
 | nginx | `scores.songofeo.com` server block, **commented out** until the app exists | Part 5 |

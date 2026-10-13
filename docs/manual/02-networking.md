@@ -2,7 +2,7 @@
 
 **Result:** OPNsense, running as a VM on the Latitude, is the router/firewall for the house. All wired gear sits behind it on `10.6.9.0/24`, Pi-hole filters DNS, and WireGuard gets you in from outside.
 
-**Needs:** part 1 done. Cloudflare zone for `songofeo.com` active. A Cloudflare API token (My Profile → API Tokens → "Edit zone DNS" template, add Zone · Zone · Read, zone = `songofeo.com`). A 2–3 h window: **wired internet is down from 2.4 until 2.5 is finished.** Xfinity Wi-Fi keeps working the whole time.
+**Needs:** part 1 done. `songofeo.com` on Porkbun with **API Access turned on** for the domain, and the `cobra-ddns` Porkbun API key + secret key (part 0.4). A 2–3 h window: **wired internet is down from 2.4 until 2.5 is finished.** Xfinity Wi-Fi keeps working except for a minute while the gateway restarts.
 
 ---
 
@@ -247,15 +247,17 @@ Keeps `songofeo.com` (apex A record) pointed at your home IP. App hostnames get 
 
 | Field | Value |
 |---|---|
-| Service | Cloudflare |
-| Username | the literal word **`token`** (OPNsense's Cloudflare instructions for API-token login) |
-| Password | the API token |
-| Zone | `songofeo.com` |
+| Service | **Porkbun** |
+| Username | the `cobra-ddns` **API key** (`pk1_…`) |
+| Password | its **secret API key** (`sk1_…`) |
 | Hostname(s) | `songofeo.com` |
-| Check ip method | a web service (e.g. `cloudflare` or `ipify-ipv4`), **not** "Interface" (*WAN is `10.0.0.2`, a private address*) |
+| Check ip method | a web service (e.g. `ipify-ipv4`), **not** "Interface" (*WAN is `10.0.0.2`, a private address*) |
 
-- [ ] Save, Apply. Within a few minutes Cloudflare → DNS shows an A record for `songofeo.com` with your public IP. Click the cloud **grey (DNS only)** if it's orange.
-- [ ] **IPv4 only.** This build forwards IPv4 only; Xfinity also gives you an IPv6 address, but nothing behind OPNsense is reachable on it. If any updater (this one, or an older one from your old server) publishes it, browsers try the IPv6 first and every link breaks. Leave IPv6 off in the account (no AAAA), and in Cloudflare → DNS **delete any AAAA records**. Check from any machine: `nslookup -type=AAAA songofeo.com 1.1.1.1` returns no address.
+⚠️ Check the field help on screen: if the Porkbun form asks for the keys under other labels (e.g. "API key" / "Secret"), put the `pk1_` key and the `sk1_` key there instead.
+
+- [ ] Save, Apply. Within a few minutes Porkbun → `songofeo.com` → DNS shows an **A** record for `songofeo.com` (host blank) with your public IP. If it doesn't, the most common cause is API Access still being off for the domain (part 0.4).
+- [ ] **IPv4 only.** This build forwards IPv4 only; Xfinity also gives you an IPv6 address, but nothing behind OPNsense is reachable on it. If any updater (this one, or an older one from your old server) publishes it, browsers try the IPv6 first and every link breaks. Leave IPv6 off in the account (no AAAA), and in Porkbun's DNS **delete any AAAA records**. Check from any machine: `nslookup -type=AAAA songofeo.com 1.1.1.1` returns no address.
+- [ ] Turn off any old updater (a script or container on the old server) that also writes to this domain, so two updaters don't fight
 
 ## 2.11 IDS/IPS and CrowdSec
 
@@ -272,7 +274,7 @@ Keeps `songofeo.com` (apex A record) pointed at your home IP. App hostnames get 
 - [ ] Wired devices get `10.6.9.1xx` (or their reservation), DNS `10.6.9.3`, and browse normally
 - [ ] Proxmox at `https://10.6.9.2:8006`, OPNsense at `https://10.6.9.1` (TOTP)
 - [ ] `nslookup anything.songofeo.com` on the LAN → `10.6.9.10`
-- [ ] Cloudflare A record for `songofeo.com` = your public IP, grey cloud
+- [ ] Porkbun A record for `songofeo.com` = your public IP; no AAAA records
 - [ ] Phone on cellular reaches Proxmox through WireGuard
 - [ ] Back up the OPNsense config: System → Configuration → Backups → **Download configuration**
 

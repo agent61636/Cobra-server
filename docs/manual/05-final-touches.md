@@ -9,7 +9,7 @@
 | Term | Meaning |
 |---|---|
 | **Reverse proxy (nginx)** | Receives every `https://<name>.songofeo.com` request and forwards it by hostname to the right app. |
-| **Wildcard cert** | One Let's Encrypt cert for `songofeo.com` + `*.songofeo.com`, obtained by DNS challenge (certbot writes a TXT record via the Cloudflare token), so nothing needs to be open to get it. |
+| **Wildcard cert** | One Let's Encrypt cert for `songofeo.com` + `*.songofeo.com`, obtained by DNS challenge (lego writes a TXT record through the Porkbun API), so nothing needs to be open to get it. |
 | **Authelia** | Login + TOTP portal at `auth.songofeo.com`. nginx asks it "is this user logged in?" before serving the protected apps. |
 | **Gate pod** | All gate apps in one rootless Podman pod. Only nginx's 80/443 are published; the apps listen on `127.0.0.1` inside the pod. |
 
@@ -36,7 +36,7 @@ On gate (eels):
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit certbot python3-certbot-dns-cloudflare nftables systemd-container
+sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit nftables systemd-container
 # rootless containers may bind 80/443
 echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/90-ports.conf && sudo sysctl --system
 sudo useradd -m -s /bin/bash podsvc && sudo loginctl enable-linger podsvc
@@ -86,21 +86,70 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/
 
 ## 5.3 Wildcard cert (as eels)
 
-Token: Cloudflare → My Profile → API Tokens → **Edit zone DNS** template, zone `songofeo.com`. Make a separate one from part 2's DDNS token so either can be revoked alone.
+**lego** gets one Let's Encrypt certificate for `songofeo.com` and `*.songofeo.com` by putting a temporary TXT record in your Porkbun DNS (the DNS challenge), so nothing has to be open to the internet to get it. Certbot has no Porkbun plugin in Debian; lego has Porkbun built in.
+
+Credentials: the `cobra-acme` Porkbun API key and secret key from part 0.4 (separate from the DDNS key, so either can be revoked alone).
 
 ```bash
-sudo install -m 600 /dev/null /root/cloudflare.ini
-echo 'dns_cloudflare_api_token = <gate-acme token>' | sudo tee /root/cloudflare.ini >/dev/null
-sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/cloudflare.ini \
-  -d songofeo.com -d '*.songofeo.com' --agree-tos -m <your email> -n
-sudo tee /etc/letsencrypt/renewal-hooks/deploy/gate.sh >/dev/null <<'EOF'
+sudo apt install -y lego
+lego --version                                # needs 4.4 or newer for Porkbun
+sudo install -m 600 /dev/null /root/porkbun.env
+sudo tee /root/porkbun.env >/dev/null <<'EOF'
+PORKBUN_API_KEY=pk1_...
+PORKBUN_SECRET_API_KEY=sk1_...
+PORKBUN_PROPAGATION_TIMEOUT=900
+EOF
+
+# The deploy step: copy the cert where nginx reads it, then restart nginx
+sudo tee /usr/local/sbin/gate-cert-deploy >/dev/null <<'EOF'
 #!/bin/sh
-install -o podsvc -m 600 /etc/letsencrypt/live/songofeo.com/fullchain.pem /srv/gate/nginx/certs/
-install -o podsvc -m 600 /etc/letsencrypt/live/songofeo.com/privkey.pem /srv/gate/nginx/certs/
+set -e
+C=/etc/lego/certificates
+install -o podsvc -m 600 $C/songofeo.com.crt /srv/gate/nginx/certs/fullchain.pem
+install -o podsvc -m 600 $C/songofeo.com.key /srv/gate/nginx/certs/privkey.pem
 runuser -u podsvc -- env XDG_RUNTIME_DIR=/run/user/$(id -u podsvc) systemctl --user restart nginx 2>/dev/null || true
 EOF
-sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/gate.sh && sudo /etc/letsencrypt/renewal-hooks/deploy/gate.sh
+sudo chmod 755 /usr/local/sbin/gate-cert-deploy
+
+# First certificate (takes a few minutes while Porkbun's DNS updates)
+sudo sh -c 'set -a; . /root/porkbun.env; set +a; lego --path /etc/lego --email "<your email>" --accept-tos \
+  --dns porkbun --domains songofeo.com --domains "*.songofeo.com" run'
+sudo /usr/local/sbin/gate-cert-deploy
 ```
+
+- `apt` can't find `lego`? Download the `linux_amd64` archive from github.com/go-acme/lego/releases, check it against the release's checksums file, put the `lego` binary in `/usr/local/bin/`, and use `/usr/local/bin/lego` in the renewal service below.
+- If `lego --version` says **5.x**, the options go **after** the word `run` or `renew` (`lego run --dns porkbun ...`), as in lego's current docs. 4.x takes them before, as written here.
+- `songofeo.com.crt` already contains the full chain, which is what nginx wants as `fullchain.pem`.
+
+Automatic renewal (a systemd timer, daily; lego renews when fewer than 30 days remain):
+
+```bash
+sudo tee /etc/systemd/system/lego-renew.service >/dev/null <<'EOF'
+[Unit]
+Description=Renew the songofeo.com wildcard certificate
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+EnvironmentFile=/root/porkbun.env
+ExecStart=/usr/bin/lego --path /etc/lego --email "<your email>" --accept-tos --dns porkbun --domains songofeo.com --domains *.songofeo.com renew --days 30 --renew-hook /usr/local/sbin/gate-cert-deploy
+EOF
+sudo tee /etc/systemd/system/lego-renew.timer >/dev/null <<'EOF'
+[Unit]
+Description=Daily certificate renewal check
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable --now lego-renew.timer
+sudo systemctl start lego-renew.service && sudo journalctl -u lego-renew -n 5   # "no renewal" is the expected answer today
+```
+
+- [ ] `sudo ls -l /srv/gate/nginx/certs/` shows `fullchain.pem` and `privkey.pem`, owned by podsvc
+- [ ] `systemctl list-timers lego-renew.timer` shows the next run
 
 ## 5.4 Gate pod (as podsvc: `sudo machinectl shell podsvc@`)
 
@@ -262,7 +311,7 @@ printf 'users:\n  eels:\n    displayname: Eels\n    email: <you@email>\n    pass
 chmod 600 /srv/gate/authelia/*.yml
 ```
 
-- [ ] Extra hostname: **`auth.songofeo.com`** (Authelia portal) — add to Cloudflare CNAMEs below
+- [ ] Extra hostname: **`auth.songofeo.com`** (Authelia portal) — add to the Porkbun CNAMEs below
 
 nginx (`/srv/gate/nginx/conf.d/songofeo.conf`):
 
@@ -376,7 +425,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 
 ## 5.5 Go public
 
-- [ ] Cloudflare: CNAME → `songofeo.com`, **DNS only**: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`)
+- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `songofeo.com`: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`, which stays LAN/VPN-only). They follow the apex A record that DDNS keeps up to date. Make sure Porkbun's **URL Forwarding** has nothing for these names.
 - [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
 

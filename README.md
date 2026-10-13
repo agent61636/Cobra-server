@@ -7,6 +7,7 @@ Start with the overview, then follow the parts in order.
 | Part | File |
 |---|---|
 | Overview | [docs/manual/00-overview-architecture.md](docs/manual/00-overview-architecture.md) |
+| 0. Before you start | [docs/manual/00-prep.md](docs/manual/00-prep.md) |
 | 1. Latitude (Proxmox) | [docs/manual/01-latitude.md](docs/manual/01-latitude.md) |
 | 2. Networking (OPNsense, Pi-hole #1) | [docs/manual/02-networking.md](docs/manual/02-networking.md) |
 | 3. SGIN (media, Samba, Pi-hole #2, PBS) | [docs/manual/03-sgin.md](docs/manual/03-sgin.md) |
