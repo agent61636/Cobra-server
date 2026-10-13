@@ -72,17 +72,17 @@ Shared storage from the SGIN (MeTube saves into the library, Paperless reads the
 sudo apt install -y cifs-utils
 sudo install -m 600 /dev/null /root/smb-gate.cred
 printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
-sudo mkdir -p /srv/storage/media1
+sudo mkdir -p /srv/storage/pool
 PU=$(id -u podsvc); PG=$(id -g podsvc)
-echo "//elysidrome-stream.home.arpa/media /srv/storage/media1 cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0664,dir_mode=0775,_netdev,nofail,x-systemd.automount 0 0" \
+echo "//elysidrome-stream.home.arpa/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0664,dir_mode=0775,_netdev,nofail,x-systemd.automount 0 0" \
   | sudo tee -a /etc/fstab
-sudo systemctl daemon-reload && sudo mount /srv/storage/media1 && ls /srv/storage/media1
+sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/pool
 ```
 
 - `uid`/`gid=podsvc`: inside the rootless containers that user is "root", so MeTube and Paperless can write. On the SGIN the files still land as user `gate`, group `media`.
 - `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
-- `/srv/storage/media1` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
-- [ ] `touch /srv/storage/media1/scans/test && rm /srv/storage/media1/scans/test` works as eels
+- `/srv/storage/pool` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
+- [ ] `touch /srv/storage/pool/scans/test && rm /srv/storage/pool/scans/test` works as eels
 
 ## 5.3 Wildcard cert (as eels)
 
@@ -334,7 +334,7 @@ echo '30 3 * * * root . /root/pbs.env && export PBS_REPOSITORY PBS_PASSWORD PBS_
 
 - [ ] PBS UI → Datastore store1 → Prune & GC jobs: daily; Verify job: weekly
 - [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901. **Before starting it**, cut its network so it doesn't steal Pi-hole #1's `10.10.10.3`: `pct set 901 --net0 name=eth0,bridge=vmbr0,ip=10.10.10.3/24,gw=10.10.10.1,link_down=1`. Start, `pct enter 901`, check `pihole status`, then stop and destroy
-- [ ] Offsite copy of `/srv/storage/media1/pbs` + photos to a second disk/cloud
+- [ ] Second copy of the PBS datastore (`/srv/storage/disks/<drive>/pbs`) and of anything irreplaceable: see part 4.6 (the OptiPlex drive) and add a cloud copy for photos and documents
 
 ## 5.7 Monitoring
 

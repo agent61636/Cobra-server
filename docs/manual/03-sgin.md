@@ -2,7 +2,7 @@
 
 **Result:** the SGIN runs Debian 13 bare metal and serves all storage (Samba), the media apps (one rootless Podman pod), Pi-hole #2 and Proxmox Backup Server.
 
-🔌 SGIN onboard Ethernet → your switch (behind OPNsense, from part 2) for the whole part. Storage drives **unplugged** until "Storage".
+🔌 SGIN onboard Ethernet → your switch (behind OPNsense, from part 2) for the whole part. **Unplug the USB hub from the SGIN until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive.
 
 ## 3.1 Terms
 
@@ -63,27 +63,101 @@ sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc   # expect
 
 ## 3.4 Storage
 
-🔌 Plug the storage drives into the SGIN now.
+🔌 Plug the storage drives into the SGIN now: both WD external drives, and the dual-bay dock with its disks. The second dock gets added the same way later (see "Adding a drive later").
 
+**Before anything else, about the docks' clone button:** on most dual-bay docks, clone mode **erases one bay and overwrites it with the other**. Put tape over the button. Nothing in this manual uses it.
+
+### How the drives are combined
+
+| Layer | Path | What it is |
+|---|---|---|
+| Each drive | `/srv/storage/disks/<label>` | Mounted on its own, by UUID. Unplug any one drive and the others keep working; any drive can be read on its own in another computer. |
+| The library on each drive | `/srv/storage/disks/<label>/library` | The part of each drive that joins the pool |
+| **The pool** | **`/srv/storage/pool`** | **mergerfs** shows every drive's `library` folder as one big folder. New files go to whichever drive has the most free space, so free space on every drive gets used. This is the only path apps, Samba and the gate ever see. |
+| Backups | `/srv/storage/disks/<label>/pbs` | Proxmox Backup Server's datastore, on one drive, deliberately **outside** the pool so nobody can delete backups through a share |
+
+Why mergerfs and not RAID: RAID across USB enclosures drops whole arrays when a USB link resets, and it needs matching drives. mergerfs takes any mix of sizes and filesystems, and losing one drive loses only the files on that drive. Protection against a dead drive comes from backups (part 5), plus optional SnapRAID parity once the second dock is in (end of this section).
+
+The OptiPlex's internal WD drive stays in the OptiPlex. See part 4.6 for what it does there. Spare space on the machines' system drives (the Latitude's NVMe, the SGIN's own SSD) is **not** added to the pool. Those disks get wiped and reinstalled, and a pool member that lives on another machine disappears whenever that machine reboots.
+
+### Set up the drives
 
 ```bash
-lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID
-sudo mkdir -p /srv/storage/media1        # one dir per drive label
-# new/empty drive only:  sudo mkfs.ext4 -L media1 /dev/sdX1
-echo 'UUID=<uuid> /srv/storage/media1 ext4 defaults,nofail,x-systemd.device-timeout=10 0 2' | sudo tee -a /etc/fstab
-# existing NTFS drive instead: apt install ntfs-3g; fstype ntfs-3g, options uid=podsvc,gid=media,nofail
-sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/*
+sudo groupadd media                                        # owns the library (users come in 3.5)
+sudo apt install -y mergerfs ntfs-3g
+lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every drive
 ```
 
-Folder layout per drive: `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans pbs`.
+For each drive, pick a short label: `wd1`, `wd2` for the externals, `dock1a`, `dock1b` for the dock's bays.
+
+**Empty drive, or one you've copied off first** (ext4 is the most reliable choice on Linux):
+
+```bash
+sudo wipefs -a /dev/sdX && sudo parted -s /dev/sdX mklabel gpt mkpart data ext4 0% 100%
+sudo mkfs.ext4 -L wd1 -m 0 /dev/sdX1                       # -m 0: no space reserved for root on a data drive
+L=wd1; U=$(sudo blkid -s UUID -o value /dev/sdX1)
+sudo mkdir -p /srv/storage/disks/$L
+echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
+```
+
+**Drive that already holds files in NTFS** (keep it as it is):
+
+```bash
+L=wd2; U=$(sudo blkid -s UUID -o value /dev/sdY1)
+sudo mkdir -p /srv/storage/disks/$L
+echo "UUID=$U /srv/storage/disks/$L ntfs-3g uid=0,gid=$(getent group media | cut -d: -f3),umask=002,noatime,nofail,x-systemd.device-timeout=15 0 0" | sudo tee -a /etc/fstab
+```
+
+Then mount everything and give each drive its `library` folder. On a drive that already has files, move them into `library` (a move on the same drive is instant):
+
+```bash
+sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
+for d in /srv/storage/disks/*; do sudo mkdir -p "$d/library"; done
+# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd2/Movies /srv/storage/disks/wd2/library/movies
+```
+
+The pool:
+
+```bash
+sudo mkdir -p /srv/storage/pool
+echo '/srv/storage/disks/*/library /srv/storage/pool fuse.mergerfs defaults,allow_other,use_ino,cache.files=off,dropcacheonclose=true,category.create=mfs,moveonenospc=true,minfreespace=20G,fsname=pool,nofail,x-systemd.requires-mounts-for=/srv/storage/disks 0 0' \
+  | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/pool && df -h /srv/storage/pool
+```
+
+- `category.create=mfs`: each new file goes to the drive with the most free space
+- `minfreespace=20G`: a drive with less than 20 GB free gets no new files
+- `moveonenospc=true`: if a drive fills mid-copy, the file moves to another drive instead of failing
+
+Folder layout (made once, on the pool): `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans`.
 
 - `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin)
 - `youtube`: MeTube saves here from the gate (part 5)
 - `scans`: drop documents here from any machine and Paperless on the gate picks them up (part 5)
 
 ```bash
-sudo mkdir -p /srv/storage/media1/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans,pbs}
+sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans}
 ```
+
+- [ ] `df -h /srv/storage/pool` shows the combined size of all drives
+- [ ] Reboot with one drive unplugged: the SGIN still boots, the pool still mounts with the other drives
+
+### USB drives on Linux: two things to check
+
+- **Link resets.** Some USB-to-SATA chips misbehave with the fast UAS driver. If `sudo dmesg | grep -i -E 'uas|reset'` shows repeated resets for a drive, note its ID from `lsusb` (e.g. `152d:0578`), add `usb-storage.quirks=152d:0578:u` to `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`, `sudo update-grub`, reboot.
+- **The powered hub** (9-port USB 3.2 hub, 65 W adapter). Which ports to use:
+  - **Bus-powered WD externals → the two 10 Gb/s USB-A 3.2 ports.** These ports draw their power from the hub's 65 W brick.
+  - **Docks (they have their own power bricks) → any of the 5 Gb/s USB 3.0 ports**, or straight onto the SGIN.
+  - **Leave both 45 W PD charging ports empty.** They share the same 65 W budget, and a phone or laptop charging there can starve the drives and make them drop.
+  - Speed is fine: one spinning disk moves about 1.5–2 Gb/s, and mergerfs reads each file from a single drive. The hub only gets busy when several drives copy at full speed at once.
+  - One point of failure: if the hub loses power or resets, every drive drops at the same moment. Plug its brick into the same outlet or UPS as the SGIN, never a switched strip. If `dmesg` shows whole-hub dropouts, move the docks to the SGIN's own USB 3 ports.
+  - [ ] `lsusb -t` shows each drive at `5000M` or `10000M`. `480M` means it fell back to USB 2: reseat the cable or try another port.
+
+### Adding a drive later (the second dock)
+
+1. Label and mount it exactly as above (`dock2a`, `dock2b`), and `mkdir` its `library` folder.
+2. `sudo umount /srv/storage/pool && sudo mount /srv/storage/pool`. The `*` in the fstab line picks it up; nothing else changes.
+3. Optional, once there are four or more drives: **SnapRAID** turns one drive into parity for the rest, so a dead drive can be rebuilt. The parity drive must be at least as big as the biggest data drive. ⚠️ Decide when you know the sizes; it's a separate short setup.
 
 ## 3.5 Users and permissions
 
@@ -92,11 +166,10 @@ sudo mkdir -p /srv/storage/media1/{movies,tv,music/eels,music/rachel,books,audio
 How the permissions fit together: files arrive from Samba owned by whoever wrote them, with group `media` and mode `664`/`2775`. Containers that only read the library (Jellyfin, Audiobookshelf, Kavita, Navidrome) can read those through the "other" bits. A rootless container drops `podsvc`'s supplementary groups unless its Quadlet says `GroupAdd=keep-groups`, so every container that **writes** to the library (RomM) or needs `/dev/dri` (Jellyfin, ErsatzTV) carries that line.
 
 ```bash
-sudo groupadd media
 sudo useradd -m -s /bin/bash -G media,render,video podsvc
 sudo loginctl enable-linger podsvc
-sudo chown -R podsvc:media /srv/storage/* && sudo chmod -R g+rwX /srv/storage/*
-sudo find /srv/storage -type d -exec chmod g+s {} +
+sudo chown -R podsvc:media /srv/storage/pool && sudo chmod -R g+rwX /srv/storage/pool   # pool only, never the pbs folders
+sudo find /srv/storage/pool -type d -exec chmod g+s {} +
 sudo mkdir -p /srv/stream && sudo chown podsvc: /srv/stream
 sudo usermod -aG media eels
 ```
@@ -121,16 +194,13 @@ sudo tee /etc/samba/smb.conf >/dev/null <<'EOF'
    read only = no
 
 [media]
-   path = /srv/storage/media1
-   # the PBS datastore lives on this drive; keep it out of reach of SMB users
-   veto files = /pbs/
-   delete veto files = no
+   path = /srv/storage/pool
 
 [roms]
-   path = /srv/storage/media1/roms
+   path = /srv/storage/pool/roms
 
 [scans]
-   path = /srv/storage/media1/scans
+   path = /srv/storage/pool/scans
 EOF
 sudo testparm -s >/dev/null && sudo systemctl restart smbd
 sudo smbpasswd -a eels
@@ -146,8 +216,8 @@ Every machine, and every share, by the same path:
 | Windows desktops | File Explorer → Map network drive (log in as `eels`) | `\\elysidrome-stream\media`, `\scans`, `\roms` |
 | Cabinet | `R:` mapped in part 4 (log in as `arcade`) | `\\elysidrome-stream\roms` |
 | Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\elysidrome-stream\media` |
-| Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/media1` |
-| Containers on the SGIN | Bind mounts in 3.8 | `/media/media1/...` |
+| Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/pool` |
+| Containers on the SGIN | Bind mounts in 3.8 | `/media/...` |
 | Phones on Wi-Fi | Xfinity Wi-Fi is outside the firewall by design; use WireGuard there too | — |
 
 - [ ] Windows: `\\elysidrome-stream\media` opens and you can create and delete a test folder
@@ -203,7 +273,7 @@ AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/jellyfin/config:/config:Z
 Volume=/srv/stream/jellyfin/cache:/cache:Z
-Volume=/srv/storage:/media:ro
+Volume=/srv/storage/pool:/media:ro
 [Install]
 WantedBy=default.target
 EOF
@@ -214,7 +284,7 @@ Pod=stream.pod
 AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/ersatztv:/config:Z
-Volume=/srv/storage:/media:ro
+Volume=/srv/storage/pool:/media:ro
 [Install]
 WantedBy=default.target
 EOF
@@ -225,7 +295,7 @@ Pod=stream.pod
 Environment=PORT=13378
 Volume=/srv/stream/abs/config:/config:Z
 Volume=/srv/stream/abs/metadata:/metadata:Z
-Volume=/srv/storage:/media:ro
+Volume=/srv/storage/pool:/media:ro
 [Install]
 WantedBy=default.target
 EOF
@@ -234,7 +304,7 @@ c kavita <<'EOF'
 Image=docker.io/jvmilazz0/kavita:latest
 Pod=stream.pod
 Volume=/srv/stream/kavita:/kavita/config:Z
-Volume=/srv/storage:/media:ro
+Volume=/srv/storage/pool:/media:ro
 [Install]
 WantedBy=default.target
 EOF
@@ -242,9 +312,9 @@ c navidrome <<'EOF'
 [Container]
 Image=docker.io/deluan/navidrome:latest
 Pod=stream.pod
-Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/media1/music/eels
+Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/music/eels
 Volume=/srv/stream/navidrome:/data:Z
-Volume=/srv/storage:/media:ro
+Volume=/srv/storage/pool:/media:ro
 [Install]
 WantedBy=default.target
 EOF
@@ -270,7 +340,7 @@ Volume=/srv/stream/romm/resources:/romm/resources:Z
 Volume=/srv/stream/romm/assets:/romm/assets:Z
 Volume=/srv/stream/romm/config:/romm/config:Z
 Volume=/srv/stream/romm/redis:/redis-data:Z
-Volume=/srv/storage/media1/roms:/romm/library/roms
+Volume=/srv/storage/pool/roms:/romm/library/roms
 [Install]
 WantedBy=default.target
 EOF
@@ -284,10 +354,10 @@ podman ps                                     # 7 containers Up
 - [ ] App URLs: Jellyfin `http://10.10.10.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
 
 - [ ] Image names checked against the official docs (Oct 2026): ErsatzTV is now published as `ghcr.io/ersatztv/legacy`; RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders
-- [ ] Don't put `:Z` on `/srv/storage` mounts (shared with Samba)
+- [ ] Don't put `:Z` on `/srv/storage/pool` mounts (shared with Samba)
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), **Low-Power H.264/HEVC encoder on**, tone mapping on. Users: hidden, Quick Connect off
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.10.10.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
-- [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/media1/music/rachel` in the UI, then one user each with only their library
+- [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
 - [ ] Each app: create admin user now (first visit = admin)
 
 ## 3.9 Pi-hole #2 (as eels)
@@ -316,14 +386,15 @@ Components: pbs-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
 sudo apt update && sudo apt install -y proxmox-backup-server
-sudo proxmox-backup-manager datastore create store1 /srv/storage/media1/pbs
+PBSDISK=dock1a        # the drive with the most free space that is NOT holding your only copy of anything irreplaceable
+sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs
 sudo proxmox-backup-manager user create pve@pbs --password "$(openssl rand -base64 24 | tee /dev/stderr)"   # store it
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id pve@pbs
 sudo proxmox-backup-manager cert info | grep Fingerprint
 ```
 
 - [ ] Keyring URL and checksum match the PBS install docs (checked Oct 2026)
-- [ ] PBS owns `/srv/storage/media1/pbs` from here on. **Never re-run the `chown -R ... /srv/storage/*` from 3.5** without excluding it, or backups stop working
+- [ ] PBS owns `/srv/storage/disks/<drive>/pbs` from here on. It sits outside the pool, so the pool `chown` in 3.5 never touches it. Never `chown -R /srv/storage`.
 
 ## Done when
 

@@ -165,7 +165,7 @@ At home, Pi-hole answers `*.elysidrome.com` with `10.10.10.10`, so LAN traffic n
 - `eels`: your admin login on every Linux box (has sudo).
 - `podsvc`: the unprivileged account that runs rootless Podman containers (no sudo, lingering enabled).
 - Quadlet files (Podman's systemd unit files) live in `/home/podsvc/.config/containers/systemd/`.
-- App data: `/srv/gate/<app>` on the gate, `/srv/stream/<app>` on the stream box, storage drives under `/srv/storage/<label>`.
+- App data: `/srv/gate/<app>` on the gate, `/srv/stream/<app>` on the stream box, each storage drive at `/srv/storage/disks/<label>`, all of them pooled at `/srv/storage/pool` (the only path apps and shares use).
 - **"On <host> (as <user>):"** before a code block tells you which machine and which account to run it as.
 - `✅ Checkpoint` lines tell you what you should see before moving on. Don't continue past a failed checkpoint.
 - `⚠️ Verify:` marks something the research team couldn't confirm 100% from a primary source. Check it on screen as you go.
