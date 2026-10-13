@@ -1,6 +1,6 @@
 # cobra-server
 
-Build manual for the Elysidrome home network: a Proxmox/OPNsense gateway on a Latitude, a Debian media and storage box on the SGIN, a Windows 11 arcade cabinet on the OptiPlex, and a public gate VM.
+Build manual for the Cobra home network (public domain: `songofeo.com`): a Proxmox/OPNsense gateway on a Latitude, a Debian media and storage box on the SGIN, a Windows 11 arcade cabinet on the OptiPlex, and a public gate VM.
 
 Start with the overview, then follow the parts in order.
 

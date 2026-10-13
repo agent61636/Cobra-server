@@ -2,7 +2,7 @@
 
 **Result:** OPNsense, running as a VM on the Latitude, is the router/firewall for the house. All wired gear sits behind it on `10.6.9.0/24`, Pi-hole filters DNS, and WireGuard gets you in from outside.
 
-**Needs:** part 1 done. Cloudflare zone for `elysidrome.com` active. A Cloudflare API token (My Profile → API Tokens → "Edit zone DNS" template, add Zone · Zone · Read, zone = `elysidrome.com`). A 2–3 h window: **wired internet is down from 2.4 until 2.5 is finished.** Xfinity Wi-Fi keeps working the whole time.
+**Needs:** part 1 done. Cloudflare zone for `songofeo.com` active. A Cloudflare API token (My Profile → API Tokens → "Edit zone DNS" template, add Zone · Zone · Read, zone = `songofeo.com`). A 2–3 h window: **wired internet is down from 2.4 until 2.5 is finished.** Xfinity Wi-Fi keeps working the whole time.
 
 ---
 
@@ -24,14 +24,14 @@ Final path of a packet: client → Pi-hole (`10.6.9.3`, DNS) / OPNsense (`10.6.9
 
 ---
 
-## 2.2 Create the VM (command-center shell, root)
+## 2.2 Create the VM (cobra-command shell, root)
 
 🔌 Onboard → switch · TP-Link: plugged in, no cable (same as part 1). Manage Proxmox at `https://10.6.9.2:8006`.
 
 Both of the VM's network cards start **unplugged** (`link_down=1`). While Xfinity still owns `10.6.9.1`, an OPNsense LAN on the same address would fight it. They get connected during the cutover.
 
 ```bash
-qm create 100 --name open-the-box --ostype other --cpu host --cores 2 --memory 4096 --balloon 0 \
+qm create 100 --name cobra-firewall --ostype other --cpu host --cores 2 --memory 4096 --balloon 0 \
   --scsihw virtio-scsi-single --scsi0 local-lvm:32,discard=on,iothread=1 \
   --net0 virtio,bridge=vmbr1,link_down=1 --net1 virtio,bridge=vmbr0,link_down=1 \
   --cdrom local:iso/$(ls /var/lib/vz/template/iso | grep -m1 'OPNsense.*\.iso$') \
@@ -56,7 +56,7 @@ UI equivalent: **Create VM** (top right), same values on each tab; OS type **Oth
 - [ ] At the login prompt: user **`installer`**, password **`opnsense`**
 - [ ] Keymap: default (US) → **Install (UFS)** → disk **`da0`** → confirm
 - [ ] Set a generated root password when prompted → **Complete Install** → **Reboot**
-- [ ] Remove the ISO: `qm set 100 --ide2 none,media=cdrom` (command-center shell)
+- [ ] Remove the ISO: `qm set 100 --ide2 none,media=cdrom` (cobra-command shell)
 - [ ] Log in at the console as `root` → menu appears
 
 Console menu:
@@ -125,7 +125,7 @@ ip -br addr show vmbr0                        # still 10.6.9.2/24; the host's ow
 
 | Page | Value |
 |---|---|
-| General | Hostname `open-the-box`, domain `home.arpa`. Primary/secondary DNS: blank. **Untick** "Override DNS". Unbound: enabled. |
+| General | Hostname `cobra-firewall`, domain `home.arpa`. Primary/secondary DNS: blank. **Untick** "Override DNS". Unbound: enabled. |
 | Time | Default NTP servers, your time zone |
 | WAN | Type DHCP. At the bottom, **untick "Block RFC1918 private networks"** (*the WAN side is Xfinity's `10.0.0.0/24`, so this would block your own upstream*). Keep "Block bogon networks" ticked. |
 | LAN | `10.6.9.1` / `24` (already set) |
@@ -152,8 +152,8 @@ OPNsense versions differ on which DHCP service is active for LAN. Use whichever 
 
 | IP | Host |
 |---|---|
-| 10.6.9.20 | elysidrome-stream (SGIN) |
-| 10.6.9.30 | elysidrome-arcade (OptiPlex) |
+| 10.6.9.20 | cobra-stream (SGIN) |
+| 10.6.9.30 | cobra-arcade (OptiPlex) |
 | 10.6.9.40 / .41 | R620 iDRAC / R620 (later) |
 | 10.6.9.50 / .51 | Desktops |
 
@@ -195,18 +195,18 @@ DNS = 10.6.9.3, home.arpa      # the name after the IP is a search domain, so sh
 
 [Peer]
 PublicKey = <wg0 public key from OPNsense>
-Endpoint = elysidrome.com:51820
+Endpoint = songofeo.com:51820
 AllowedIPs = 10.6.9.0/24, 10.6.99.0/24
 PersistentKeepalive = 25
 ```
 
 ✅ After 2.10 (DDNS): phone on cellular, Wi-Fi off, tunnel on → `https://10.6.9.2:8006` loads.
 
-## 2.9 Pi-hole CT 101 (command-center shell)
+## 2.9 Pi-hole CT 101 (cobra-command shell)
 
 ```bash
 TPL=$(ls /var/lib/vz/template/cache | grep -m1 debian-13-standard)
-pct create 101 local:vztmpl/$TPL --hostname pihole-1 --cores 1 --memory 512 --swap 512 \
+pct create 101 local:vztmpl/$TPL --hostname cobra-pihole-1 --cores 1 --memory 512 --swap 512 \
   --rootfs local-lvm:4 --net0 name=eth0,bridge=vmbr0,ip=10.6.9.3/24,gw=10.6.9.1 \
   --nameserver 10.6.9.1 --searchdomain home.arpa \
   --unprivileged 1 --features nesting=1 --onboot 1 --startup order=2
@@ -227,21 +227,21 @@ pihole-FTL --config dns.upstreams '["10.6.9.1"]'
 # Default "LOCAL" mode ignores clients on subnets Pi-hole has no interface on, which
 # includes WireGuard (10.6.99.0/24). Only the LAN can reach this CT, so ALL is safe here.
 pihole-FTL --config dns.listeningMode ALL
-# *.elysidrome.com -> the gate, so LAN traffic never leaves the house
-pihole-FTL --config misc.dnsmasq_lines '["address=/elysidrome.com/10.6.9.10"]'
+# *.songofeo.com -> the gate, so LAN traffic never leaves the house
+pihole-FTL --config misc.dnsmasq_lines '["address=/songofeo.com/10.6.9.10"]'
 # local names, full and short. The short ones matter over WireGuard: a VPN client doesn't
-# get the home.arpa search suffix, so \\elysidrome-stream would otherwise not resolve.
-pihole-FTL --config dns.hosts '["10.6.9.1 open-the-box.home.arpa open-the-box","10.6.9.2 command-center.home.arpa command-center","10.6.9.3 pihole-1.home.arpa pihole-1","10.6.9.10 elysidrome-gate.home.arpa elysidrome-gate","10.6.9.20 elysidrome-stream.home.arpa elysidrome-stream","10.6.9.30 elysidrome-arcade.home.arpa elysidrome-arcade"]'
+# get the home.arpa search suffix, so \\cobra-stream would otherwise not resolve.
+pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
 exit
 ```
 
 - [ ] Admin UI: `http://10.6.9.3/admin`
 - [ ] Desktop: `ipconfig /renew`, then `ipconfig /all` lists DNS `10.6.9.3`
-- [ ] `nslookup tv.elysidrome.com` → `10.6.9.10`; `nslookup google.com` → real IP; queries show in Pi-hole
+- [ ] `nslookup tv.songofeo.com` → `10.6.9.10`; `nslookup google.com` → real IP; queries show in Pi-hole
 
 ## 2.10 Dynamic DNS (Services → Dynamic DNS)
 
-Keeps `elysidrome.com` (apex A record) pointed at your home IP. App hostnames get CNAMEs to the apex in part 5.
+Keeps `songofeo.com` (apex A record) pointed at your home IP. App hostnames get CNAMEs to the apex in part 5.
 
 - [ ] **Settings**: Enable. Accounts → Add:
 
@@ -250,12 +250,12 @@ Keeps `elysidrome.com` (apex A record) pointed at your home IP. App hostnames ge
 | Service | Cloudflare |
 | Username | ⚠️ Verify per the field's help text (token auth usually wants the zone name or `token`) |
 | Password | the API token |
-| Zone | `elysidrome.com` |
-| Hostname(s) | `elysidrome.com` |
+| Zone | `songofeo.com` |
+| Hostname(s) | `songofeo.com` |
 | Check ip method | a web service (e.g. `cloudflare` or `ipify-ipv4`), **not** "Interface" (*WAN is `10.0.0.2`, a private address*) |
 
-- [ ] Save, Apply. Within a few minutes Cloudflare → DNS shows an A record for `elysidrome.com` with your public IP. Click the cloud **grey (DNS only)** if it's orange.
-- [ ] **IPv4 only.** This build forwards IPv4 only; Xfinity also gives you an IPv6 address, but nothing behind OPNsense is reachable on it. If any updater (this one, or an older one from your old server) publishes it, browsers try the IPv6 first and every link breaks. Leave IPv6 off in the account (no AAAA), and in Cloudflare → DNS **delete any AAAA records**. Check from any machine: `nslookup -type=AAAA elysidrome.com 1.1.1.1` returns no address.
+- [ ] Save, Apply. Within a few minutes Cloudflare → DNS shows an A record for `songofeo.com` with your public IP. Click the cloud **grey (DNS only)** if it's orange.
+- [ ] **IPv4 only.** This build forwards IPv4 only; Xfinity also gives you an IPv6 address, but nothing behind OPNsense is reachable on it. If any updater (this one, or an older one from your old server) publishes it, browsers try the IPv6 first and every link breaks. Leave IPv6 off in the account (no AAAA), and in Cloudflare → DNS **delete any AAAA records**. Check from any machine: `nslookup -type=AAAA songofeo.com 1.1.1.1` returns no address.
 
 ## 2.11 IDS/IPS and CrowdSec
 
@@ -271,8 +271,8 @@ Keeps `elysidrome.com` (apex A record) pointed at your home IP. App hostnames ge
 
 - [ ] Wired devices get `10.6.9.1xx` (or their reservation), DNS `10.6.9.3`, and browse normally
 - [ ] Proxmox at `https://10.6.9.2:8006`, OPNsense at `https://10.6.9.1` (TOTP)
-- [ ] `nslookup anything.elysidrome.com` on the LAN → `10.6.9.10`
-- [ ] Cloudflare A record for `elysidrome.com` = your public IP, grey cloud
+- [ ] `nslookup anything.songofeo.com` on the LAN → `10.6.9.10`
+- [ ] Cloudflare A record for `songofeo.com` = your public IP, grey cloud
 - [ ] Phone on cellular reaches Proxmox through WireGuard
 - [ ] Back up the OPNsense config: System → Configuration → Backups → **Download configuration**
 

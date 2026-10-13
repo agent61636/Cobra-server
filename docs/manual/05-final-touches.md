@@ -1,6 +1,6 @@
 # 5. Final touches (gate VM 110, public access, backups)
 
-**Result:** `elysidrome-gate` (VM 110 on the Latitude) terminates TLS for `*.elysidrome.com`, puts Authelia 2FA in front of the admin apps, proxies to the SGIN's media apps, and is the only thing reachable from the internet (TCP 443). Nightly backups go to PBS.
+**Result:** `cobra-gate` (VM 110 on the Latitude) terminates TLS for `*.songofeo.com`, puts Authelia 2FA in front of the admin apps, proxies to the SGIN's media apps, and is the only thing reachable from the internet (TCP 443). Nightly backups go to PBS.
 
 🔌 No cable changes. Everything is already wired from part 2.
 
@@ -8,15 +8,15 @@
 
 | Term | Meaning |
 |---|---|
-| **Reverse proxy (nginx)** | Receives every `https://<name>.elysidrome.com` request and forwards it by hostname to the right app. |
-| **Wildcard cert** | One Let's Encrypt cert for `elysidrome.com` + `*.elysidrome.com`, obtained by DNS challenge (certbot writes a TXT record via the Cloudflare token), so nothing needs to be open to get it. |
-| **Authelia** | Login + TOTP portal at `auth.elysidrome.com`. nginx asks it "is this user logged in?" before serving the protected apps. |
+| **Reverse proxy (nginx)** | Receives every `https://<name>.songofeo.com` request and forwards it by hostname to the right app. |
+| **Wildcard cert** | One Let's Encrypt cert for `songofeo.com` + `*.songofeo.com`, obtained by DNS challenge (certbot writes a TXT record via the Cloudflare token), so nothing needs to be open to get it. |
+| **Authelia** | Login + TOTP portal at `auth.songofeo.com`. nginx asks it "is this user logged in?" before serving the protected apps. |
 | **Gate pod** | All gate apps in one rootless Podman pod. Only nginx's 80/443 are published; the apps listen on `127.0.0.1` inside the pod. |
 
-## 5.2 Gate VM (command-center shell, root)
+## 5.2 Gate VM (cobra-command shell, root)
 
 ```bash
-qm create 110 --name elysidrome-gate --ostype l26 --cpu host --cores 2 --memory 6144 \
+qm create 110 --name cobra-gate --ostype l26 --cpu host --cores 2 --memory 6144 \
   --scsihw virtio-scsi-single --scsi0 local-lvm:64,discard=on,iothread=1 --net0 virtio,bridge=vmbr0 \
   --cdrom local:iso/$(ls /var/lib/vz/template/iso | grep -m1 netinst) --agent 1 \
   --onboot 1 --startup order=3
@@ -28,7 +28,7 @@ qm start 110
 | Screen | Value |
 |---|---|
 | Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.6.9.10/24`, gateway `10.6.9.1`, DNS `10.6.9.1` |
-| Hostname | `elysidrome-gate` |
+| Hostname | `cobra-gate` |
 | Disk | the 64 GB virtual disk (`sda`) |
 - [ ] `qm set 110 --ide2 none,media=cdrom`
 
@@ -74,7 +74,7 @@ sudo install -m 600 /dev/null /root/smb-gate.cred
 printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
 sudo mkdir -p /srv/storage/pool
 PU=$(id -u podsvc); PG=$(id -g podsvc)
-echo "//elysidrome-stream.home.arpa/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
+echo "//cobra-stream.home.arpa/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
   | sudo tee -a /etc/fstab
 sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/pool
 ```
@@ -86,17 +86,17 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/
 
 ## 5.3 Wildcard cert (as eels)
 
-Token: Cloudflare → My Profile → API Tokens → **Edit zone DNS** template, zone `elysidrome.com`. Make a separate one from part 2's DDNS token so either can be revoked alone.
+Token: Cloudflare → My Profile → API Tokens → **Edit zone DNS** template, zone `songofeo.com`. Make a separate one from part 2's DDNS token so either can be revoked alone.
 
 ```bash
 sudo install -m 600 /dev/null /root/cloudflare.ini
 echo 'dns_cloudflare_api_token = <gate-acme token>' | sudo tee /root/cloudflare.ini >/dev/null
 sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/cloudflare.ini \
-  -d elysidrome.com -d '*.elysidrome.com' --agree-tos -m <your email> -n
+  -d songofeo.com -d '*.songofeo.com' --agree-tos -m <your email> -n
 sudo tee /etc/letsencrypt/renewal-hooks/deploy/gate.sh >/dev/null <<'EOF'
 #!/bin/sh
-install -o podsvc -m 600 /etc/letsencrypt/live/elysidrome.com/fullchain.pem /srv/gate/nginx/certs/
-install -o podsvc -m 600 /etc/letsencrypt/live/elysidrome.com/privkey.pem /srv/gate/nginx/certs/
+install -o podsvc -m 600 /etc/letsencrypt/live/songofeo.com/fullchain.pem /srv/gate/nginx/certs/
+install -o podsvc -m 600 /etc/letsencrypt/live/songofeo.com/privkey.pem /srv/gate/nginx/certs/
 runuser -u podsvc -- env XDG_RUNTIME_DIR=/run/user/$(id -u podsvc) systemctl --user restart nginx 2>/dev/null || true
 EOF
 sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/gate.sh && sudo /etc/letsencrypt/renewal-hooks/deploy/gate.sh
@@ -143,7 +143,7 @@ ContainerName=vaultwarden
 Image=docker.io/vaultwarden/server:latest
 Pod=gate.pod
 AutoUpdate=registry
-Environment=ROCKET_PORT=8222 DOMAIN=https://vault.elysidrome.com SIGNUPS_ALLOWED=true
+Environment=ROCKET_PORT=8222 DOMAIN=https://vault.songofeo.com SIGNUPS_ALLOWED=true
 Volume=/srv/gate/vaultwarden:/data:Z
 [Install]
 WantedBy=default.target
@@ -178,7 +178,7 @@ ContainerName=paperless
 Image=ghcr.io/paperless-ngx/paperless-ngx:latest
 Pod=gate.pod
 AutoUpdate=registry
-Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.elysidrome.com PAPERLESS_CONSUMER_POLLING=60
+Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.songofeo.com PAPERLESS_CONSUMER_POLLING=60
 Volume=/srv/gate/paperless/data:/usr/src/paperless/data:Z
 Volume=/srv/gate/paperless/media:/usr/src/paperless/media:Z
 Volume=/srv/storage/pool/scans:/usr/src/paperless/consume
@@ -210,7 +210,7 @@ ContainerName=homepage
 Image=ghcr.io/gethomepage/homepage:latest
 Pod=gate.pod
 AutoUpdate=registry
-Environment=HOMEPAGE_ALLOWED_HOSTS=home.elysidrome.com
+Environment=HOMEPAGE_ALLOWED_HOSTS=home.songofeo.com
 Volume=/srv/gate/homepage:/app/config:Z
 [Install]
 WantedBy=default.target
@@ -232,7 +232,7 @@ Where the gate's apps keep their files:
 
 | App | Its own data (on the gate's disk, in the nightly VM backup) | Shared files (on the SGIN pool, over the CIFS mount) |
 |---|---|---|
-| Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `scans`. Drop a PDF or photo into `\\elysidrome-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
+| Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `scans`. Drop a PDF or photo into `\\cobra-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
 | MeTube | queue and history: `/srv/gate/metube` | **Finished videos:** `youtube`, so they're on the big drives and Jellyfin can show them (add `/media/youtube` as a Home Videos library) |
 
 `Restart=on-failure`: if the gate boots while the SGIN is off, those two can't find their shared folder and fail. systemd retries every minute until the SGIN is back.
@@ -241,17 +241,17 @@ Authelia config (`/srv/gate/authelia/configuration.yml`; fill the three secrets 
 
 ```yaml
 server: { address: 'tcp://127.0.0.1:9091/' }
-totp: { issuer: elysidrome.com }
+totp: { issuer: songofeo.com }
 identity_validation: { reset_password: { jwt_secret: 'SECRET1' } }
 authentication_backend: { file: { path: /config/users.yml } }
 access_control:
   default_policy: deny
   rules:
-    - domain: [docs.elysidrome.com, metube.elysidrome.com, home.elysidrome.com, status.elysidrome.com]
+    - domain: [docs.songofeo.com, metube.songofeo.com, home.songofeo.com, status.songofeo.com]
       policy: two_factor
 session:
   secret: 'SECRET2'
-  cookies: [{ domain: elysidrome.com, authelia_url: 'https://auth.elysidrome.com', expiration: 8h, inactivity: 1h }]
+  cookies: [{ domain: songofeo.com, authelia_url: 'https://auth.songofeo.com', expiration: 8h, inactivity: 1h }]
 storage: { encryption_key: 'SECRET3', local: { path: /config/db.sqlite3 } }
 notifier: { filesystem: { filename: /config/notification.txt } }
 ```
@@ -262,9 +262,9 @@ printf 'users:\n  eels:\n    displayname: Eels\n    email: <you@email>\n    pass
 chmod 600 /srv/gate/authelia/*.yml
 ```
 
-- [ ] Extra hostname: **`auth.elysidrome.com`** (Authelia portal) — add to Cloudflare CNAMEs below
+- [ ] Extra hostname: **`auth.songofeo.com`** (Authelia portal) — add to Cloudflare CNAMEs below
 
-nginx (`/srv/gate/nginx/conf.d/elysidrome.conf`):
+nginx (`/srv/gate/nginx/conf.d/songofeo.conf`):
 
 ```nginx
 # --- shared settings (http level; every server below inherits them) ---
@@ -291,17 +291,17 @@ server {   # catch-all: bare IP, unknown names, scanners -> drop the connection
 
 # --- media apps on the SGIN: own logins, phone/TV apps, no Authelia ---
 map $host $media {
-  tv.elysidrome.com           http://10.6.9.20:8096;    # Jellyfin (+ ErsatzTV channels inside it)
-  books.elysidrome.com        http://10.6.9.20:13378;   # Audiobookshelf
-  comics.elysidrome.com       http://10.6.9.20:5000;    # Kavita
-  eelsmusic.elysidrome.com    http://10.6.9.20:4533;    # Navidrome (Eels' library)
-  rupaulradio.elysidrome.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
-  arcade.elysidrome.com       http://10.6.9.20:8080;    # RomM + EmulatorJS
+  tv.songofeo.com           http://10.6.9.20:8096;    # Jellyfin (+ ErsatzTV channels inside it)
+  books.songofeo.com        http://10.6.9.20:13378;   # Audiobookshelf
+  comics.songofeo.com       http://10.6.9.20:5000;    # Kavita
+  eelsmusic.songofeo.com    http://10.6.9.20:4533;    # Navidrome (Eels' library)
+  rupaulradio.songofeo.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
+  arcade.songofeo.com       http://10.6.9.20:8080;    # RomM + EmulatorJS
 }
 server {
   listen 443 ssl; http2 on;
-  server_name tv.elysidrome.com books.elysidrome.com comics.elysidrome.com
-              eelsmusic.elysidrome.com rupaulradio.elysidrome.com arcade.elysidrome.com;
+  server_name tv.songofeo.com books.songofeo.com comics.songofeo.com
+              eelsmusic.songofeo.com rupaulradio.songofeo.com arcade.songofeo.com;
   location / {
     limit_req zone=media burst=300 nodelay;
     proxy_buffering off;              # stream video/audio/ROM downloads straight through, don't spool to the gate's disk
@@ -313,27 +313,27 @@ server {
 
 # --- Authelia portal ---
 server {
-  listen 443 ssl; http2 on; server_name auth.elysidrome.com;
+  listen 443 ssl; http2 on; server_name auth.songofeo.com;
   location / { limit_req zone=perip burst=50 nodelay; proxy_pass http://127.0.0.1:9091; }
 }
 
 # --- Vaultwarden: LAN/VPN only ---
 server {
-  listen 443 ssl; http2 on; server_name vault.elysidrome.com;
+  listen 443 ssl; http2 on; server_name vault.songofeo.com;
   allow 10.6.9.0/24; allow 10.6.99.0/24; deny all;
   location / { proxy_pass http://127.0.0.1:8222; }
 }
 
 # --- admin apps on the gate, behind Authelia 2FA ---
 map $host $protected {
-  docs.elysidrome.com    http://127.0.0.1:8000;    # Paperless-ngx
-  metube.elysidrome.com  http://127.0.0.1:8081;    # MeTube
-  home.elysidrome.com    http://127.0.0.1:3000;    # Homepage
-  status.elysidrome.com  http://127.0.0.1:3001;    # Uptime Kuma
+  docs.songofeo.com    http://127.0.0.1:8000;    # Paperless-ngx
+  metube.songofeo.com  http://127.0.0.1:8081;    # MeTube
+  home.songofeo.com    http://127.0.0.1:3000;    # Homepage
+  status.songofeo.com  http://127.0.0.1:3001;    # Uptime Kuma
 }
 server {
   listen 443 ssl; http2 on;
-  server_name docs.elysidrome.com metube.elysidrome.com home.elysidrome.com status.elysidrome.com;
+  server_name docs.songofeo.com metube.songofeo.com home.songofeo.com status.songofeo.com;
   location /internal/authelia/authz {
     internal;
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
@@ -353,7 +353,7 @@ server {
     proxy_pass $protected;
   }
 }
-# scores.elysidrome.com -> 127.0.0.1:8090  (reserved, add when hiscore exists)
+# scores.songofeo.com -> 127.0.0.1:8090  (reserved, add when hiscore exists)
 ```
 
 ```bash
@@ -367,22 +367,22 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 - [ ] Each hostname loads with a valid padlock: `tv. books. comics. eelsmusic. rupaulradio. arcade. auth. docs. metube. home. status. vault.`
 - [ ] `docs.` and `metube.` bounce you to `auth.` first, then back
 - [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
-- [ ] Jellyfin's phone app connects with server address `https://tv.elysidrome.com` (no port)
+- [ ] Jellyfin's phone app connects with server address `https://tv.songofeo.com` (no port)
 - [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `rupaulradio.`; each sees only their own library
 - [ ] `https://10.6.9.10` (bare IP) gets no page at all (the 444 catch-all)
 
-- [ ] Vaultwarden: create your account at `https://vault.elysidrome.com`, then close sign-ups: `sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' ~/.config/containers/systemd/vaultwarden.container && systemctl --user daemon-reload && systemctl --user restart vaultwarden`. Import the interim password DB.
+- [ ] Vaultwarden: create your account at `https://vault.songofeo.com`, then close sign-ups: `sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' ~/.config/containers/systemd/vaultwarden.container && systemctl --user daemon-reload && systemctl --user restart vaultwarden`. Import the interim password DB.
 - [ ] Paperless admin: `podman exec -it paperless python3 manage.py createsuperuser`
 
 ## 5.5 Go public
 
-- [ ] Cloudflare: CNAME → `elysidrome.com`, **DNS only**: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`)
+- [ ] Cloudflare: CNAME → `songofeo.com`, **DNS only**: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`)
 - [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
 
 ## 5.6 Backups
 
-On command-center:
+On cobra-command:
 
 ```bash
 pvesm add pbs pbs-stream --server 10.6.9.20 --datastore store1 --username pve@pbs \

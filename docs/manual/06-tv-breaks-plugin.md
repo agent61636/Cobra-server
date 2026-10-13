@@ -36,11 +36,11 @@ So a plugin that only implements `IIntroProvider` would do nothing for episodes 
 
 ## Plugin B: design
 
-**Name:** `Elysidrome Breaks` (working name).
+**Name:** `Cobra Breaks` (working name).
 
 **What it does:**
 
-- Settings page (Dashboard → Plugins → Elysidrome Breaks):
+- Settings page (Dashboard → Plugins → Cobra Breaks):
   - Filler folder (default `/media/filler`)
   - Which series get a "with breaks" playlist (tick boxes), and for which users
   - Breaks per gap (default 1), maximum filler length (e.g. 3 minutes), and "don't repeat a filler within the last N"

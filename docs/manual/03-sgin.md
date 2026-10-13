@@ -1,4 +1,4 @@
-# 3. Set up SGIN (elysidrome-stream, Debian 13, 10.6.9.20)
+# 3. Set up SGIN (cobra-stream, Debian 13, 10.6.9.20)
 
 **Result:** the SGIN runs Debian 13 bare metal and serves all storage (Samba), the media apps (one rootless Podman pod), Pi-hole #2 and Proxmox Backup Server.
 
@@ -29,7 +29,7 @@
 |---|---|
 | Language / location / keyboard | English / yours / American English |
 | Network | Auto (DHCP), it gets `10.6.9.1xx` for now |
-| Hostname / Domain | `elysidrome-stream` / `home.arpa` |
+| Hostname / Domain | `cobra-stream` / `home.arpa` |
 | Root password | **leave blank** (root is disabled and `eels` gets sudo) |
 | User | full name `Eels`, username `eels`, generated password |
 | Partitioning | Guided, use entire disk (the internal SSD, not a USB drive), all files in one partition |
@@ -64,7 +64,7 @@ sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc   # expect
 
 - [ ] No `HEVC Main10` lines from vainfo → the media driver isn't installed. No `EncSliceLP` lines → HuC didn't load; recheck `/etc/modprobe.d/i915.conf` and `firmware-misc-nonfree`
 - [ ] SSH key from the desktop: `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.6.9.20 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`
-- [ ] Same `/etc/ssh/sshd_config.d/10-elysidrome.conf` as part 1.7, but `PermitRootLogin no`; `sudo sshd -t && sudo systemctl reload ssh`
+- [ ] Same `/etc/ssh/sshd_config.d/10-cobra.conf` as part 1.7, but `PermitRootLogin no`; `sudo sshd -t && sudo systemctl reload ssh`
 
 ## 3.4 Storage
 
@@ -223,14 +223,14 @@ Every machine, and every share, by the same path:
 
 | From | How | Path |
 |---|---|---|
-| Windows desktops | File Explorer → Map network drive (log in as `eels`) | `\\elysidrome-stream\media`, `\scans`, `\roms` |
-| Cabinet | `R:` mapped in part 4 (log in as `arcade`) | `\\elysidrome-stream\roms` |
-| Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\elysidrome-stream\media` |
+| Windows desktops | File Explorer → Map network drive (log in as `eels`) | `\\cobra-stream\media`, `\scans`, `\roms` |
+| Cabinet | `R:` mapped in part 4 (log in as `arcade`) | `\\cobra-stream\roms` |
+| Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\cobra-stream\media` |
 | Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/pool` |
 | Containers on the SGIN | Bind mounts in 3.8 | `/media/...` |
 | Phones on Wi-Fi | Xfinity Wi-Fi is outside the firewall by design; use WireGuard there too | — |
 
-- [ ] Windows: `\\elysidrome-stream\media` opens and you can create and delete a test folder
+- [ ] Windows: `\\cobra-stream\media` opens and you can create and delete a test folder
 
 ## 3.7 Firewall (LAN + VPN only)
 
@@ -415,13 +415,13 @@ ErsatzTV builds fake TV channels from your library (schedules, playlists, commer
 - [ ] Jellyfin → Dashboard → **Live TV** → Tuner Devices **+** → type **M3U Tuner** → paste the M3U link → Save
 - [ ] Same page → TV Guide Data Providers **+** → **XMLTV** → paste the XMLTV link → Save → **Refresh Guide Data**
 - [ ] Jellyfin web → **Live TV** → the channel plays, and the guide shows what's on now and next
-- [ ] From outside (phone on cellular, `tv.elysidrome.com`): the same channel plays. Remote viewers watch through Jellyfin; ErsatzTV stays LAN-only.
+- [ ] From outside (phone on cellular, `tv.songofeo.com`): the same channel plays. Remote viewers watch through Jellyfin; ErsatzTV stays LAN-only.
 
 Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside** Live TV are separate pieces; see [06-tv-breaks-plugin.md](06-tv-breaks-plugin.md).
 
 ### 3.8b Web arcade: RomM + EmulatorJS
 
-RomM serves the browser arcade at `arcade.elysidrome.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/pool/roms`, the same folder the cabinet's LaunchBox uses as `R:\` (part 4).
+RomM serves the browser arcade at `arcade.songofeo.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/pool/roms`, the same folder the cabinet's LaunchBox uses as `R:\` (part 4).
 
 - [ ] First visit to `http://10.6.9.20:8080` → the setup wizard creates the admin user
 - [ ] Optional but recommended: a free metadata key (IGDB/Twitch, ScreenScraper or SteamGridDB) for covers and names. Add it as `Environment=` lines in `romm.container` per RomM's docs, then `systemctl --user daemon-reload && systemctl --user restart romm`.
@@ -447,7 +447,7 @@ curl -sSL https://install.pi-hole.net | sudo bash
 sudo pihole setpassword
 sudo pihole-FTL --config dns.upstreams '["10.6.9.1"]'
 sudo pihole-FTL --config dns.listeningMode ALL      # answer WireGuard clients too; nftables limits who can reach :53
-# copy misc.dnsmasq_lines and dns.hosts exactly as on pihole-1 (part 2)
+# copy misc.dnsmasq_lines and dns.hosts exactly as on cobra-pihole-1 (part 2)
 ```
 
 - [ ] OPNsense DHCP: DNS servers → `10.6.9.3`, `10.6.9.20`
@@ -479,4 +479,4 @@ sudo proxmox-backup-manager cert info | grep Fingerprint
 ## Done when
 
 - [ ] `https://10.6.9.20:8007` (PBS), `:9090` (Cockpit), `:8096` Jellyfin plays a 4K HEVC file with transcoding showing `(hw)`
-- [ ] `\\elysidrome-stream\media` opens from a desktop
+- [ ] `\\cobra-stream\media` opens from a desktop

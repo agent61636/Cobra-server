@@ -1,4 +1,4 @@
-# 4. Set up OptiPlex (elysidrome-arcade, Windows 11, 10.6.9.30)
+# 4. Set up OptiPlex (cobra-arcade, Windows 11, 10.6.9.30)
 
 **Result:** the cabinet boots straight into Big Box, ROMs come from the SGIN's `roms` share, and it's patched and activated.
 
@@ -22,7 +22,7 @@ GPU driver: current AMD Adrenalin does **not** support the Oland (R7 250-class, 
 PowerShell **as Admin** (right-click Start → Terminal (Admin)):
 
 ```powershell
-Rename-Computer elysidrome-arcade
+Rename-Computer cobra-arcade
 winget install -e --id Valve.Steam
 winget install -e --id Libretro.RetroArch
 powercfg /change standby-timeout-ac 0
@@ -32,8 +32,8 @@ powercfg /change monitor-timeout-ac 0
 PowerShell **not** as Admin (plain Terminal). A drive mapped from an elevated window is invisible to normal apps like Big Box and RetroArch:
 
 ```powershell
-cmdkey /add:elysidrome-stream /user:arcade /pass:<samba arcade password>
-New-SmbMapping -LocalPath R: -RemotePath \\elysidrome-stream\roms -Persistent $true
+cmdkey /add:cobra-stream /user:arcade /pass:<samba arcade password>
+New-SmbMapping -LocalPath R: -RemotePath \\cobra-stream\roms -Persistent $true
 Restart-Computer
 ```
 
@@ -67,12 +67,12 @@ Hiscores are a **per-core** option in RetroArch, not a global setting. Load a ga
 
 Saves, save states, `.hi` files and the LaunchBox database live only on the cabinet. Copy them to the pool nightly, where the vault backup (part 5) picks them up. One small script does both this and 4.6.
 
-Create the folder with `New-Item -ItemType Directory -Force C:\Elysidrome`, then save this as `C:\Elysidrome\nightly-copy.ps1` (Notepad, then "Save as type: All files"):
+Create the folder with `New-Item -ItemType Directory -Force C:\Cobra`, then save this as `C:\Cobra\nightly-copy.ps1` (Notepad, then "Save as type: All files"):
 
 ```powershell
-# Nightly copies for elysidrome-arcade. robocopy /E /XO adds and updates, never deletes.
-$log = 'C:\Elysidrome\nightly-copy.log'
-$pool = '\\elysidrome-stream\media'
+# Nightly copies for cobra-arcade. robocopy /E /XO adds and updates, never deletes.
+$log = 'C:\Cobra\nightly-copy.log'
+$pool = '\\cobra-stream\media'
 $ra = 'C:\RetroArch-Win64'      # your RetroArch folder
 $lb = 'D:\LaunchBox'            # or C:\LaunchBox
 
@@ -93,18 +93,18 @@ foreach ($src in $up.Keys) {
   if (Test-Path $src) { robocopy $src $up[$src] /E /XO /R:2 /W:5 /NP /NFL /NDL /LOG+:$log | Out-Null }
 }
 foreach ($f in $down) {
-  robocopy "$pool\$f" "D:\Elysidrome-copy\$f" /E /XO /R:2 /W:5 /NP /NFL /NDL /LOG+:$log | Out-Null
+  robocopy "$pool\$f" "D:\Cobra-copy\$f" /E /XO /R:2 /W:5 /NP /NFL /NDL /LOG+:$log | Out-Null
 }
 ```
 
 Register it to run every night (plain PowerShell as `arcade`):
 
 ```powershell
-$a = New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\Elysidrome\nightly-copy.ps1'
+$a = New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\Cobra\nightly-copy.ps1'
 $t = New-ScheduledTaskTrigger -Daily -At 3:30am
-Register-ScheduledTask -TaskName 'Elysidrome nightly copy' -Action $a -Trigger $t `
+Register-ScheduledTask -TaskName 'Cobra nightly copy' -Action $a -Trigger $t `
   -Settings (New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 12))
-Start-ScheduledTask 'Elysidrome nightly copy'      # first run now; the first pull to D: can take hours
+Start-ScheduledTask 'Cobra nightly copy'      # first run now; the first pull to D: can take hours
 ```
 
 - `-StartWhenAvailable`: if the cabinet was off at 3:30, it runs at next boot.
@@ -115,12 +115,12 @@ Start-ScheduledTask 'Elysidrome nightly copy'      # first run now; the first pu
 It stays in the OptiPlex as `D:` (if it's the OptiPlex's **only** disk, it's the system disk instead and only job 1 applies), with two jobs:
 
 1. **The cabinet's local game drive.** Steam library, LaunchBox and its media (box art, videos), so the menu stays fast and doesn't depend on the network.
-2. **An extra copy of what you can't replace, until the vault drive arrives (and after).** The `$down` part of the script in 4.5 pulls those pool folders into `D:\Elysidrome-copy` every night. `/E /XO` never deletes, so a file removed by mistake on the pool is still here. Check `D:`'s free space against what you list; movies and TV are the big ones and you can re-rip or re-buy those.
+2. **An extra copy of what you can't replace, until the vault drive arrives (and after).** The `$down` part of the script in 4.5 pulls those pool folders into `D:\Cobra-copy` every night. `/E /XO` never deletes, so a file removed by mistake on the pool is still here. Check `D:`'s free space against what you list; movies and TV are the big ones and you can re-rip or re-buy those.
 
 - [ ] Before relying on it: `D:` shows healthy in `Get-PhysicalDisk | Select FriendlyName, HealthStatus` and has no SMART warnings in CrystalDiskInfo
 
 ## Done when
 
 - [ ] Power on → Big Box loads by itself → a game from `R:\` plays with the stick
-- [ ] The same game shows in the web arcade (`arcade.elysidrome.com`) after a RomM library scan
-- [ ] Next morning: `C:\Elysidrome\nightly-copy.log` has no `ERROR` lines
+- [ ] The same game shows in the web arcade (`arcade.songofeo.com`) after a RomM library scan
+- [ ] Next morning: `C:\Cobra\nightly-copy.log` has no `ERROR` lines

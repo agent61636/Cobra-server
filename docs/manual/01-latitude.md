@@ -1,4 +1,4 @@
-# 1. Set up Latitude (command-center, Proxmox VE 9)
+# 1. Set up Latitude (cobra-command, Proxmox VE 9)
 
 **Result:** the Latitude runs Proxmox, is updated and locked down, and has the installers for OPNsense (part 2), Pi-hole (part 2) and the gate VM (part 5) waiting on it. Part 2 then turns it into the house gateway by running OPNsense as a VM on it.
 
@@ -29,15 +29,15 @@ Proxmox VE is Debian with a hypervisor and a web UI on top. Everything below can
 
 | Term | What it is here |
 |---|---|
-| **Node** | The Latitude itself (`command-center`). Left tree: Datacenter → command-center. |
+| **Node** | The Latitude itself (`cobra-command`). Left tree: Datacenter → cobra-command. |
 | **Datacenter** | Settings shared by all nodes: users, permissions, storage, backup jobs. You have one node until the R620 joins. |
-| **VM** | Full virtual machine. VM **100** = OPNsense (`open-the-box`), VM **110** = `elysidrome-gate`. CLI: `qm`. |
-| **CT** | LXC container, shares the host kernel, much lighter. CT **101** = `pihole-1`. CLI: `pct`. |
+| **VM** | Full virtual machine. VM **100** = OPNsense (`cobra-firewall`), VM **110** = `cobra-gate`. CLI: `qm`. |
+| **CT** | LXC container, shares the host kernel, much lighter. CT **101** = `cobra-pihole-1`. CLI: `pct`. |
 | **VMID** | Every VM/CT has a number. You'll only use 100, 101, 110 (and 9xx for throwaway tests). |
-| **`local`** storage | Folder `/var/lib/vz`. Holds ISO files, CT templates, backup files. UI: command-center → local. |
+| **`local`** storage | Folder `/var/lib/vz`. Holds ISO files, CT templates, backup files. UI: cobra-command → local. |
 | **`local-lvm`** storage | Thin LVM pool. Holds VM/CT disks. Thin = a 32 GB disk only uses what's written. |
 | **`vmbr0`, `vmbr1`** | Linux bridges = virtual switches. A physical NIC is the bridge's uplink; VM NICs plug into bridges. |
-| **Shell** | command-center → **>_ Shell** in the UI gives a root terminal in the browser. Same as SSH. |
+| **Shell** | cobra-command → **>_ Shell** in the UI gives a root terminal in the browser. Same as SSH. |
 | **Console** | VM/CT → **Console** = that guest's screen and keyboard. |
 | **Subscription popup** | Appears at every login. Harmless. Click **OK**. |
 
@@ -91,7 +91,7 @@ Finish 1.7 (2FA, SSH keys) the same day: until part 2, the host sits on the Xfin
 | 4 | Location | Country, time zone, keyboard **U.S. English** |
 | 5 | Password / Email | Generated root password (letters + digits, ~20 chars; you'll type it on the console). Real email for alerts. |
 | 6 | Management interface | Onboard NIC, usually **`enp0s31f6`** |
-| 7 | Hostname (FQDN) | **`command-center.home.arpa`** (*not* `.elysidrome.com`: Pi-hole sends that whole domain to the gate) |
+| 7 | Hostname (FQDN) | **`cobra-command.home.arpa`** (*not* `.songofeo.com`: Pi-hole sends that whole domain to the gate) |
 | 8 | IP address (CIDR) | **`10.6.9.2/24`**. ⚠️ The installer pre-fills whatever address DHCP just handed out (e.g. `10.6.9.34`). **Overwrite it**, or that address becomes permanent. |
 | 9 | Gateway | **`10.6.9.1`** |
 | 10 | DNS server | **`10.6.9.1`** |
@@ -145,8 +145,8 @@ iface vmbr1 inet manual
 Proxmox also needs its own name to point at its address:
 
 ```bash
-sed -i -E 's/^10\.6\.9\.[0-9]+(\s+command-center)/10.6.9.2\1/' /etc/hosts
-grep command-center /etc/hosts                # 10.6.9.2 command-center.home.arpa command-center
+sed -i -E 's/^10\.6\.9\.[0-9]+(\s+cobra-command)/10.6.9.2\1/' /etc/hosts
+grep cobra-command /etc/hosts                # 10.6.9.2 cobra-command.home.arpa cobra-command
 printf 'search home.arpa\nnameserver 10.6.9.1\n' > /etc/resolv.conf
 ifreload -a                                   # applies the file without a reboot
 ip -br addr                                   # vmbr0 10.6.9.2/24; vmbr1 has NO address
@@ -182,7 +182,7 @@ apt install -y intel-microcode sudo vim htop curl ethtool bzip2 lm-sensors
 reboot
 ```
 
-- [ ] UI equivalent: command-center → **Updates → Repositories** → disable both enterprise lines → **Add → No-Subscription**
+- [ ] UI equivalent: cobra-command → **Updates → Repositories** → disable both enterprise lines → **Add → No-Subscription**
 - [ ] `intel-microcode` not found → add `non-free-firmware` to the `Components:` line of `/etc/apt/sources.list.d/debian.sources`, `apt update`, retry
 - [ ] After reboot: `pveversion` shows `pve-manager/9.x`
 
@@ -214,10 +214,10 @@ type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh root@10.6.9.2 "cat >> /root/.ssh
 ssh eels@10.6.9.2                              # must log in without the account password
 ```
 
-On command-center (keep this session open until a **new** window logs in):
+On cobra-command (keep this session open until a **new** window logs in):
 
 ```bash
-cat > /etc/ssh/sshd_config.d/10-elysidrome.conf <<'EOF'
+cat > /etc/ssh/sshd_config.d/10-cobra.conf <<'EOF'
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin prohibit-password
@@ -254,7 +254,7 @@ udevadm control --reload
 apt install -y upower
 mkdir -p /etc/UPower/UPower.conf.d
 printf '[UPower]\nUsePercentageForPolicy=true\nPercentageLow=25\nPercentageCritical=15\nPercentageAction=10\nCriticalPowerAction=PowerOff\n' \
-  > /etc/UPower/UPower.conf.d/10-elysidrome.conf
+  > /etc/UPower/UPower.conf.d/10-cobra.conf
 systemctl restart upower
 upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 ```
@@ -313,13 +313,13 @@ pct stop 999 && pct destroy 999
 ## 1.11 Save the config off the box
 
 ```bash
-tar czf /root/command-center-$(date +%F).tgz /etc/network/interfaces /etc/hosts /etc/apt/sources.list.d \
+tar czf /root/cobra-command-$(date +%F).tgz /etc/network/interfaces /etc/hosts /etc/apt/sources.list.d \
   /etc/ssh/sshd_config.d /etc/systemd/logind.conf.d /etc/udev/rules.d /etc/default/grub /etc/UPower \
   /etc/pve/user.cfg /etc/pve/datacenter.cfg 2>/dev/null
 ```
 
 ```powershell
-scp root@10.6.9.2:/root/command-center-*.tgz $HOME\Documents\
+scp root@10.6.9.2:/root/cobra-command-*.tgz $HOME\Documents\
 ```
 
 ## Done when

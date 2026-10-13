@@ -1,10 +1,10 @@
 # 7. Design: hiscore sync and scoreboard
 
-> **Status:** design, October 13, 2026. Build after parts 1–5 are running. Its slot is already reserved (overview §8): hostname `scores.elysidrome.com`, API on `127.0.0.1:8090` inside the gate pod, data in `/srv/gate/hiscore/`.
+> **Status:** design, October 13, 2026. Build after parts 1–5 are running. Its slot is already reserved (overview §8): hostname `scores.songofeo.com`, API on `127.0.0.1:8090` inside the gate pod, data in `/srv/gate/hiscore/`.
 
 ## What it does
 
-Every arcade high score set on the cabinet shows up on one web page, `scores.elysidrome.com`, **newest first**: the game where someone just set a score sits at the top. The raw hiscore files are also kept as a backup, so a dead disk or a reinstall never wipes the scores.
+Every arcade high score set on the cabinet shows up on one web page, `scores.songofeo.com`, **newest first**: the game where someone just set a score sits at the top. The raw hiscore files are also kept as a backup, so a dead disk or a reinstall never wipes the scores.
 
 ## How it fits together
 
@@ -18,7 +18,7 @@ RetroArch writes  game.hi  ──► hiscore agent ──HTTPS + API key──�
 
 | Piece | Where | What |
 |---|---|---|
-| **Agent** | Cabinet, `C:\Elysidrome\hiscore-agent\` | Watches the `.hi` folders found in part 4.4. When a file changes (RetroArch writes it on game exit), uploads it with the game name, core and time. If the network or gate is down, it keeps a queue and retries. Runs as a Windows service, so it works with Big Box in front and nobody logged in to a desktop. |
+| **Agent** | Cabinet, `C:\Cobra\hiscore-agent\` | Watches the `.hi` folders found in part 4.4. When a file changes (RetroArch writes it on game exit), uploads it with the game name, core and time. If the network or gate is down, it keeps a queue and retries. Runs as a Windows service, so it works with Big Box in front and nobody logged in to a desktop. |
 | **API** | Gate pod, `127.0.0.1:8090` | Accepts uploads with the cabinet's API key. Saves every version of each raw file under `raw/<game>/<timestamp>.hi`, decodes it to a score table when it can (next section), and records when it last changed. |
 | **Web page** | Same app | Games sorted by **last updated**. Each shows its top entries (rank, initials, score), the system, and when it changed. Filters: system, "changed this week", search. A game with no decoder still lists, with "scores saved, not readable yet" and a download link. |
 | **Database** | `/srv/gate/hiscore/hiscore.db` (SQLite) | Small enough that SQLite is plenty. Port `5433` stays reserved if it ever outgrows that. |
@@ -50,7 +50,7 @@ This is **phase 3**. The cabinet is where the real high scores happen, so it isn
 
 ## Logins
 
-- **Viewers:** behind Authelia, like the dashboard. Add `scores.elysidrome.com` to the Authelia rules (one factor is enough for viewing) and un-comment its server block in nginx (part 5).
+- **Viewers:** behind Authelia, like the dashboard. Add `scores.songofeo.com` to the Authelia rules (one factor is enough for viewing) and un-comment its server block in nginx (part 5).
 - **The cabinet agent:** a long random API key sent over HTTPS, stored on the cabinet with Windows DPAPI so it isn't plain text on disk. nginx rate-limits the upload URL.
 
 ## Build order and tests
@@ -60,7 +60,7 @@ This is **phase 3**. The cabinet is where the real high scores happen, so it isn
 | 1 | Agent + API + raw storage + "newest first" page | Set a score on the cabinet, quit; within a minute the game is at the top of the page and the raw file downloads byte-for-byte identical (checksum) |
 | 1 | Offline queue | Stop the gate's hiscore container, play, start it again: the upload arrives |
 | 2 | Decoding | For 3–4 favourite games, the page matches what the game shows on its own high-score screen |
-| 3 | Browser scores | Same score test from `arcade.elysidrome.com` |
+| 3 | Browser scores | Same score test from `arcade.songofeo.com` |
 
 ## Questions to settle before building
 
