@@ -249,54 +249,80 @@ chmod 600 /srv/gate/authelia/*.yml
 nginx (`/srv/gate/nginx/conf.d/elysidrome.conf`):
 
 ```nginx
-limit_req_zone $binary_remote_addr zone=perip:10m rate=10r/s;
-server { listen 80 default_server; return 301 https://$host$request_uri; }
+# --- shared settings (http level; every server below inherits them) ---
+limit_req_zone $binary_remote_addr zone=perip:10m rate=10r/s;    # admin apps
+limit_req_zone $binary_remote_addr zone=media:10m rate=50r/s;    # media apps load dozens of images per page
+limit_req_status 429;
+map $http_upgrade $connection_upgrade { default upgrade; '' ''; } # websockets; '' keeps upstream keepalive
 
 ssl_certificate /certs/fullchain.pem;  ssl_certificate_key /certs/privkey.pem;
-ssl_protocols TLSv1.2 TLSv1.3;
+ssl_protocols TLSv1.2 TLSv1.3;  ssl_session_cache shared:SSL:10m;
+add_header Strict-Transport-Security "max-age=31536000" always;
 client_max_body_size 0;
+proxy_http_version 1.1;
 proxy_set_header Host $host;  proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;  proxy_set_header X-Forwarded-Proto https;
-proxy_http_version 1.1;  proxy_set_header Upgrade $http_upgrade;  proxy_set_header Connection $http_connection;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header Upgrade $http_upgrade;  proxy_set_header Connection $connection_upgrade;
 
-map $host $backend {
-  tv.elysidrome.com           http://10.10.10.20:8096;
-  books.elysidrome.com        http://10.10.10.20:13378;
-  comics.elysidrome.com       http://10.10.10.20:5000;
-  eelsmusic.elysidrome.com    http://10.10.10.20:4533;
-  rupaulradio.elysidrome.com  http://10.10.10.20:4533;
-  arcade.elysidrome.com       http://10.10.10.20:8080;
-  auth.elysidrome.com         http://127.0.0.1:9091;
-}
+server { listen 80 default_server; return 301 https://$host$request_uri; }
 server {   # catch-all: bare IP, unknown names, scanners -> drop the connection
   listen 443 ssl default_server; http2 on; server_name _;
   return 444;
 }
-server {   # no Authelia (apps have own logins / mobile clients)
-  listen 443 ssl; http2 on;
-  server_name tv.elysidrome.com books.elysidrome.com comics.elysidrome.com eelsmusic.elysidrome.com rupaulradio.elysidrome.com arcade.elysidrome.com auth.elysidrome.com;
-  location / { limit_req zone=perip burst=50 nodelay; proxy_pass $backend; }
+
+# --- media apps on the SGIN: own logins, phone/TV apps, no Authelia ---
+map $host $media {
+  tv.elysidrome.com           http://10.10.10.20:8096;    # Jellyfin (+ ErsatzTV channels inside it)
+  books.elysidrome.com        http://10.10.10.20:13378;   # Audiobookshelf
+  comics.elysidrome.com       http://10.10.10.20:5000;    # Kavita
+  eelsmusic.elysidrome.com    http://10.10.10.20:4533;    # Navidrome (Eels' library)
+  rupaulradio.elysidrome.com  http://10.10.10.20:4533;    # Navidrome (Rachel's library)
+  arcade.elysidrome.com       http://10.10.10.20:8080;    # RomM + EmulatorJS
 }
-server {   # LAN/VPN only
+server {
+  listen 443 ssl; http2 on;
+  server_name tv.elysidrome.com books.elysidrome.com comics.elysidrome.com
+              eelsmusic.elysidrome.com rupaulradio.elysidrome.com arcade.elysidrome.com;
+  location / {
+    limit_req zone=media burst=300 nodelay;
+    proxy_buffering off;              # stream video/audio/ROM downloads straight through, don't spool to the gate's disk
+    proxy_request_buffering off;      # same for uploads (RomM, Audiobookshelf)
+    proxy_read_timeout 1h;  proxy_send_timeout 1h;   # long streams and websockets
+    proxy_pass $media;
+  }
+}
+
+# --- Authelia portal ---
+server {
+  listen 443 ssl; http2 on; server_name auth.elysidrome.com;
+  location / { limit_req zone=perip burst=50 nodelay; proxy_pass http://127.0.0.1:9091; }
+}
+
+# --- Vaultwarden: LAN/VPN only ---
+server {
   listen 443 ssl; http2 on; server_name vault.elysidrome.com;
   allow 10.10.10.0/24; allow 10.10.99.0/24; deny all;
   location / { proxy_pass http://127.0.0.1:8222; }
 }
+
+# --- admin apps on the gate, behind Authelia 2FA ---
 map $host $protected {
-  docs.elysidrome.com    http://127.0.0.1:8000;
-  metube.elysidrome.com  http://127.0.0.1:8081;
-  home.elysidrome.com    http://127.0.0.1:3000;
-  status.elysidrome.com  http://127.0.0.1:3001;
+  docs.elysidrome.com    http://127.0.0.1:8000;    # Paperless-ngx
+  metube.elysidrome.com  http://127.0.0.1:8081;    # MeTube
+  home.elysidrome.com    http://127.0.0.1:3000;    # Homepage
+  status.elysidrome.com  http://127.0.0.1:3001;    # Uptime Kuma
 }
-server {   # behind Authelia 2FA
+server {
   listen 443 ssl; http2 on;
   server_name docs.elysidrome.com metube.elysidrome.com home.elysidrome.com status.elysidrome.com;
   location /internal/authelia/authz {
     internal;
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
+    # a location's own proxy_set_header replaces ALL inherited ones, so list what Authelia needs
     proxy_set_header X-Original-Method $request_method;
     proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
-    proxy_set_header X-Forwarded-For $remote_addr;   # a location's own proxy_set_header drops the inherited ones
+    proxy_set_header X-Forwarded-For $remote_addr;
     proxy_set_header Content-Length ""; proxy_set_header Connection "";
     proxy_pass_request_body off;
   }
@@ -305,6 +331,7 @@ server {   # behind Authelia 2FA
     auth_request_set $redirection_url $upstream_http_location;
     error_page 401 =302 $redirection_url;
     limit_req zone=perip burst=50 nodelay;
+    proxy_read_timeout 1h;               # Uptime Kuma and MeTube keep a websocket open
     proxy_pass $protected;
   }
 }
@@ -315,6 +342,16 @@ server {   # behind Authelia 2FA
 systemctl --user daemon-reload && systemctl --user start gate-pod && podman ps
 podman exec nginx nginx -t
 ```
+
+Checks before going public (from a desktop on the LAN, where Pi-hole sends every name to the gate):
+
+- [ ] `podman exec nginx nginx -t` says `syntax is ok` and `test is successful`
+- [ ] Each hostname loads with a valid padlock: `tv. books. comics. eelsmusic. rupaulradio. arcade. auth. docs. metube. home. status. vault.`
+- [ ] `docs.` and `metube.` bounce you to `auth.` first, then back
+- [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.10.10.10`), so the Known proxies setting from part 3 works
+- [ ] Jellyfin's phone app connects with server address `https://tv.elysidrome.com` (no port)
+- [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `rupaulradio.`; each sees only their own library
+- [ ] `https://10.10.10.10` (bare IP) gets no page at all (the 444 catch-all)
 
 - [ ] Vaultwarden: create your account at `https://vault.elysidrome.com`, then set `SIGNUPS_ALLOWED=false`, `systemctl --user restart vaultwarden`. Import the interim password DB.
 - [ ] Paperless admin: `podman exec -it paperless python3 manage.py createsuperuser`
