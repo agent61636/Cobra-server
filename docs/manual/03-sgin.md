@@ -375,6 +375,62 @@ podman ps                                     # 7 containers Up
 - [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
 - [ ] Each app: create admin user now (first visit = admin)
 
+### 3.8a Live TV: ErsatzTV channels inside Jellyfin
+
+ErsatzTV builds fake TV channels from your library (schedules, playlists, commercial breaks) and hands Jellyfin two links: a channel list (M3U) and a program guide (XMLTV). Jellyfin shows them under **Live TV** on every client, phones and TVs included. Both containers share the `stream` pod, so they talk over `127.0.0.1` and ErsatzTV never needs a public address.
+
+**1. Give ErsatzTV access to Jellyfin's library**
+
+- [ ] Jellyfin → Dashboard → API Keys → **+** → name `ersatztv` → copy the key
+- [ ] Jellyfin → Dashboard → Libraries → **Add Media Library** → type *Home Videos and Photos* (or *Mixed*), name `Filler`, folder `/media/filler`. This makes filler searchable, though ErsatzTV reads it directly too.
+- [ ] ErsatzTV (`http://10.10.10.20:8409`) → **Media Sources → Jellyfin** → address `http://127.0.0.1:8096`, the API key → **Save** → tick the Movies and TV libraries → **Sync**. Both containers mount the pool at `/media`, so the file paths Jellyfin reports are paths ErsatzTV can open.
+- [ ] ErsatzTV → **Media Sources → Local** → add a library of type *Other Videos* → folder `/media/filler` → **Scan**
+
+**2. Hardware transcoding** (ErsatzTV transcodes every channel while someone watches it)
+
+- [ ] ErsatzTV → **Settings → FFmpeg Profiles** → edit the default → Hardware acceleration **VAAPI**, driver **iHD**, device `/dev/dri/renderD128`, video format **H.264** (plays everywhere), 1080p. ⚠️ Verify: if VAAPI errors on your build, try **QSV** with the same device.
+
+**3. Build a channel**
+
+| Step | Where in ErsatzTV | What to do |
+|---|---|---|
+| Content | **Lists → Collections / Smart Collections / Playlists** | A collection is "all of this show" or "these 40 movies"; a smart collection is a saved search (e.g. `genre:comedy`); a playlist is a fixed order you choose, mixing shows and movies |
+| Commercial breaks | **Lists → Filler Presets** → Add | Kind **Pre-roll** (before each episode, i.e. between episodes), Mode **Count 1**, Collection = the `filler` library. For realistic TV timing add a **Pad** preset too: pads each episode out to the next 30-minute mark with filler. |
+| Schedule | **Schedules** → Add | Add items (collections or playlists), playback order (chronological, shuffle, random), and the filler presets above |
+| Channel | **Channels** → Add | Number, name, logo, FFmpeg profile from step 2, streaming mode **MPEG-TS** |
+| Playout | **Playouts** → Add | Channel + schedule → **Build**. Rebuild after big schedule changes. |
+
+**4. Hand the channels to Jellyfin**
+
+- [ ] In ErsatzTV, the top-right buttons copy the **M3U** and **XMLTV** links. Replace the host part with `127.0.0.1:8409`; they look like `http://127.0.0.1:8409/iptv/channels.m3u` and `http://127.0.0.1:8409/iptv/xmltv.xml`. ⚠️ Verify the paths against what the buttons give you.
+- [ ] Jellyfin → Dashboard → **Live TV** → Tuner Devices **+** → type **M3U Tuner** → paste the M3U link → Save
+- [ ] Same page → TV Guide Data Providers **+** → **XMLTV** → paste the XMLTV link → Save → **Refresh Guide Data**
+- [ ] Jellyfin web → **Live TV** → the channel plays, and the guide shows what's on now and next
+- [ ] From outside (phone on cellular, `tv.elysidrome.com`): the same channel plays. Remote viewers watch through Jellyfin; ErsatzTV stays LAN-only.
+
+Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside** Live TV are separate pieces; see [06-tv-breaks-plugin.md](06-tv-breaks-plugin.md).
+
+### 3.8b Web arcade: RomM + EmulatorJS
+
+RomM serves the browser arcade at `arcade.elysidrome.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/pool/roms`, the same folder the cabinet's LaunchBox uses as `R:\` (part 4).
+
+- [ ] First visit to `http://10.10.10.20:8080` → the setup wizard creates the admin user
+- [ ] Optional but recommended: a free metadata key (IGDB/Twitch, ScreenScraper or SteamGridDB) for covers and names. Add it as `Environment=` lines in `romm.container` per RomM's docs, then `systemctl --user daemon-reload && systemctl --user restart romm`.
+- [ ] RomM → **Scan** → each `roms/<platform>` folder shows as a platform
+- [ ] BIOS files: RomM → the platform → **Firmware** → upload. For systems that need several files, zip them together first.
+- [ ] Netplay (play together in the browser): create `/srv/stream/romm/config/config.yml` with
+
+  ```yaml
+  emulatorjs:
+    netplay:
+      enabled: true
+  ```
+
+  then restart romm. Players connect to each other directly (WebRTC). Friends outside your house usually also need a TURN relay; RomM's EmulatorJS page lists free options under `ice_servers`.
+- [ ] One user per player (RomM → Administration → Users), so each person's saves and states are their own
+- The browser and the cabinet share ROMs, not saves: RetroArch's saves live on the cabinet, EmulatorJS's in RomM. Browser netplay and RetroArch netplay can't join each other's games.
+
+
 ## 3.9 Pi-hole #2 (as eels)
 
 ```bash
