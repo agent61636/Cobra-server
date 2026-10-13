@@ -1,6 +1,6 @@
 # Elysidrome Build Manual — 00: Overview & Architecture
 
-> **Read this first.** Every other stage refers back to the names, IPs and ports defined here.
+> **Read this first.** Every other part refers back to the names, IPs and ports defined here.
 
 ---
 
@@ -9,19 +9,19 @@
 | # | Your question | Answer (with the reasons) |
 |---|---|---|
 | 1 | *Proxmox runs everything from the Latitude: OPNsense, Pi-hole and Jellyfin?* | **Proxmox on the Latitude: yes. Jellyfin on it: no.** The Latitude runs Proxmox with the firewall, Pi-hole #1 and the `elysidrome-gate` VM. Jellyfin moves elsewhere (see #4). |
-| 2 | *Optiplex gets Windows 10 for the arcade?* | **Windows, yes, but Windows 11 rather than 10.** Consumer Windows 10 Extended Security Updates end on **Oct 13, 2026**. After that the cabinet would get no more security patches while sitting on your LAN. Windows 11 installs on the i7-6700 using Rufus's requirement bypass and activates with your existing license. LaunchBox/Big Box is Windows-only, so Windows is the right OS for the cabinet. Full reasoning is in Stage 6. |
+| 2 | *Optiplex gets Windows 10 for the arcade?* | **Windows, yes, but Windows 11 rather than 10.** Consumer Windows 10 Extended Security Updates end on **Oct 13, 2026**. After that the cabinet would get no more security patches while sitting on your LAN. Windows 11 installs on the i7-6700 using Rufus's requirement bypass and activates with your existing license. LaunchBox/Big Box is Windows-only, so Windows is the right OS for the cabinet. Setup is in part 4. |
 | 3 | *Does Navidrome go on the Optiplex?* | **No.** Navidrome needs no GPU, and the cabinet should only run games. It goes on `elysidrome-stream` with the rest of the media apps. **One Navidrome instance is enough.** Navidrome 0.58+ supports multiple libraries with per-user access. `eelsmusic.` and `rupaulradio.` are two hostnames for the same instance, and Eels and Rachel each see only their own library. |
 | 4 | *Jellyfin on the gateway box is too much. Shouldn't it go on the Optiplex and use the Intel graphics?* | **You were right to worry: it doesn't belong on the gateway.** That box has 2 cores, 16 GB and the firewall. Putting a media server facing the internet on the same machine that *is* the firewall also widens the damage if it's ever compromised. **The Optiplex is the wrong fix too.** Its HD 530 is Skylake, which has **no hardware decode for HEVC 10-bit**, and that's the format most 4K MKVs use. It would also slow down games on the cabinet. **The SGIN's Celeron N5095A (Jasper Lake) is the best video engine you own.** It does hardware HEVC 10-bit decode and encode plus HDR tone mapping, at about 10 W. So the SGIN becomes **`elysidrome-stream`** and also keeps its jobs as backup server and Pi-hole #2. |
 | 5 | *SGIN = backup server + Pi-hole 2?* | **Yes, plus media** (see #4). It runs Proxmox Backup Server, Pi-hole #2, Samba, and the media pod. |
-| 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's Stage 8. |
+| 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's a later part (not written yet). |
 | 7 | *Seamless networking + SMB from the Windows 11 desktop?* | **Yes.** All storage drives attach to `elysidrome-stream` and are shared over SMB3 (Samba). Every Windows machine maps the same shares. "Put files wherever I want" means *any machine reads and writes the same library*. |
 | 8 | *Both desktops move to the gateway switch?* | **Yes, and they have to.** Anything plugged into the Xfinity gateway bypasses the firewall. |
 | — | *M3U or XMLTV for ErsatzTV?* | **Both.** M3U is the channel list and stream URLs (the "tuner"). XMLTV is the program guide. Jellyfin takes one of each. |
-| — | *Can the cabinet's RetroArch play with web (browser) users?* | **Not directly.** RetroArch netplay and browser EmulatorJS netplay are different protocols. Stage 6 covers both of the setups that do work: friends join the cabinet with RetroArch, or everyone plays in the browser. |
+| — | *Can the cabinet's RetroArch play with web (browser) users?* | **Not directly.** RetroArch netplay and browser EmulatorJS netplay are different protocols. Both setups that do work are planned: friends join the cabinet with RetroArch, or everyone plays in the browser. |
 | — | *Does the arcade need a 3rd pod for the web arcade + hiscore sync?* | **You do need a third pod, but not on the arcade.** (1) The **web arcade (RomM/EmulatorJS) runs the game in the player's browser**. The server only hands out ROM files and the web page, so it lives in the `stream` pod next to the ROM storage and stays up when the cabinet is off. (2) **Hiscore sync has to read files RetroArch writes on Windows.** That's a job for a small **native Windows agent** (background service/tray app). Podman on Windows runs inside a WSL2 virtual machine, which doesn't start until someone logs in, and its file-watching doesn't reliably see changes Windows programs make. (3) The **hiscore server** (scores API + storage + scoreboard website at `scores.elysidrome.com`) runs on Linux, in a **reserved slot inside the `gate` pod** (see §8). Flow: cabinet RetroArch writes `.hi` → Windows sync agent → HTTPS + API key → `hiscore` pod stores the raw `.hi` files (your backup against power loss) and the parsed scores → scoreboard page with logins and filters. |
 | — | *IncusOS for security on the gate?* | **No.** IncusOS is an immutable OS whose only job is running Incus (containers/VMs). It isn't a security product, and it can't be installed on Debian. It goes into the R620 lab as a learning VM. |
 | — | *Steam Link / Arch-on-USB Pi-hole?* | **No.** The Steam Link has 512 MB of RAM and frozen firmware, and Pi-hole doesn't support Arch. Both Pi-holes run on hardware that's already on 24/7. |
-| — | *Joe Sandbox?* | It's a commercial product. The free, self-hosted equivalent is **CAPEv2** (Stage 8). |
+| — | *Joe Sandbox?* | It's a commercial product. The free, self-hosted equivalent is **CAPEv2** (R620 lab, later). |
 
 ---
 
@@ -127,8 +127,8 @@ At home, Pi-hole answers `*.elysidrome.com` with `10.10.10.10`, so LAN traffic n
 | Status page | `status.elysidrome.com` | → gate: Uptime Kuma | Authelia 2FA |
 | Password vault | `vault.elysidrome.com` | → gate: Vaultwarden | **LAN/VPN only.** Never public. |
 | High-score boards | `scores.elysidrome.com` | → gate: reserved hiscore slot (§8, built later) | Login for viewers. The cabinet's sync agent uses an API key. |
-| Live radio | `radio.elysidrome.com` | → stream: Icecast (Stage 8) | Public |
-| Landing site with buttons | `elysidrome.com` | → gate: static site (Stage 8) | Public page, buttons to the apps above |
+| Live radio | `radio.elysidrome.com` | → stream: Icecast (later) | Public |
+| Landing site with buttons | `elysidrome.com` | → gate: static site (later) | Public page, buttons to the apps above |
 
 **Why Jellyfin, Audiobookshelf, Kavita, Navidrome and RomM aren't behind Authelia:** putting a login page in front of them breaks their phone and TV apps, which can't complete a web login. They rely on their own logins plus rate limiting, CrowdSec and strong passwords instead.
 
@@ -139,30 +139,28 @@ At home, Pi-hole answers `*.elysidrome.com` with `10.10.10.10`, so LAN traffic n
 ## 5. Capacity: what "a dozen 4K users" really means
 
 - **On the LAN, 4K "direct play" costs the server almost nothing.** It just reads the file and sends it, and the TV or phone decodes it. A 4K remux runs 40–100 Mbps, so ~10 of them would fill a gigabit link. Your usual 1–3 users are easy.
-- **Outside your house, the limit is your Xfinity *upload* speed, not the server.** Remote users get a transcode down to roughly 8–20 Mbps 1080p via Quick Sync. Stage 5 gives the N5095A's realistic transcode count. Plan on a handful of simultaneous 4K HDR→1080p transcodes, not twelve.
+- **Outside your house, the limit is your Xfinity *upload* speed, not the server.** Remote users get a transcode down to roughly 8–20 Mbps 1080p via Quick Sync. Measure the N5095A's real limit after part 3: start 4K HDR→1080p transcodes one at a time and stop when playback stutters. Plan on a handful of simultaneous 4K HDR→1080p transcodes, not twelve.
 - **ErsatzTV channels transcode while someone watches them**, and that uses the same Quick Sync engine.
 
 ---
 
-## 6. Build stages
+## 6. Build parts
 
-| Stage | File | What you finish with | Est. time |
+| Part | File | What you finish with | Est. time |
 |---|---|---|---|
-| 0 | `01-stage0-prep-backup.md` | Backups verified, inventory done, domain on Cloudflare, ISOs on USB | 2–3 h |
-| 1 | `02-stage1-proxmox-command-center.md` | Proxmox installed and updated on the Latitude | 2 h |
-| 2 | `03-stage2-open-the-box-opnsense.md` | OPNsense routing the house, WireGuard, DDNS, IDS | 3–4 h |
-| 3 | `04-stage3-pihole-dns.md` | Pi-hole #1 (Pi-hole #2 after Stage 5), split DNS | 1–2 h |
-| 4 | `05-stage4-elysidrome-gate.md` | TLS, Authelia, Vaultwarden, Paperless, MeTube, Homepage | 4–6 h |
-| 5 | `06-stage5-elysidrome-stream.md` | Media server, Samba, Quick Sync, PBS | 4–6 h |
-| 6 | `07-stage6-elysidrome-arcade-windows.md` | Arcade cabinet on Windows 11 | 3–5 h |
-| 7 | `08-stage7-backups-monitoring-hardening.md` | Backups, monitoring, hardening, runbooks | 2–3 h |
-| 8+ | `09-stage8-later-r620-lab-radio-site-hiscore.md` | R620 lab, VLANs, radio, landing site, hiscore platform | Later |
+| — | *(before part 1)* | Backups of every machine verified, `elysidrome.com` active on Cloudflare, Proxmox/Debian/Windows USB sticks made | 2–3 h |
+| 1 | [`01-latitude.md`](01-latitude.md) | Proxmox installed, updated and locked down on the Latitude; installers staged | 2 h |
+| 2 | [`02-networking.md`](02-networking.md) | OPNsense routing the house, DoT, WireGuard, DDNS, IDS/CrowdSec, Pi-hole #1 | 3–5 h |
+| 3 | [`03-sgin.md`](03-sgin.md) | `elysidrome-stream`: Samba, Quick Sync media pod, Pi-hole #2, PBS | 4–6 h |
+| 4 | [`04-optiplex.md`](04-optiplex.md) | Arcade cabinet on Windows 11 | 3–5 h |
+| 5 | [`05-final-touches.md`](05-final-touches.md) | Gate VM: TLS, Authelia, Vaultwarden, Paperless, MeTube, Homepage; go public; backups; monitoring | 4–6 h |
+| later | *(not written yet)* | R620 lab, VLANs, radio, landing site, hiscore platform | Later |
 
-**Order matters.** Stage 3's Pi-hole #2 and Stage 7's backups depend on Stage 5. Each of those stages tells you when to come back to it.
+**Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
 
 ---
 
-## 7. Conventions used in every stage
+## 7. Conventions used in every part
 
 - `eels`: your admin login on every Linux box (has sudo).
 - `podsvc`: the unprivileged account that runs rootless Podman containers (no sudo, lingering enabled).
@@ -177,19 +175,19 @@ At home, Pi-hole answers `*.elysidrome.com` with `10.10.10.10`, so LAN traffic n
 
 ## 8. Reserved slot: the hiscore platform (built after everything else)
 
-The hiscore app gets designed and built **after the rest of the network is running and stable**. Its spot in the system is reserved now, so plugging it in later needs no re-wiring. **Every stage leaves these hooks in place, and none of them does anything until the app exists:**
+The hiscore app gets designed and built **after the rest of the network is running and stable**. Its spot in the system is reserved now, so plugging it in later needs no re-wiring. **Every part leaves these hooks in place, and none of them does anything until the app exists:**
 
 | Touch-point | Reservation | Set up in |
 |---|---|---|
-| Public hostname | `scores.elysidrome.com` (Cloudflare DNS-only record, created when the app goes live) | Stage 0 list / hiscore stage |
-| Local DNS | `scores.elysidrome.com → 10.10.10.10` in Pi-hole | Stage 3 |
-| TLS | Already covered by the `*.elysidrome.com` wildcard certificate | Stage 4 |
-| nginx | `scores.elysidrome.com` server block, **commented out** until the app exists | Stage 4 |
+| Public hostname | `scores.elysidrome.com` (Cloudflare DNS-only record, created when the app goes live) | Hiscore stage |
+| Local DNS | `scores.elysidrome.com → 10.10.10.10` in Pi-hole (already covered by the `address=/elysidrome.com/` line) | Part 2 |
+| TLS | Already covered by the `*.elysidrome.com` wildcard certificate | Part 5 |
+| nginx | `scores.elysidrome.com` server block, **commented out** until the app exists | Part 5 |
 | Where it runs | Inside the **`gate` pod** so nginx reaches it over localhost: **API on `127.0.0.1:8090`**; if it needs its own Postgres, **`127.0.0.1:5433`** (5432 is Paperless's) | Hiscore stage |
 | Data | `/srv/gate/hiscore/` (raw `.hi` files under `raw/` = the power-loss backup; parsed scores in the DB). It's inside VM 110, so the nightly backups already cover it. | Hiscore stage |
 | Logins | Viewers: app login (or Authelia). Cabinet agent: API key over HTTPS. Upload endpoint rate-limited in nginx. | Hiscore stage |
-| Cabinet side | Native Windows agent in `C:\Elysidrome\hiscore-agent\`, watching RetroArch's hiscore folders (paths documented in Stage 6) | Hiscore stage |
-| Dashboard / monitoring | Homepage tile + Uptime Kuma monitor added at go-live | Stage 7 |
+| Cabinet side | Native Windows agent in `C:\Elysidrome\hiscore-agent\`, watching RetroArch's hiscore folders (paths noted in part 4) | Hiscore stage |
+| Dashboard / monitoring | Homepage tile + Uptime Kuma monitor added at go-live | Part 5 |
 
 **Port `8090` and the hostname `scores` are reserved.** Don't assign them to anything else.
 

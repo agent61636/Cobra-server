@@ -207,6 +207,9 @@ curl -sSL https://install.pi-hole.net | bash
 #   Upstream DNS: Custom -> 10.10.10.1   |  Blocklist: yes  |  Query logging: on  |  Privacy: 0
 pihole setpassword
 pihole-FTL --config dns.upstreams '["10.10.10.1"]'
+# Default "LOCAL" mode ignores clients on subnets Pi-hole has no interface on, which
+# includes WireGuard (10.10.99.0/24). Only the LAN can reach this CT, so ALL is safe here.
+pihole-FTL --config dns.listeningMode ALL
 # *.elysidrome.com -> the gate, so LAN traffic never leaves the house
 pihole-FTL --config misc.dnsmasq_lines '["address=/elysidrome.com/10.10.10.10"]'
 # local names

@@ -46,7 +46,29 @@ sudo chown -R podsvc: /srv/gate
 
 - [ ] SSH key + hardening as part 3.3 (`PermitRootLogin no`)
 
+Firewall (the gate is the one box the internet reaches, so it gets its own):
+
+```bash
+sudo tee /etc/nftables.conf >/dev/null <<'EOF'
+#!/usr/sbin/nft -f
+flush ruleset
+table inet filter {
+  chain input {
+    type filter hook input priority 0; policy drop;
+    ct state established,related accept
+    iif lo accept
+    ip protocol icmp accept
+    tcp dport { 80, 443 } accept
+    ip saddr { 10.10.10.0/24, 10.10.99.0/24 } tcp dport { 22, 9090 } accept
+  }
+}
+EOF
+sudo systemctl enable --now nftables
+```
+
 ## 5.3 Wildcard cert (as eels)
+
+Token: Cloudflare → My Profile → API Tokens → **Edit zone DNS** template, zone `elysidrome.com`. Make a separate one from part 2's DDNS token so either can be revoked alone.
 
 ```bash
 sudo install -m 600 /dev/null /root/cloudflare.ini
@@ -153,7 +175,7 @@ WantedBy=default.target
 EOF
 c uptime-kuma <<'EOF'
 [Container]
-Image=docker.io/louislam/uptime-kuma:1
+Image=docker.io/louislam/uptime-kuma:2
 Pod=gate.pod
 Volume=/srv/gate/uptime-kuma:/app/data:Z
 [Install]
@@ -211,8 +233,12 @@ map $host $backend {
   arcade.elysidrome.com       http://10.10.10.20:8080;
   auth.elysidrome.com         http://127.0.0.1:9091;
 }
+server {   # catch-all: bare IP, unknown names, scanners -> drop the connection
+  listen 443 ssl default_server; http2 on; server_name _;
+  return 444;
+}
 server {   # no Authelia (apps have own logins / mobile clients)
-  listen 443 ssl default_server; http2 on;
+  listen 443 ssl; http2 on;
   server_name tv.elysidrome.com books.elysidrome.com comics.elysidrome.com eelsmusic.elysidrome.com rupaulradio.elysidrome.com arcade.elysidrome.com auth.elysidrome.com;
   location / { limit_req zone=perip burst=50 nodelay; proxy_pass $backend; }
 }
@@ -235,7 +261,9 @@ server {   # behind Authelia 2FA
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
     proxy_set_header X-Original-Method $request_method;
     proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
-    proxy_set_header Content-Length ""; proxy_pass_request_body off;
+    proxy_set_header X-Forwarded-For $remote_addr;   # a location's own proxy_set_header drops the inherited ones
+    proxy_set_header Content-Length ""; proxy_set_header Connection "";
+    proxy_pass_request_body off;
   }
   location / {
     auth_request /internal/authelia/authz;
@@ -259,7 +287,7 @@ podman exec nginx nginx -t
 ## 5.5 Go public
 
 - [ ] Cloudflare: CNAME → `elysidrome.com`, **DNS only**: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`)
-- [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.10.10.10:443` (and 80 → 80), filter rule auto-added
+- [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.10.10.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
 
 ## 5.6 Backups
@@ -287,7 +315,7 @@ echo '30 3 * * * root . /root/pbs.env && export PBS_REPOSITORY PBS_PASSWORD PBS_
 ```
 
 - [ ] PBS UI → Datastore store1 → Prune & GC jobs: daily; Verify job: weekly
-- [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901, start, destroy
+- [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901. **Before starting it**, cut its network so it doesn't steal Pi-hole #1's `10.10.10.3`: `pct set 901 --net0 name=eth0,bridge=vmbr0,ip=10.10.10.3/24,gw=10.10.10.1,link_down=1`. Start, `pct enter 901`, check `pihole status`, then stop and destroy
 - [ ] Offsite copy of `/srv/storage/media1/pbs` + photos to a second disk/cloud
 
 ## 5.7 Monitoring
