@@ -27,7 +27,7 @@ qm start 110
 
 | Screen | Value |
 |---|---|
-| Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.10.10.10/24`, gateway `10.10.10.1`, DNS `10.10.10.1` |
+| Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.6.9.10/24`, gateway `10.6.9.1`, DNS `10.6.9.1` |
 | Hostname | `elysidrome-gate` |
 | Disk | the 64 GB virtual disk (`sda`) |
 - [ ] `qm set 110 --ide2 none,media=cdrom`
@@ -59,7 +59,7 @@ table inet filter {
     iif lo accept
     ip protocol icmp accept
     tcp dport { 80, 443 } accept
-    ip saddr { 10.10.10.0/24, 10.10.99.0/24 } tcp dport { 22, 9090 } accept
+    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } tcp dport { 22, 9090 } accept
   }
 }
 EOF
@@ -291,12 +291,12 @@ server {   # catch-all: bare IP, unknown names, scanners -> drop the connection
 
 # --- media apps on the SGIN: own logins, phone/TV apps, no Authelia ---
 map $host $media {
-  tv.elysidrome.com           http://10.10.10.20:8096;    # Jellyfin (+ ErsatzTV channels inside it)
-  books.elysidrome.com        http://10.10.10.20:13378;   # Audiobookshelf
-  comics.elysidrome.com       http://10.10.10.20:5000;    # Kavita
-  eelsmusic.elysidrome.com    http://10.10.10.20:4533;    # Navidrome (Eels' library)
-  rupaulradio.elysidrome.com  http://10.10.10.20:4533;    # Navidrome (Rachel's library)
-  arcade.elysidrome.com       http://10.10.10.20:8080;    # RomM + EmulatorJS
+  tv.elysidrome.com           http://10.6.9.20:8096;    # Jellyfin (+ ErsatzTV channels inside it)
+  books.elysidrome.com        http://10.6.9.20:13378;   # Audiobookshelf
+  comics.elysidrome.com       http://10.6.9.20:5000;    # Kavita
+  eelsmusic.elysidrome.com    http://10.6.9.20:4533;    # Navidrome (Eels' library)
+  rupaulradio.elysidrome.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
+  arcade.elysidrome.com       http://10.6.9.20:8080;    # RomM + EmulatorJS
 }
 server {
   listen 443 ssl; http2 on;
@@ -320,7 +320,7 @@ server {
 # --- Vaultwarden: LAN/VPN only ---
 server {
   listen 443 ssl; http2 on; server_name vault.elysidrome.com;
-  allow 10.10.10.0/24; allow 10.10.99.0/24; deny all;
+  allow 10.6.9.0/24; allow 10.6.99.0/24; deny all;
   location / { proxy_pass http://127.0.0.1:8222; }
 }
 
@@ -366,10 +366,10 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 - [ ] `podman exec nginx nginx -t` says `syntax is ok` and `test is successful`
 - [ ] Each hostname loads with a valid padlock: `tv. books. comics. eelsmusic. rupaulradio. arcade. auth. docs. metube. home. status. vault.`
 - [ ] `docs.` and `metube.` bounce you to `auth.` first, then back
-- [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.10.10.10`), so the Known proxies setting from part 3 works
+- [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
 - [ ] Jellyfin's phone app connects with server address `https://tv.elysidrome.com` (no port)
 - [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `rupaulradio.`; each sees only their own library
-- [ ] `https://10.10.10.10` (bare IP) gets no page at all (the 444 catch-all)
+- [ ] `https://10.6.9.10` (bare IP) gets no page at all (the 444 catch-all)
 
 - [ ] Vaultwarden: create your account at `https://vault.elysidrome.com`, then close sign-ups: `sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' ~/.config/containers/systemd/vaultwarden.container && systemctl --user daemon-reload && systemctl --user restart vaultwarden`. Import the interim password DB.
 - [ ] Paperless admin: `podman exec -it paperless python3 manage.py createsuperuser`
@@ -377,7 +377,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 ## 5.5 Go public
 
 - [ ] Cloudflare: CNAME → `elysidrome.com`, **DNS only**: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`)
-- [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.10.10.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
+- [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
 
 ## 5.6 Backups
@@ -385,7 +385,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 On command-center:
 
 ```bash
-pvesm add pbs pbs-stream --server 10.10.10.20 --datastore store1 --username pve@pbs \
+pvesm add pbs pbs-stream --server 10.6.9.20 --datastore store1 --username pve@pbs \
   --fingerprint '<fingerprint from part 3>' --password '<pve@pbs password>'
 pvesh create /cluster/backup --schedule 02:00 --storage pbs-stream --all 1 --mode snapshot \
   --prune-backups keep-daily=7,keep-weekly=4,keep-monthly=6
@@ -405,7 +405,7 @@ echo '30 3 * * * root . /root/pbs.env && export PBS_REPOSITORY PBS_PASSWORD PBS_
 ```
 
 - [ ] PBS UI → Datastore store1 → Prune & GC jobs: daily; Verify job: weekly
-- [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901. **Before starting it**, cut its network so it doesn't steal Pi-hole #1's `10.10.10.3`: `pct set 901 --net0 name=eth0,bridge=vmbr0,ip=10.10.10.3/24,gw=10.10.10.1,link_down=1`. Start, `pct enter 901`, check `pihole status`, then stop and destroy
+- [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901. **Before starting it**, cut its network so it doesn't steal Pi-hole #1's `10.6.9.3`: `pct set 901 --net0 name=eth0,bridge=vmbr0,ip=10.6.9.3/24,gw=10.6.9.1,link_down=1`. Start, `pct enter 901`, check `pihole status`, then stop and destroy
 - [ ] Second copy of the PBS datastore (`/srv/storage/disks/<drive>/pbs`) and of anything irreplaceable: see part 4.6 (the OptiPlex drive) and add a cloud copy for photos and documents
 
 ### Backing up the library (the ~10 TB on the pool)
@@ -435,7 +435,7 @@ echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && P
 
 ## 5.7 Monitoring
 
-- [ ] Uptime Kuma: HTTP monitors for every hostname, TCP for `10.10.10.1:53`, `10.10.10.3:53`, `10.10.10.20:53`, `10.10.10.2:8006`, `10.10.10.20:8007`
+- [ ] Uptime Kuma: HTTP monitors for every hostname, TCP for `10.6.9.1:53`, `10.6.9.3:53`, `10.6.9.20:53`, `10.6.9.2:8006`, `10.6.9.20:8007`
 - [ ] Homepage `services.yaml`: tiles for all apps + Proxmox, OPNsense, PBS, both Pi-holes
 - [ ] Proxmox → Datacenter → Notifications: SMTP target with your email
 - [ ] OPNsense → System → Firmware: check updates weekly; Proxmox/Debian: `apt full-upgrade` weekly

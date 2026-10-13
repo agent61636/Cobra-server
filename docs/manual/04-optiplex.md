@@ -1,4 +1,4 @@
-# 4. Set up OptiPlex (elysidrome-arcade, Windows 11, 10.10.10.30)
+# 4. Set up OptiPlex (elysidrome-arcade, Windows 11, 10.6.9.30)
 
 **Result:** the cabinet boots straight into Big Box, ROMs come from the SGIN's `roms` share, and it's patched and activated.
 

@@ -1,8 +1,13 @@
-# 3. Set up SGIN (elysidrome-stream, Debian 13, 10.10.10.20)
+# 3. Set up SGIN (elysidrome-stream, Debian 13, 10.6.9.20)
 
 **Result:** the SGIN runs Debian 13 bare metal and serves all storage (Samba), the media apps (one rootless Podman pod), Pi-hole #2 and Proxmox Backup Server.
 
 🔌 SGIN onboard Ethernet → your switch (behind OPNsense, from part 2) for the whole part. **Unplug the USB hub from the SGIN until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive.
+
+**This part replaces your old server.** The SGIN gets wiped and reinstalled, so the old server's sites go offline here and come back under the new names in part 5. Plan to do parts 3 and 5 close together.
+
+- [ ] Copy anything you need off the SGIN's internal disk (configs, databases, compose files). The USB drives aren't touched; they're unplugged during the install.
+- [ ] After 3.2: OPNsense → delete the `10.6.9.200` static mapping and the port forwards pointing at it (from part 2.4)
 
 ## 3.1 Terms
 
@@ -23,7 +28,7 @@
 | Screen | Value |
 |---|---|
 | Language / location / keyboard | English / yours / American English |
-| Network | Auto (DHCP), it gets `10.10.10.1xx` for now |
+| Network | Auto (DHCP), it gets `10.6.9.1xx` for now |
 | Hostname / Domain | `elysidrome-stream` / `home.arpa` |
 | Root password | **leave blank** (root is disabled and `eels` gets sudo) |
 | User | full name `Eels`, username `eels`, generated password |
@@ -31,8 +36,8 @@
 | Software selection | untick desktop + GNOME; tick **SSH server** and **standard system utilities** only |
 | GRUB | Yes, on the internal disk |
 
-- [ ] After reboot: OPNsense → DHCP static mapping `10.10.10.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
-- [ ] From the desktop: `ssh eels@10.10.10.20`
+- [ ] After reboot: OPNsense → DHCP static mapping `10.6.9.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
+- [ ] From the desktop: `ssh eels@10.6.9.20`
 
 ## 3.3 Packages
 
@@ -58,7 +63,7 @@ sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc   # expect
 ```
 
 - [ ] No `HEVC Main10` lines from vainfo → the media driver isn't installed. No `EncSliceLP` lines → HuC didn't load; recheck `/etc/modprobe.d/i915.conf` and `firmware-misc-nonfree`
-- [ ] SSH key from the desktop: `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.10.10.20 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`
+- [ ] SSH key from the desktop: `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.6.9.20 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`
 - [ ] Same `/etc/ssh/sshd_config.d/10-elysidrome.conf` as part 1.7, but `PermitRootLogin no`; `sudo sshd -t && sudo systemctl reload ssh`
 
 ## 3.4 Storage
@@ -184,7 +189,7 @@ sudo tee /etc/samba/smb.conf >/dev/null <<'EOF'
    workgroup = WORKGROUP
    server role = standalone server
    server min protocol = SMB3
-   hosts allow = 10.10.10. 10.10.99. 127.
+   hosts allow = 10.6.9. 10.6.99. 127.
    map to guest = never
 
    # one set of permissions for every share
@@ -235,8 +240,8 @@ table inet filter {
     ct state established,related accept
     iif lo accept
     ip protocol icmp accept
-    ip saddr { 10.10.10.0/24, 10.10.99.0/24 } tcp dport { 22, 53, 80, 443, 445, 4533, 5000, 8007, 8080, 8096, 8409, 9090, 13378 } accept
-    ip saddr { 10.10.10.0/24, 10.10.99.0/24 } udp dport 53 accept
+    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } tcp dport { 22, 53, 80, 443, 445, 4533, 5000, 8007, 8080, 8096, 8409, 9090, 13378 } accept
+    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } udp dport 53 accept
   }
 }
 EOF
@@ -366,12 +371,12 @@ podman ps                                     # 7 containers Up
 # logs: journalctl --user -u jellyfin -f     restart one: systemctl --user restart jellyfin
 ```
 
-- [ ] App URLs: Jellyfin `http://10.10.10.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
+- [ ] App URLs: Jellyfin `http://10.6.9.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
 
 - [ ] Image names checked against the official docs (Oct 2026): ErsatzTV is now published as `ghcr.io/ersatztv/legacy`; RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders
 - [ ] Don't put `:Z` on `/srv/storage/pool` mounts (shared with Samba)
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), **Low-Power H.264/HEVC encoder on**, tone mapping on. Users: hidden, Quick Connect off
-- [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.10.10.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
+- [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
 - [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
 - [ ] Each app: create admin user now (first visit = admin)
 
@@ -383,7 +388,7 @@ ErsatzTV builds fake TV channels from your library (schedules, playlists, commer
 
 - [ ] Jellyfin → Dashboard → API Keys → **+** → name `ersatztv` → copy the key
 - [ ] Jellyfin → Dashboard → Libraries → **Add Media Library** → type *Home Videos and Photos* (or *Mixed*), name `Filler`, folder `/media/filler`. This makes filler searchable, though ErsatzTV reads it directly too.
-- [ ] ErsatzTV (`http://10.10.10.20:8409`) → **Media Sources → Jellyfin** → address `http://127.0.0.1:8096`, the API key → **Save** → tick the Movies and TV libraries → **Sync**. Both containers mount the pool at `/media`, so the file paths Jellyfin reports are paths ErsatzTV can open.
+- [ ] ErsatzTV (`http://10.6.9.20:8409`) → **Media Sources → Jellyfin** → address `http://127.0.0.1:8096`, the API key → **Save** → tick the Movies and TV libraries → **Sync**. Both containers mount the pool at `/media`, so the file paths Jellyfin reports are paths ErsatzTV can open.
 - [ ] ErsatzTV → **Media Sources → Local** → add a library of type *Other Videos* → folder `/media/filler` → **Scan**
 
 **2. Hardware transcoding** (ErsatzTV transcodes every channel while someone watches it)
@@ -414,7 +419,7 @@ Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside*
 
 RomM serves the browser arcade at `arcade.elysidrome.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/pool/roms`, the same folder the cabinet's LaunchBox uses as `R:\` (part 4).
 
-- [ ] First visit to `http://10.10.10.20:8080` → the setup wizard creates the admin user
+- [ ] First visit to `http://10.6.9.20:8080` → the setup wizard creates the admin user
 - [ ] Optional but recommended: a free metadata key (IGDB/Twitch, ScreenScraper or SteamGridDB) for covers and names. Add it as `Environment=` lines in `romm.container` per RomM's docs, then `systemctl --user daemon-reload && systemctl --user restart romm`.
 - [ ] RomM → **Scan** → each `roms/<platform>` folder shows as a platform
 - [ ] BIOS files: RomM → the platform → **Firmware** → upload. For systems that need several files, zip them together first.
@@ -436,12 +441,12 @@ RomM serves the browser arcade at `arcade.elysidrome.com`. The game runs in the 
 ```bash
 curl -sSL https://install.pi-hole.net | sudo bash
 sudo pihole setpassword
-sudo pihole-FTL --config dns.upstreams '["10.10.10.1"]'
+sudo pihole-FTL --config dns.upstreams '["10.6.9.1"]'
 sudo pihole-FTL --config dns.listeningMode ALL      # answer WireGuard clients too; nftables limits who can reach :53
 # copy misc.dnsmasq_lines and dns.hosts exactly as on pihole-1 (part 2)
 ```
 
-- [ ] OPNsense DHCP: DNS servers → `10.10.10.3`, `10.10.10.20`
+- [ ] OPNsense DHCP: DNS servers → `10.6.9.3`, `10.6.9.20`
 
 ## 3.10 Proxmox Backup Server
 
@@ -469,5 +474,5 @@ sudo proxmox-backup-manager cert info | grep Fingerprint
 
 ## Done when
 
-- [ ] `https://10.10.10.20:8007` (PBS), `:9090` (Cockpit), `:8096` Jellyfin plays a 4K HEVC file with transcoding showing `(hw)`
+- [ ] `https://10.6.9.20:8007` (PBS), `:9090` (Cockpit), `:8096` Jellyfin plays a 4K HEVC file with transcoding showing `(hw)`
 - [ ] `\\elysidrome-stream\media` opens from a desktop

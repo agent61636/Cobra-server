@@ -58,38 +58,39 @@
    ┌───────────────────────┴──────────────────────────────┐
    │  command-center  (Latitude, Proxmox VE 9)            │
    │   ├─ VM 100  open-the-box   WAN 10.0.0.2             │
-   │   │                          LAN 10.10.10.1          │
-   │   ├─ CT 101  pihole-1        10.10.10.3              │
-   │   └─ VM 110  elysidrome-gate 10.10.10.10  :443 ◄─────┼── only public TCP port
-   │  host mgmt 10.10.10.2:8006                           │
+   │   │                          LAN 10.6.9.1            │
+   │   ├─ CT 101  pihole-1        10.6.9.3                │
+   │   └─ VM 110  elysidrome-gate 10.6.9.10  :443 ◄───────┼── only public TCP port
+   │  host mgmt 10.6.9.2:8006                             │
    └───────────────────────┬──────────────────────────────┘
-          onboard I219-LM  │ (vmbr0, LAN 10.10.10.0/24)
+          onboard I219-LM  │ (vmbr0, LAN 10.6.9.0/24)
                 ┌──────────┴──────────┐
                 │  your switch ("hub") │
                 └─┬──────┬──────┬─────┬┘
                   │      │      │     │
    elysidrome-stream  arcade  desktop desktop     (R620 later: .40 iDRAC / .41)
-     10.10.10.20     .30      .50     .51
+     10.6.9.20       .30      .50     .51
 
-   WireGuard VPN clients: 10.10.99.0/24 (UDP 51820)
+   WireGuard VPN clients: 10.6.99.0/24 (UDP 51820)
 ```
 
 ### IP plan
 
 | IP | Host | Notes |
 |---|---|---|
-| 10.0.0.1 | Xfinity gateway | Not yours to change. Its LAN is 10.0.0.0/24, **which is why your LAN must be different.** |
+| 10.0.0.1 | Xfinity gateway | **Today it's 10.6.9.1.** Part 2's cutover moves it back to its default 10.0.0.1/24 so your own LAN, behind OPNsense, can keep the 10.6.9.x numbers. Two networks can't share one range. |
 | 10.0.0.2 | open-the-box WAN | DHCP reservation on Xfinity + DMZ host |
-| 10.10.10.1 | open-the-box LAN | Default gateway + Unbound DNS for the LAN |
-| 10.10.10.2 | command-center | Proxmox web UI `https://10.10.10.2:8006` |
-| 10.10.10.3 | pihole-1 | DNS #1 |
-| 10.10.10.10 | elysidrome-gate | nginx 80/443, Cockpit 9090 |
-| 10.10.10.20 | elysidrome-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
-| 10.10.10.30 | elysidrome-arcade | Windows cabinet |
-| 10.10.10.40 / .41 | R620 iDRAC / Proxmox | Later |
-| 10.10.10.50 / .51 | Windows desktops | DHCP reservations |
-| 10.10.10.100–199 | DHCP pool | Everything else |
-| 10.10.99.0/24 | WireGuard clients | Admin access from outside |
+| 10.6.9.1 | open-the-box LAN | Default gateway + Unbound DNS for the LAN |
+| 10.6.9.2 | command-center | Proxmox web UI `https://10.6.9.2:8006` |
+| 10.6.9.3 | pihole-1 | DNS #1 |
+| 10.6.9.10 | elysidrome-gate | nginx 80/443, Cockpit 9090 |
+| 10.6.9.20 | elysidrome-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
+| 10.6.9.30 | elysidrome-arcade | Windows cabinet |
+| 10.6.9.40 / .41 | R620 iDRAC / Proxmox | Later |
+| 10.6.9.50 / .51 | Windows desktops | DHCP reservations |
+| 10.6.9.100–199 | DHCP pool | Everything else |
+| 10.6.9.200 | old server (SGIN, until it's rebuilt) | Static mapping in OPNsense, so its port forwards keep working through the cutover (part 2.4) |
+| 10.6.99.0/24 | WireGuard clients | Admin access from outside |
 
 ### Port map
 
@@ -110,7 +111,7 @@
 ## 4. Your user flowcharts (corrected)
 
 All public traffic follows the same path: **user → Cloudflare DNS (grey cloud, DNS only) → your home IP → Xfinity → open-the-box (firewall, IDS/IPS, CrowdSec) → elysidrome-gate (nginx TLS + rate limits [+ Authelia]) → the app.**
-At home, Pi-hole answers `*.elysidrome.com` with `10.10.10.10`, so LAN traffic never leaves the house.
+At home, Pi-hole answers `*.elysidrome.com` with `10.6.9.10`, so LAN traffic never leaves the house.
 
 | Want | URL | Path after the gate | Login |
 |---|---|---|---|
@@ -180,7 +181,7 @@ The hiscore app gets designed and built **after the rest of the network is runni
 | Touch-point | Reservation | Set up in |
 |---|---|---|
 | Public hostname | `scores.elysidrome.com` (Cloudflare DNS-only record, created when the app goes live) | Hiscore stage |
-| Local DNS | `scores.elysidrome.com → 10.10.10.10` in Pi-hole (already covered by the `address=/elysidrome.com/` line) | Part 2 |
+| Local DNS | `scores.elysidrome.com → 10.6.9.10` in Pi-hole (already covered by the `address=/elysidrome.com/` line) | Part 2 |
 | TLS | Already covered by the `*.elysidrome.com` wildcard certificate | Part 5 |
 | nginx | `scores.elysidrome.com` server block, **commented out** until the app exists | Part 5 |
 | Where it runs | Inside the **`gate` pod** so nginx reaches it over localhost: **API on `127.0.0.1:8090`**; if it needs its own Postgres, **`127.0.0.1:5433`** (5432 is Paperless's) | Hiscore stage |
