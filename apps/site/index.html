@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Song of Eo</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #0d0f14; --panel: #161a22; --line: #262c38; --text: #eef0f5; --dim: #9aa3b5; --accent: #7cc4ff; --accent2: #c79cff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f6f7fa; --panel: #ffffff; --line: #dde1e9; --text: #151820; --dim: #5a6273; --accent: #1f6fd1; --accent2: #7a3fd1; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { max-width: 960px; margin: 0 auto; padding: 56px 16px 24px; }
+  h1 { margin: 0; font-size: clamp(32px, 7vw, 56px); letter-spacing: -.02em;
+       background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header p { margin: 8px 0 0; color: var(--dim); }
+  main { max-width: 960px; margin: 0 auto; padding: 0 16px 56px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin: 32px 0 12px; font-weight: 600; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+  a.tile { display: block; text-decoration: none; color: inherit; background: var(--panel); border: 1px solid var(--line);
+           border-radius: 12px; padding: 16px; transition: border-color .15s, transform .15s; }
+  a.tile:hover, a.tile:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; }
+  .tile b { display: block; font-size: 17px; }
+  .tile span { display: block; color: var(--dim); font-size: 14px; margin-top: 2px; }
+  .tile i { font-style: normal; font-size: 22px; display: block; margin-bottom: 8px; }
+  footer { max-width: 960px; margin: 0 auto; padding: 0 16px 40px; color: var(--dim); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Song of Eo</h1>
+  <p>Our shows, music, books and games, in one place. Each app has its own sign-in.</p>
+</header>
+<main>
+  <h2>Watch &amp; listen</h2>
+  <div class="grid">
+    <a class="tile" href="https://tv.songofeo.com"><i>📺</i><b>TV &amp; Movies</b><span>Shows, movies and live channels</span></a>
+    <a class="tile" href="https://eelsmusic.songofeo.com"><i>🎧</i><b>Eels' Music</b><span>Music library</span></a>
+    <a class="tile" href="https://rupaulradio.songofeo.com"><i>💃</i><b>Rachel's Music</b><span>Music library</span></a>
+    <a class="tile" href="https://radio.songofeo.com/"><i>📻</i><b>Radio</b><span>Always-on station</span></a>
+  </div>
+  <h2>Read &amp; play</h2>
+  <div class="grid">
+    <a class="tile" href="https://books.songofeo.com"><i>📚</i><b>Books</b><span>Audiobooks and ebooks</span></a>
+    <a class="tile" href="https://comics.songofeo.com"><i>🦸</i><b>Comics</b><span>Comics and graphic novels</span></a>
+    <a class="tile" href="https://arcade.songofeo.com"><i>🕹️</i><b>Arcade</b><span>Retro games in your browser</span></a>
+    <a class="tile" href="https://scores.songofeo.com"><i>🏆</i><b>High Scores</b><span>Newest arcade scores</span></a>
+  </div>
+  <h2>For the household</h2>
+  <div class="grid">
+    <a class="tile" href="https://home.songofeo.com"><i>🏠</i><b>Dashboard</b><span>Everything at a glance</span></a>
+    <a class="tile" href="https://docs.songofeo.com"><i>🗂️</i><b>Documents</b><span>Scanned papers</span></a>
+    <a class="tile" href="https://metube.songofeo.com"><i>⬇️</i><b>Save a video</b><span>Download for later</span></a>
+    <a class="tile" href="https://status.songofeo.com"><i>🟢</i><b>Status</b><span>Is everything up?</span></a>
+  </div>
+</main>
+<footer>Private family server. Not affiliated with any of the apps above.</footer>
+</body>
+</html>

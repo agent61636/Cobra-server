@@ -1,0 +1,36 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  apps:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: hiscore server
+        working-directory: apps/hiscore
+        run: python -m unittest discover -s tests -v
+      - name: cobra-breaks
+        working-directory: apps/cobra-breaks
+        run: python -m unittest discover -s tests -v
+  agent:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: hiscore agent parses in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $errs = $null
+          foreach ($f in 'apps/hiscore-agent/agent.ps1', 'apps/hiscore-agent/install.ps1') {
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f), [ref]$null, [ref]$errs)
+            if ($errs) { $errs | ForEach-Object { Write-Error "$f : $_" }; exit 1 }
+          }
+          Write-Host "PowerShell $($PSVersionTable.PSVersion): both scripts parse"

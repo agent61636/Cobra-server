@@ -1,6 +1,6 @@
 # 5. Final touches (gate VM 110, public access, backups)
 
-**Result:** `elysidrome-gate` (VM 110 on the Latitude) terminates TLS for `*.elysidrome.com`, puts Authelia 2FA in front of the admin apps, proxies to the SGIN's media apps, and is the only thing reachable from the internet (TCP 443). Nightly backups go to PBS.
+**Result:** `cobra-gate` (VM 110 on the Latitude) terminates TLS for `*.songofeo.com`, puts Authelia 2FA in front of the admin apps, proxies to the SGIN's media apps, and is the only thing reachable from the internet (TCP 443). Nightly backups go to PBS.
 
 🔌 No cable changes. Everything is already wired from part 2.
 
@@ -8,15 +8,15 @@
 
 | Term | Meaning |
 |---|---|
-| **Reverse proxy (nginx)** | Receives every `https://<name>.elysidrome.com` request and forwards it by hostname to the right app. |
-| **Wildcard cert** | One Let's Encrypt cert for `elysidrome.com` + `*.elysidrome.com`, obtained by DNS challenge (certbot writes a TXT record via the Cloudflare token), so nothing needs to be open to get it. |
-| **Authelia** | Login + TOTP portal at `auth.elysidrome.com`. nginx asks it "is this user logged in?" before serving the protected apps. |
+| **Reverse proxy (nginx)** | Receives every `https://<name>.songofeo.com` request and forwards it by hostname to the right app. |
+| **Wildcard cert** | One Let's Encrypt cert for `songofeo.com` + `*.songofeo.com`, obtained by DNS challenge (lego writes a TXT record through the Porkbun API), so nothing needs to be open to get it. |
+| **Authelia** | Login + TOTP portal at `auth.songofeo.com`. nginx asks it "is this user logged in?" before serving the protected apps. |
 | **Gate pod** | All gate apps in one rootless Podman pod. Only nginx's 80/443 are published; the apps listen on `127.0.0.1` inside the pod. |
 
-## 5.2 Gate VM (command-center shell, root)
+## 5.2 Gate VM (cobra-command shell, root)
 
 ```bash
-qm create 110 --name elysidrome-gate --ostype l26 --cpu host --cores 2 --memory 6144 \
+qm create 110 --name cobra-gate --ostype l26 --cpu host --cores 2 --memory 6144 \
   --scsihw virtio-scsi-single --scsi0 local-lvm:64,discard=on,iothread=1 --net0 virtio,bridge=vmbr0 \
   --cdrom local:iso/$(ls /var/lib/vz/template/iso | grep -m1 netinst) --agent 1 \
   --onboot 1 --startup order=3
@@ -27,8 +27,8 @@ qm start 110
 
 | Screen | Value |
 |---|---|
-| Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.10.10.10/24`, gateway `10.10.10.1`, DNS `10.10.10.1` |
-| Hostname | `elysidrome-gate` |
+| Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.6.9.10/24`, gateway `10.6.9.1`, DNS **`10.6.9.3 10.6.9.20`** (both Pi-holes, so the gate's own apps, like Uptime Kuma checking `tv.songofeo.com`, reach the LAN addresses) |
+| Hostname | `cobra-gate` |
 | Disk | the 64 GB virtual disk (`sda`) |
 - [ ] `qm set 110 --ide2 none,media=cdrom`
 
@@ -36,7 +36,7 @@ On gate (eels):
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit certbot python3-certbot-dns-cloudflare nftables systemd-container
+sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit nftables systemd-container
 # rootless containers may bind 80/443
 echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/90-ports.conf && sudo sysctl --system
 sudo useradd -m -s /bin/bash podsvc && sudo loginctl enable-linger podsvc
@@ -46,21 +46,112 @@ sudo chown -R podsvc: /srv/gate
 
 - [ ] SSH key + hardening as part 3.3 (`PermitRootLogin no`)
 
-## 5.3 Wildcard cert (as eels)
+Firewall (the gate is the one box the internet reaches, so it gets its own):
 
 ```bash
-sudo install -m 600 /dev/null /root/cloudflare.ini
-echo 'dns_cloudflare_api_token = <gate-acme token>' | sudo tee /root/cloudflare.ini
-sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/cloudflare.ini \
-  -d elysidrome.com -d '*.elysidrome.com' --agree-tos -m <your email> -n
-sudo tee /etc/letsencrypt/renewal-hooks/deploy/gate.sh >/dev/null <<'EOF'
+sudo tee /etc/nftables.conf >/dev/null <<'EOF'
+#!/usr/sbin/nft -f
+flush ruleset
+table inet filter {
+  chain input {
+    type filter hook input priority 0; policy drop;
+    ct state established,related accept
+    iif lo accept
+    ip protocol icmp accept
+    tcp dport { 80, 443 } accept
+    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } tcp dport { 22, 9090 } accept
+  }
+}
+EOF
+sudo systemctl enable --now nftables
+```
+
+Shared storage from the SGIN (MeTube saves into the library, Paperless reads the `scans` drop folder):
+
+```bash
+sudo apt install -y cifs-utils
+sudo install -m 600 /dev/null /root/smb-gate.cred
+printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
+sudo mkdir -p /srv/storage/pool
+PU=$(id -u podsvc); PG=$(id -g podsvc)
+echo "//10.6.9.20/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
+  | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/pool
+```
+
+- `file_mode=0666,dir_mode=0777`: Paperless and MeTube run as a non-root user *inside* their containers, which is some unnamed ID on the gate, so the mount lets anyone on the gate write. Only `eels` and `podsvc` log in there. This setting is local to the gate; on the SGIN the files still land as user `gate`, group `media`, mode 664, like everything else written over Samba.
+- `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
+- The share is addressed by IP on purpose, so it mounts even if both Pi-holes are down.
+- `/srv/storage/pool` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
+- [ ] `touch /srv/storage/pool/scans/test && rm /srv/storage/pool/scans/test` works as eels
+
+## 5.3 Wildcard cert (as eels)
+
+**lego** gets one Let's Encrypt certificate for `songofeo.com` and `*.songofeo.com` by putting a temporary TXT record in your Porkbun DNS (the DNS challenge), so nothing has to be open to the internet to get it. Certbot has no Porkbun plugin in Debian; lego has Porkbun built in.
+
+Credentials: the `cobra-acme` Porkbun API key and secret key from part 0.4 (separate from the DDNS key, so either can be revoked alone).
+
+```bash
+sudo apt install -y lego
+lego --version                                # needs 4.4 or newer for Porkbun
+sudo install -m 600 /dev/null /root/porkbun.env
+sudo tee /root/porkbun.env >/dev/null <<'EOF'
+PORKBUN_API_KEY=pk1_...
+PORKBUN_SECRET_API_KEY=sk1_...
+PORKBUN_PROPAGATION_TIMEOUT=900
+EOF
+
+# The deploy step: copy the cert where nginx reads it, then restart nginx
+sudo tee /usr/local/sbin/gate-cert-deploy >/dev/null <<'EOF'
 #!/bin/sh
-install -o podsvc -m 600 /etc/letsencrypt/live/elysidrome.com/fullchain.pem /srv/gate/nginx/certs/
-install -o podsvc -m 600 /etc/letsencrypt/live/elysidrome.com/privkey.pem /srv/gate/nginx/certs/
+set -e
+C=/etc/lego/certificates
+install -o podsvc -m 600 $C/songofeo.com.crt /srv/gate/nginx/certs/fullchain.pem
+install -o podsvc -m 600 $C/songofeo.com.key /srv/gate/nginx/certs/privkey.pem
 runuser -u podsvc -- env XDG_RUNTIME_DIR=/run/user/$(id -u podsvc) systemctl --user restart nginx 2>/dev/null || true
 EOF
-sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/gate.sh && sudo /etc/letsencrypt/renewal-hooks/deploy/gate.sh
+sudo chmod 755 /usr/local/sbin/gate-cert-deploy
+
+# First certificate (takes a few minutes while Porkbun's DNS updates)
+sudo sh -c 'set -a; . /root/porkbun.env; set +a; lego --path /etc/lego --email "<your email>" --accept-tos \
+  --dns porkbun --dns.resolvers 9.9.9.9:53 --domains songofeo.com --domains "*.songofeo.com" run'
+sudo /usr/local/sbin/gate-cert-deploy
 ```
+
+- `apt` can't find `lego`? Download the `linux_amd64` archive from github.com/go-acme/lego/releases, check it against the release's checksums file, put the `lego` binary in `/usr/local/bin/`, and use `/usr/local/bin/lego` in the renewal service below.
+- If `lego --version` says **5.x**, the options go **after** the word `run` or `renew` (`lego run --dns porkbun ...`), as in lego's current docs. 4.x takes them before, as written here.
+- `songofeo.com.crt` already contains the full chain, which is what nginx wants as `fullchain.pem`.
+- `--dns.resolvers 9.9.9.9:53`: lego checks the challenge record against public DNS, not the Pi-holes, which answer every `songofeo.com` name with the gate's LAN address.
+
+Automatic renewal (a systemd timer, daily; lego renews when fewer than 30 days remain):
+
+```bash
+sudo tee /etc/systemd/system/lego-renew.service >/dev/null <<'EOF'
+[Unit]
+Description=Renew the songofeo.com wildcard certificate
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+EnvironmentFile=/root/porkbun.env
+ExecStart=/usr/bin/lego --path /etc/lego --email "<your email>" --accept-tos --dns porkbun --dns.resolvers 9.9.9.9:53 --domains songofeo.com --domains *.songofeo.com renew --days 30 --renew-hook /usr/local/sbin/gate-cert-deploy
+EOF
+sudo tee /etc/systemd/system/lego-renew.timer >/dev/null <<'EOF'
+[Unit]
+Description=Daily certificate renewal check
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable --now lego-renew.timer
+sudo systemctl start lego-renew.service && sudo journalctl -u lego-renew -n 5   # "no renewal" is the expected answer today
+```
+
+- [ ] `sudo ls -l /srv/gate/nginx/certs/` shows `fullchain.pem` and `privkey.pem`, owned by podsvc
+- [ ] `systemctl list-timers lego-renew.timer` shows the next run
 
 ## 5.4 Gate pod (as podsvc: `sudo machinectl shell podsvc@`)
 
@@ -78,8 +169,10 @@ EOF
 c() { cat > "$1.container"; }
 c nginx <<'EOF'
 [Container]
+ContainerName=nginx
 Image=docker.io/library/nginx:stable
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/nginx/conf.d:/etc/nginx/conf.d:ro,Z
 Volume=/srv/gate/nginx/certs:/certs:ro,Z
 [Install]
@@ -87,25 +180,31 @@ WantedBy=default.target
 EOF
 c authelia <<'EOF'
 [Container]
+ContainerName=authelia
 Image=docker.io/authelia/authelia:latest
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/authelia:/config:Z
 [Install]
 WantedBy=default.target
 EOF
 c vaultwarden <<'EOF'
 [Container]
+ContainerName=vaultwarden
 Image=docker.io/vaultwarden/server:latest
 Pod=gate.pod
-Environment=ROCKET_PORT=8222 DOMAIN=https://vault.elysidrome.com SIGNUPS_ALLOWED=true
+AutoUpdate=registry
+Environment=ROCKET_PORT=8222 DOMAIN=https://vault.songofeo.com SIGNUPS_ALLOWED=true
 Volume=/srv/gate/vaultwarden:/data:Z
 [Install]
 WantedBy=default.target
 EOF
 c postgres <<EOF
 [Container]
+ContainerName=postgres
 Image=docker.io/library/postgres:16
 Pod=gate.pod
+AutoUpdate=registry
 Environment=POSTGRES_DB=paperless POSTGRES_USER=paperless POSTGRES_PASSWORD=$PGPW
 Volume=/srv/gate/postgres:/var/lib/postgresql/data:Z
 [Install]
@@ -113,8 +212,10 @@ WantedBy=default.target
 EOF
 c redis <<'EOF'
 [Container]
+ContainerName=redis
 Image=docker.io/library/redis:7
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/redis:/data:Z
 [Install]
 WantedBy=default.target
@@ -124,37 +225,53 @@ c paperless <<EOF
 Requires=postgres.service redis.service
 After=postgres.service redis.service
 [Container]
+ContainerName=paperless
 Image=ghcr.io/paperless-ngx/paperless-ngx:latest
 Pod=gate.pod
-Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.elysidrome.com
+AutoUpdate=registry
+Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.songofeo.com PAPERLESS_CONSUMER_POLLING=60
 Volume=/srv/gate/paperless/data:/usr/src/paperless/data:Z
 Volume=/srv/gate/paperless/media:/usr/src/paperless/media:Z
-Volume=/srv/gate/paperless/consume:/usr/src/paperless/consume:Z
+Volume=/srv/storage/pool/scans:/usr/src/paperless/consume
 Volume=/srv/gate/paperless/export:/usr/src/paperless/export:Z
+[Service]
+Restart=on-failure
+RestartSec=60
 [Install]
 WantedBy=default.target
 EOF
 c metube <<'EOF'
 [Container]
+ContainerName=metube
 Image=ghcr.io/alexta69/metube:latest
 Pod=gate.pod
-Volume=/srv/gate/metube:/downloads:Z
+AutoUpdate=registry
+Environment=DOWNLOAD_DIR=/downloads STATE_DIR=/state TEMP_DIR=/state/tmp
+Volume=/srv/storage/pool/youtube:/downloads
+Volume=/srv/gate/metube:/state:Z
+[Service]
+Restart=on-failure
+RestartSec=60
 [Install]
 WantedBy=default.target
 EOF
 c homepage <<'EOF'
 [Container]
+ContainerName=homepage
 Image=ghcr.io/gethomepage/homepage:latest
 Pod=gate.pod
-Environment=HOMEPAGE_ALLOWED_HOSTS=home.elysidrome.com
+AutoUpdate=registry
+Environment=HOMEPAGE_ALLOWED_HOSTS=home.songofeo.com
 Volume=/srv/gate/homepage:/app/config:Z
 [Install]
 WantedBy=default.target
 EOF
 c uptime-kuma <<'EOF'
 [Container]
-Image=docker.io/louislam/uptime-kuma:1
+ContainerName=uptime-kuma
+Image=docker.io/louislam/uptime-kuma:2
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/uptime-kuma:/app/data:Z
 [Install]
 WantedBy=default.target
@@ -162,21 +279,30 @@ EOF
 chmod 600 *.container
 ```
 
+Where the gate's apps keep their files:
+
+| App | Its own data (on the gate's disk, in the nightly VM backup) | Shared files (on the SGIN pool, over the CIFS mount) |
+|---|---|---|
+| Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `scans`. Drop a PDF or photo into `\\cobra-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
+| MeTube | queue and history: `/srv/gate/metube` | **Finished videos:** `youtube`, so they're on the big drives and Jellyfin can show them (add `/media/youtube` as a Home Videos library) |
+
+`Restart=on-failure`: if the gate boots while the SGIN is off, those two can't find their shared folder and fail. systemd retries every minute until the SGIN is back.
+
 Authelia config (`/srv/gate/authelia/configuration.yml`; fill the three secrets with `openssl rand -hex 32`):
 
 ```yaml
 server: { address: 'tcp://127.0.0.1:9091/' }
-totp: { issuer: elysidrome.com }
+totp: { issuer: songofeo.com }
 identity_validation: { reset_password: { jwt_secret: 'SECRET1' } }
 authentication_backend: { file: { path: /config/users.yml } }
 access_control:
   default_policy: deny
   rules:
-    - domain: [docs.elysidrome.com, metube.elysidrome.com, home.elysidrome.com, status.elysidrome.com]
+    - domain: [docs.songofeo.com, metube.songofeo.com, home.songofeo.com, status.songofeo.com]
       policy: two_factor
 session:
   secret: 'SECRET2'
-  cookies: [{ domain: elysidrome.com, authelia_url: 'https://auth.elysidrome.com', expiration: 8h, inactivity: 1h }]
+  cookies: [{ domain: songofeo.com, authelia_url: 'https://auth.songofeo.com', expiration: 8h, inactivity: 1h }]
 storage: { encryption_key: 'SECRET3', local: { path: /config/db.sqlite3 } }
 notifier: { filesystem: { filename: /config/notification.txt } }
 ```
@@ -187,65 +313,98 @@ printf 'users:\n  eels:\n    displayname: Eels\n    email: <you@email>\n    pass
 chmod 600 /srv/gate/authelia/*.yml
 ```
 
-- [ ] Extra hostname: **`auth.elysidrome.com`** (Authelia portal) — add to Cloudflare CNAMEs below
+- [ ] Extra hostname: **`auth.songofeo.com`** (Authelia portal) — add to the Porkbun CNAMEs below
 
-nginx (`/srv/gate/nginx/conf.d/elysidrome.conf`):
+nginx (`/srv/gate/nginx/conf.d/songofeo.conf`):
 
 ```nginx
-limit_req_zone $binary_remote_addr zone=perip:10m rate=10r/s;
-server { listen 80 default_server; return 301 https://$host$request_uri; }
+# --- shared settings (http level; every server below inherits them) ---
+limit_req_zone $binary_remote_addr zone=perip:10m rate=10r/s;    # admin apps
+limit_req_zone $binary_remote_addr zone=media:10m rate=50r/s;    # media apps load dozens of images per page
+limit_req_status 429;
+map $http_upgrade $connection_upgrade { default upgrade; '' ''; } # websockets; '' keeps upstream keepalive
 
 ssl_certificate /certs/fullchain.pem;  ssl_certificate_key /certs/privkey.pem;
-ssl_protocols TLSv1.2 TLSv1.3;
+ssl_protocols TLSv1.2 TLSv1.3;  ssl_session_cache shared:SSL:10m;
+add_header Strict-Transport-Security "max-age=31536000" always;
 client_max_body_size 0;
+proxy_http_version 1.1;
 proxy_set_header Host $host;  proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;  proxy_set_header X-Forwarded-Proto https;
-proxy_http_version 1.1;  proxy_set_header Upgrade $http_upgrade;  proxy_set_header Connection $http_connection;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header Upgrade $http_upgrade;  proxy_set_header Connection $connection_upgrade;
 
-map $host $backend {
-  tv.elysidrome.com           http://10.10.10.20:8096;
-  books.elysidrome.com        http://10.10.10.20:13378;
-  comics.elysidrome.com       http://10.10.10.20:5000;
-  eelsmusic.elysidrome.com    http://10.10.10.20:4533;
-  rupaulradio.elysidrome.com  http://10.10.10.20:4533;
-  arcade.elysidrome.com       http://10.10.10.20:8080;
-  auth.elysidrome.com         http://127.0.0.1:9091;
+server { listen 80 default_server; return 301 https://$host$request_uri; }
+server {   # catch-all: bare IP, unknown names, scanners -> drop the connection
+  listen 443 ssl default_server; http2 on; server_name _;
+  return 444;
 }
-server {   # no Authelia (apps have own logins / mobile clients)
-  listen 443 ssl default_server; http2 on;
-  server_name tv.elysidrome.com books.elysidrome.com comics.elysidrome.com eelsmusic.elysidrome.com rupaulradio.elysidrome.com arcade.elysidrome.com auth.elysidrome.com;
-  location / { limit_req zone=perip burst=50 nodelay; proxy_pass $backend; }
+
+# --- media apps on the SGIN: own logins, phone/TV apps, no Authelia ---
+map $host $media {
+  tv.songofeo.com           http://10.6.9.20:8096;    # Jellyfin (+ ErsatzTV channels inside it)
+  books.songofeo.com        http://10.6.9.20:13378;   # Audiobookshelf
+  comics.songofeo.com       http://10.6.9.20:5000;    # Kavita
+  eelsmusic.songofeo.com    http://10.6.9.20:4533;    # Navidrome (Eels' library)
+  rupaulradio.songofeo.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
+  arcade.songofeo.com       http://10.6.9.20:8080;    # RomM + EmulatorJS
 }
-server {   # LAN/VPN only
-  listen 443 ssl; http2 on; server_name vault.elysidrome.com;
-  allow 10.10.10.0/24; allow 10.10.99.0/24; deny all;
+server {
+  listen 443 ssl; http2 on;
+  server_name tv.songofeo.com books.songofeo.com comics.songofeo.com
+              eelsmusic.songofeo.com rupaulradio.songofeo.com arcade.songofeo.com;
+  location / {
+    limit_req zone=media burst=300 nodelay;
+    proxy_buffering off;              # stream video/audio/ROM downloads straight through, don't spool to the gate's disk
+    proxy_request_buffering off;      # same for uploads (RomM, Audiobookshelf)
+    proxy_read_timeout 1h;  proxy_send_timeout 1h;   # long streams and websockets
+    proxy_pass $media;
+  }
+}
+
+# --- Authelia portal ---
+server {
+  listen 443 ssl; http2 on; server_name auth.songofeo.com;
+  location / { limit_req zone=perip burst=50 nodelay; proxy_pass http://127.0.0.1:9091; }
+}
+
+# --- Vaultwarden: LAN/VPN only ---
+server {
+  listen 443 ssl; http2 on; server_name vault.songofeo.com;
+  allow 10.6.9.0/24; allow 10.6.99.0/24; deny all;
   location / { proxy_pass http://127.0.0.1:8222; }
 }
+
+# --- admin apps on the gate, behind Authelia 2FA ---
 map $host $protected {
-  docs.elysidrome.com    http://127.0.0.1:8000;
-  metube.elysidrome.com  http://127.0.0.1:8081;
-  home.elysidrome.com    http://127.0.0.1:3000;
-  status.elysidrome.com  http://127.0.0.1:3001;
+  docs.songofeo.com    http://127.0.0.1:8000;    # Paperless-ngx
+  metube.songofeo.com  http://127.0.0.1:8081;    # MeTube
+  home.songofeo.com    http://127.0.0.1:3000;    # Homepage
+  status.songofeo.com  http://127.0.0.1:3001;    # Uptime Kuma
 }
-server {   # behind Authelia 2FA
+server {
   listen 443 ssl; http2 on;
-  server_name docs.elysidrome.com metube.elysidrome.com home.elysidrome.com status.elysidrome.com;
+  server_name docs.songofeo.com metube.songofeo.com home.songofeo.com status.songofeo.com;
   location /internal/authelia/authz {
     internal;
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
+    # a location's own proxy_set_header replaces ALL inherited ones, so list what Authelia needs
     proxy_set_header X-Original-Method $request_method;
     proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
-    proxy_set_header Content-Length ""; proxy_pass_request_body off;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header Content-Length ""; proxy_set_header Connection "";
+    proxy_pass_request_body off;
   }
   location / {
     auth_request /internal/authelia/authz;
     auth_request_set $redirection_url $upstream_http_location;
     error_page 401 =302 $redirection_url;
     limit_req zone=perip burst=50 nodelay;
+    proxy_read_timeout 1h;               # Uptime Kuma and MeTube keep a websocket open
     proxy_pass $protected;
   }
 }
-# scores.elysidrome.com -> 127.0.0.1:8090  (reserved, add when hiscore exists)
+# scores.songofeo.com -> 127.0.0.1:8090  (reserved, add when hiscore exists)
 ```
 
 ```bash
@@ -253,21 +412,31 @@ systemctl --user daemon-reload && systemctl --user start gate-pod && podman ps
 podman exec nginx nginx -t
 ```
 
-- [ ] Vaultwarden: create your account at `https://vault.elysidrome.com`, then set `SIGNUPS_ALLOWED=false`, `systemctl --user restart vaultwarden`. Import the interim password DB.
+Checks before going public (from a desktop on the LAN, where Pi-hole sends every name to the gate):
+
+- [ ] `podman exec nginx nginx -t` says `syntax is ok` and `test is successful`
+- [ ] Each hostname loads with a valid padlock: `tv. books. comics. eelsmusic. rupaulradio. arcade. auth. docs. metube. home. status. vault.`
+- [ ] `docs.` and `metube.` bounce you to `auth.` first, then back
+- [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
+- [ ] Jellyfin's phone app connects with server address `https://tv.songofeo.com` (no port)
+- [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `rupaulradio.`; each sees only their own library
+- [ ] `https://10.6.9.10` (bare IP) gets no page at all (the 444 catch-all)
+
+- [ ] Vaultwarden: create your account at `https://vault.songofeo.com`, then close sign-ups: `sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' ~/.config/containers/systemd/vaultwarden.container && systemctl --user daemon-reload && systemctl --user restart vaultwarden`. Import the interim password DB.
 - [ ] Paperless admin: `podman exec -it paperless python3 manage.py createsuperuser`
 
 ## 5.5 Go public
 
-- [ ] Cloudflare: CNAME → `elysidrome.com`, **DNS only**: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`)
-- [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.10.10.10:443` (and 80 → 80), filter rule auto-added
+- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `songofeo.com`: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`, which stays LAN/VPN-only). They follow the apex A record that DDNS keeps up to date. Make sure Porkbun's **URL Forwarding** has nothing for these names.
+- [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
 
 ## 5.6 Backups
 
-On command-center:
+On cobra-command:
 
 ```bash
-pvesm add pbs pbs-stream --server 10.10.10.20 --datastore store1 --username pve@pbs \
+pvesm add pbs pbs-stream --server 10.6.9.20 --datastore store1 --username pve@pbs \
   --fingerprint '<fingerprint from part 3>' --password '<pve@pbs password>'
 pvesh create /cluster/backup --schedule 02:00 --storage pbs-stream --all 1 --mode snapshot \
   --prune-backups keep-daily=7,keep-weekly=4,keep-monthly=6
@@ -287,13 +456,78 @@ echo '30 3 * * * root . /root/pbs.env && export PBS_REPOSITORY PBS_PASSWORD PBS_
 ```
 
 - [ ] PBS UI → Datastore store1 → Prune & GC jobs: daily; Verify job: weekly
-- [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901, start, destroy
-- [ ] Offsite copy of `/srv/storage/media1/pbs` + photos to a second disk/cloud
+- [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901. **Before starting it**, cut its network so it doesn't steal Pi-hole #1's `10.6.9.3`: `pct set 901 --net0 name=eth0,bridge=vmbr0,ip=10.6.9.3/24,gw=10.6.9.1,link_down=1`. Start, `pct enter 901`, check `pihole status`, then stop and destroy
+- [ ] Second copy of the PBS datastore (`/srv/storage/disks/<drive>/pbs`) and of anything irreplaceable: see part 4.6 (the OptiPlex drive) and add a cloud copy for photos and documents
+
+### Backing up the library (the ~10 TB on the pool)
+
+Until the backup drive exists, the pool has **no backup**: a dead drive loses whatever was on it. The fix is one dedicated backup drive that is never part of the pool.
+
+**What to buy:** one 3.5" desktop drive of **18–20 TB** (NAS or enterprise class), for a bay of the second dock. 10 TB of data plus room to grow, plus a few weeks of older versions. 14 TB is the smallest that works, and it would fill within a year or two.
+
+**How it works:** Proxmox Backup Server, already running on the SGIN, gets a second datastore called `vault` on the new drive. Every night the SGIN backs up the whole pool into it. After the first full run (expect a day or more for 10 TB over USB), each night only reads what changed. You can restore a single file from the PBS web UI, and a weekly verify job re-reads everything to catch a failing disk early. The VM backups get copied into `vault` too, so they no longer depend on a pool drive.
+
+On stream (eels), once the drive is mounted at `/srv/storage/disks/vault` (same steps as 3.4, but **don't** create a `library` folder, so it stays out of the pool):
+
+```bash
+sudo proxmox-backup-manager datastore create vault /srv/storage/disks/vault/pbs
+sudo proxmox-backup-manager acl update /datastore/vault DatastoreBackup --auth-id pve@pbs
+echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && PBS_REPOSITORY=pve@pbs@127.0.0.1:vault proxmox-backup-client backup library.pxar:/srv/storage/pool --change-detection-mode=metadata' \
+  | sudo tee /etc/cron.d/pbs-library
+```
+
+- [ ] PBS UI → Datastore **vault** → Prune: keep-daily 7, keep-weekly 4, keep-monthly 3. GC daily. Verify weekly.
+- [ ] PBS UI → Datastore **vault** → Sync Jobs → Add: source **store1** (local), daily. The VM backups now exist on two drives.
+- [ ] First run: start it by hand inside `tmux` (`sudo apt install -y tmux`, then paste everything after `root` from the cron line, prefixed with `sudo bash -c '...'`) so it survives closing the SSH window, and leave it overnight
+- [ ] Restore test: PBS UI → vault → library → browse → download one file and open it
+- `--change-detection-mode=metadata` (PBS backup client docs): each night it compares file metadata with the last snapshot and only reads files that changed, instead of re-reading all 10 TB.
+
+**What this doesn't cover: fire, theft, a power surge through the hub.** The backup drive sits next to the originals. For the files you could never get back (photos, home video, documents, your own music, saves), keep a third copy outside the house: a second backup drive you swap with one kept at a relative's every month or two, or a cloud backup of just that irreplaceable part. Movies and TV you could re-rip or re-buy can live with two copies at home.
 
 ## 5.7 Monitoring
 
-- [ ] Uptime Kuma: HTTP monitors for every hostname, TCP for `10.10.10.1:53`, `10.10.10.3:53`, `10.10.10.20:53`, `10.10.10.2:8006`, `10.10.10.20:8007`
-- [ ] Homepage `services.yaml`: tiles for all apps + Proxmox, OPNsense, PBS, both Pi-holes
+- [ ] Uptime Kuma (`status.songofeo.com`): an **HTTP** monitor for every public hostname (the gate resolves them to itself through the Pi-holes, so this tests nginx + the app); **HTTP with "Ignore TLS errors"** for `https://10.6.9.2:8006`, `https://10.6.9.1`, `https://10.6.9.20:8007`; **DNS** monitors against `10.6.9.3` and `10.6.9.20` (resolve `tv.songofeo.com`, expect `10.6.9.10`); **TCP** `10.6.9.20:445` (Samba). Settings → Notifications: add your email or phone app, and attach it to every monitor.
+- [ ] Homepage: a starter dashboard. As podsvc on the gate, write these two files, then `systemctl --user restart homepage`. Each tile links to the app, and the dot on it turns red when the app stops answering.
+
+```bash
+cat > /srv/gate/homepage/settings.yaml <<'EOF'
+title: Cobra
+theme: dark
+color: slate
+headerStyle: clean
+layout:
+  Watch & listen: { style: row, columns: 4 }
+  Read & play:    { style: row, columns: 3 }
+  Files:          { style: row, columns: 3 }
+  Admin:          { style: row, columns: 4 }
+EOF
+cat > /srv/gate/homepage/services.yaml <<'EOF'
+- Watch & listen:
+    - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
+    - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
+    - Eels' music:  { href: "https://eelsmusic.songofeo.com",   icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
+    - Rachel's music: { href: "https://rupaulradio.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4533" }
+- Read & play:
+    - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }
+    - Kavita:       { href: "https://comics.songofeo.com",      icon: kavita.png,         siteMonitor: "http://10.6.9.20:5000" }
+    - Arcade:       { href: "https://arcade.songofeo.com",      icon: romm.png,           siteMonitor: "http://10.6.9.20:8080" }
+- Files:
+    - Paperless:    { href: "https://docs.songofeo.com",        icon: paperless-ngx.png,  siteMonitor: "http://127.0.0.1:8000" }
+    - MeTube:       { href: "https://metube.songofeo.com",      icon: metube.png,         siteMonitor: "http://127.0.0.1:8081" }
+    - Vaultwarden:  { href: "https://vault.songofeo.com",       icon: vaultwarden.png,    description: "LAN/VPN only", siteMonitor: "http://127.0.0.1:8222" }
+- Admin:
+    - Proxmox:      { href: "https://10.6.9.2:8006",            icon: proxmox.png }
+    - OPNsense:     { href: "https://10.6.9.1",                 icon: opnsense.png }
+    - Backups (PBS): { href: "https://10.6.9.20:8007",          icon: proxmox.png }
+    - Pi-hole 1:    { href: "http://10.6.9.3/admin",            icon: pi-hole.png,        siteMonitor: "http://10.6.9.3/admin" }
+    - Pi-hole 2:    { href: "http://10.6.9.20/admin",           icon: pi-hole.png,        siteMonitor: "http://10.6.9.20/admin" }
+    - Status:       { href: "https://status.songofeo.com",      icon: uptime-kuma.png,    siteMonitor: "http://127.0.0.1:3001" }
+EOF
+```
+
+- Proxmox, OPNsense and PBS have no status dot: they use self-signed certificates, which Homepage's checker rejects. Uptime Kuma watches them instead (below), where you can tick "ignore TLS errors".
+- Later, Homepage widgets can show live numbers (Jellyfin streams, Pi-hole blocks, Proxmox load). Each needs an API key in `services.yaml`; see Homepage's docs per service.
 - [ ] Proxmox → Datacenter → Notifications: SMTP target with your email
 - [ ] OPNsense → System → Firmware: check updates weekly; Proxmox/Debian: `apt full-upgrade` weekly
+- [ ] Container updates, weekly, as podsvc on the gate and on the SGIN: `podman auto-update --dry-run` lists which images have a newer version; `podman auto-update` pulls them and restarts those containers (and rolls a container back if it fails to start). Read the release notes for Authelia, Paperless and RomM first; they occasionally change their config between major versions.
 - [ ] Pi-hole #1 → Settings → Teleporter export → import on Pi-hole #2 after list changes

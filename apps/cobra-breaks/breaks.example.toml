@@ -1,0 +1,28 @@
+# cobra-breaks settings. Copy to /srv/stream/cobra-breaks/breaks.toml on cobra-stream.
+# After editing: podman exec cobra-breaks python -m cobra_breaks run --config /config/breaks.toml
+
+jellyfin_url = "http://127.0.0.1:8096"      # Jellyfin in the same pod
+api_key_file = "/config/api_key"            # Dashboard -> API Keys -> + "cobra-breaks"
+filler_library = "Filler"                   # the Jellyfin library made in manual part 3.8a
+
+breaks_per_gap = 1           # filler videos between two episodes
+max_filler_minutes = 3       # longer videos in the filler library are never used as breaks
+episodes_per_playlist = 40   # how far ahead each playlist reaches
+start = "next_unwatched"     # or "first": always start at season 1 episode 1
+break_before_first = false   # true = a break before the first episode too
+skip_specials = true         # leave out season 0
+playlist_suffix = " — with breaks"
+run_at = "04:00"             # daily rebuild, server local time; also runs at start-up
+avoid_recent_runs = 3        # don't reuse filler from the last 3 rebuilds if there's enough other filler
+
+# One block per show. "users" are Jellyfin user names; each gets their own
+# playlist that follows their own watched progress.
+[[show]]
+series = "The Simpsons"
+users = ["eels", "rachel"]
+
+[[show]]
+series = "Batman: The Animated Series"
+users = ["eels"]
+filler_folder = "/media/filler/90s"   # optional: only filler from this subfolder
+breaks_per_gap = 2                    # any setting above can be overridden per show
