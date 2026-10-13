@@ -268,8 +268,10 @@ EOF
 c() { cat > "$1.container"; }
 c jellyfin <<'EOF'
 [Container]
+ContainerName=jellyfin
 Image=docker.io/jellyfin/jellyfin:latest
 Pod=stream.pod
+AutoUpdate=registry
 AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/jellyfin/config:/config:Z
@@ -280,8 +282,10 @@ WantedBy=default.target
 EOF
 c ersatztv <<'EOF'
 [Container]
+ContainerName=ersatztv
 Image=ghcr.io/ersatztv/legacy:latest
 Pod=stream.pod
+AutoUpdate=registry
 AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/ersatztv:/config:Z
@@ -291,8 +295,10 @@ WantedBy=default.target
 EOF
 c audiobookshelf <<'EOF'
 [Container]
+ContainerName=audiobookshelf
 Image=ghcr.io/advplyr/audiobookshelf:latest
 Pod=stream.pod
+AutoUpdate=registry
 Environment=PORT=13378
 Volume=/srv/stream/abs/config:/config:Z
 Volume=/srv/stream/abs/metadata:/metadata:Z
@@ -302,8 +308,10 @@ WantedBy=default.target
 EOF
 c kavita <<'EOF'
 [Container]
+ContainerName=kavita
 Image=docker.io/jvmilazz0/kavita:latest
 Pod=stream.pod
+AutoUpdate=registry
 Volume=/srv/stream/kavita:/kavita/config:Z
 Volume=/srv/storage/pool:/media:ro
 [Install]
@@ -311,8 +319,10 @@ WantedBy=default.target
 EOF
 c navidrome <<'EOF'
 [Container]
+ContainerName=navidrome
 Image=docker.io/deluan/navidrome:latest
 Pod=stream.pod
+AutoUpdate=registry
 Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/music/eels
 Volume=/srv/stream/navidrome:/data:Z
 Volume=/srv/storage/pool:/media:ro
@@ -321,8 +331,10 @@ WantedBy=default.target
 EOF
 c romm-db <<EOF
 [Container]
+ContainerName=romm-db
 Image=docker.io/library/mariadb:11
 Pod=stream.pod
+AutoUpdate=registry
 Environment=MARIADB_ROOT_PASSWORD=$DBPW MARIADB_DATABASE=romm MARIADB_USER=romm MARIADB_PASSWORD=$DBPW
 Volume=/srv/stream/romm/db:/var/lib/mysql:Z
 [Install]
@@ -333,8 +345,10 @@ c romm <<EOF
 After=romm-db.service
 Requires=romm-db.service
 [Container]
+ContainerName=romm
 Image=docker.io/rommapp/romm:latest
 Pod=stream.pod
+AutoUpdate=registry
 GroupAdd=keep-groups
 Environment=DB_HOST=127.0.0.1 DB_NAME=romm DB_USER=romm DB_PASSWD=$DBPW ROMM_AUTH_SECRET_KEY=$SECRET
 Volume=/srv/stream/romm/resources:/romm/resources:Z

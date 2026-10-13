@@ -118,8 +118,10 @@ EOF
 c() { cat > "$1.container"; }
 c nginx <<'EOF'
 [Container]
+ContainerName=nginx
 Image=docker.io/library/nginx:stable
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/nginx/conf.d:/etc/nginx/conf.d:ro,Z
 Volume=/srv/gate/nginx/certs:/certs:ro,Z
 [Install]
@@ -127,16 +129,20 @@ WantedBy=default.target
 EOF
 c authelia <<'EOF'
 [Container]
+ContainerName=authelia
 Image=docker.io/authelia/authelia:latest
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/authelia:/config:Z
 [Install]
 WantedBy=default.target
 EOF
 c vaultwarden <<'EOF'
 [Container]
+ContainerName=vaultwarden
 Image=docker.io/vaultwarden/server:latest
 Pod=gate.pod
+AutoUpdate=registry
 Environment=ROCKET_PORT=8222 DOMAIN=https://vault.elysidrome.com SIGNUPS_ALLOWED=true
 Volume=/srv/gate/vaultwarden:/data:Z
 [Install]
@@ -144,8 +150,10 @@ WantedBy=default.target
 EOF
 c postgres <<EOF
 [Container]
+ContainerName=postgres
 Image=docker.io/library/postgres:16
 Pod=gate.pod
+AutoUpdate=registry
 Environment=POSTGRES_DB=paperless POSTGRES_USER=paperless POSTGRES_PASSWORD=$PGPW
 Volume=/srv/gate/postgres:/var/lib/postgresql/data:Z
 [Install]
@@ -153,8 +161,10 @@ WantedBy=default.target
 EOF
 c redis <<'EOF'
 [Container]
+ContainerName=redis
 Image=docker.io/library/redis:7
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/redis:/data:Z
 [Install]
 WantedBy=default.target
@@ -164,8 +174,10 @@ c paperless <<EOF
 Requires=postgres.service redis.service
 After=postgres.service redis.service
 [Container]
+ContainerName=paperless
 Image=ghcr.io/paperless-ngx/paperless-ngx:latest
 Pod=gate.pod
+AutoUpdate=registry
 Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.elysidrome.com PAPERLESS_CONSUMER_POLLING=60
 Volume=/srv/gate/paperless/data:/usr/src/paperless/data:Z
 Volume=/srv/gate/paperless/media:/usr/src/paperless/media:Z
@@ -179,8 +191,10 @@ WantedBy=default.target
 EOF
 c metube <<'EOF'
 [Container]
+ContainerName=metube
 Image=ghcr.io/alexta69/metube:latest
 Pod=gate.pod
+AutoUpdate=registry
 Environment=DOWNLOAD_DIR=/downloads STATE_DIR=/state TEMP_DIR=/state/tmp
 Volume=/srv/storage/pool/youtube:/downloads
 Volume=/srv/gate/metube:/state:Z
@@ -192,8 +206,10 @@ WantedBy=default.target
 EOF
 c homepage <<'EOF'
 [Container]
+ContainerName=homepage
 Image=ghcr.io/gethomepage/homepage:latest
 Pod=gate.pod
+AutoUpdate=registry
 Environment=HOMEPAGE_ALLOWED_HOSTS=home.elysidrome.com
 Volume=/srv/gate/homepage:/app/config:Z
 [Install]
@@ -201,8 +217,10 @@ WantedBy=default.target
 EOF
 c uptime-kuma <<'EOF'
 [Container]
+ContainerName=uptime-kuma
 Image=docker.io/louislam/uptime-kuma:2
 Pod=gate.pod
+AutoUpdate=registry
 Volume=/srv/gate/uptime-kuma:/app/data:Z
 [Install]
 WantedBy=default.target
@@ -353,7 +371,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 - [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `rupaulradio.`; each sees only their own library
 - [ ] `https://10.10.10.10` (bare IP) gets no page at all (the 444 catch-all)
 
-- [ ] Vaultwarden: create your account at `https://vault.elysidrome.com`, then set `SIGNUPS_ALLOWED=false`, `systemctl --user restart vaultwarden`. Import the interim password DB.
+- [ ] Vaultwarden: create your account at `https://vault.elysidrome.com`, then close sign-ups: `sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' ~/.config/containers/systemd/vaultwarden.container && systemctl --user daemon-reload && systemctl --user restart vaultwarden`. Import the interim password DB.
 - [ ] Paperless admin: `podman exec -it paperless python3 manage.py createsuperuser`
 
 ## 5.5 Go public
@@ -421,4 +439,5 @@ echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && P
 - [ ] Homepage `services.yaml`: tiles for all apps + Proxmox, OPNsense, PBS, both Pi-holes
 - [ ] Proxmox → Datacenter → Notifications: SMTP target with your email
 - [ ] OPNsense → System → Firmware: check updates weekly; Proxmox/Debian: `apt full-upgrade` weekly
+- [ ] Container updates, weekly, as podsvc on the gate and on the SGIN: `podman auto-update --dry-run` lists which images have a newer version; `podman auto-update` pulls them and restarts those containers (and rolls a container back if it fails to start). Read the release notes for Authelia, Paperless and RomM first; they occasionally change their config between major versions.
 - [ ] Pi-hole #1 → Settings → Teleporter export → import on Pi-hole #2 after list changes
