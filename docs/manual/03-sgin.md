@@ -129,14 +129,15 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/pool && df -h /srv/stora
 - `minfreespace=20G`: a drive with less than 20 GB free gets no new files
 - `moveonenospc=true`: if a drive fills mid-copy, the file moves to another drive instead of failing
 
-Folder layout (made once, on the pool): `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans`.
+Folder layout (made once, on the pool): `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans backups`.
 
 - `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin)
 - `youtube`: MeTube saves here from the gate (part 5)
 - `scans`: drop documents here from any machine and Paperless on the gate picks them up (part 5)
+- `backups`: machines that keep files only on themselves (the cabinet's saves, part 4.5) copy them here, so the vault backup covers them
 
 ```bash
-sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans}
+sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans,backups}
 ```
 
 - [ ] `df -h /srv/storage/pool` shows the combined size of all drives
