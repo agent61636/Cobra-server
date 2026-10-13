@@ -74,12 +74,12 @@ sudo install -m 600 /dev/null /root/smb-gate.cred
 printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
 sudo mkdir -p /srv/storage/pool
 PU=$(id -u podsvc); PG=$(id -g podsvc)
-echo "//elysidrome-stream.home.arpa/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0664,dir_mode=0775,_netdev,nofail,x-systemd.automount 0 0" \
+echo "//elysidrome-stream.home.arpa/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
   | sudo tee -a /etc/fstab
 sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/pool
 ```
 
-- `uid`/`gid=podsvc`: inside the rootless containers that user is "root", so MeTube and Paperless can write. On the SGIN the files still land as user `gate`, group `media`.
+- `file_mode=0666,dir_mode=0777`: Paperless and MeTube run as a non-root user *inside* their containers, which is some unnamed ID on the gate, so the mount lets anyone on the gate write. Only `eels` and `podsvc` log in there. This setting is local to the gate; on the SGIN the files still land as user `gate`, group `media`, mode 664, like everything else written over Samba.
 - `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
 - `/srv/storage/pool` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
 - [ ] `touch /srv/storage/pool/scans/test && rm /srv/storage/pool/scans/test` works as eels
@@ -166,11 +166,14 @@ After=postgres.service redis.service
 [Container]
 Image=ghcr.io/paperless-ngx/paperless-ngx:latest
 Pod=gate.pod
-Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.elysidrome.com
+Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.elysidrome.com PAPERLESS_CONSUMER_POLLING=60
 Volume=/srv/gate/paperless/data:/usr/src/paperless/data:Z
 Volume=/srv/gate/paperless/media:/usr/src/paperless/media:Z
-Volume=/srv/gate/paperless/consume:/usr/src/paperless/consume:Z
+Volume=/srv/storage/pool/scans:/usr/src/paperless/consume
 Volume=/srv/gate/paperless/export:/usr/src/paperless/export:Z
+[Service]
+Restart=on-failure
+RestartSec=60
 [Install]
 WantedBy=default.target
 EOF
@@ -178,7 +181,12 @@ c metube <<'EOF'
 [Container]
 Image=ghcr.io/alexta69/metube:latest
 Pod=gate.pod
-Volume=/srv/gate/metube:/downloads:Z
+Environment=DOWNLOAD_DIR=/downloads STATE_DIR=/state TEMP_DIR=/state/tmp
+Volume=/srv/storage/pool/youtube:/downloads
+Volume=/srv/gate/metube:/state:Z
+[Service]
+Restart=on-failure
+RestartSec=60
 [Install]
 WantedBy=default.target
 EOF
@@ -201,6 +209,15 @@ WantedBy=default.target
 EOF
 chmod 600 *.container
 ```
+
+Where the gate's apps keep their files:
+
+| App | Its own data (on the gate's disk, in the nightly VM backup) | Shared files (on the SGIN pool, over the CIFS mount) |
+|---|---|---|
+| Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `scans`. Drop a PDF or photo into `\\elysidrome-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
+| MeTube | queue and history: `/srv/gate/metube` | **Finished videos:** `youtube`, so they're on the big drives and Jellyfin can show them (add `/media/youtube` as a Home Videos library) |
+
+`Restart=on-failure`: if the gate boots while the SGIN is off, those two can't find their shared folder and fail. systemd retries every minute until the SGIN is back.
 
 Authelia config (`/srv/gate/authelia/configuration.yml`; fill the three secrets with `openssl rand -hex 32`):
 
