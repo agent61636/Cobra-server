@@ -17,7 +17,7 @@
 
 ## 4.2 Software and shares
 
-GPU driver: current AMD Adrenalin does **not** support the Oland (R7 250-class, GCN 1) card. Use the **Windows Legacy Driver** from amd.com/support → Graphics → Radeon R7 Series → your card, or let Windows Update install its driver. ⚠️ Verify the exact legacy version on AMD's page.
+GPU driver: current AMD Adrenalin does **not** support the Oland (R7 250-class, GCN 1) card. On amd.com/support, find your card (Graphics → Radeon R7 Series) and install the newest driver listed under **Windows Legacy Drivers**, or let Windows Update install its driver. Don't let AMD's auto-detect tool "upgrade" it to current Adrenalin.
 
 PowerShell **as Admin** (right-click Start → Terminal (Admin)):
 
@@ -41,10 +41,10 @@ Restart-Computer
 
 The cabinet plays everything natively: LaunchBox/Big Box is the menu, RetroArch does the emulating, and the ROMs stay on the SGIN. The web arcade (RomM + EmulatorJS on the SGIN, part 3) reads the **same** `roms` folder, so a game added once shows up in both.
 
-**ROM folder names.** Name each system's folder the way RomM expects (`roms/<platform>/`, e.g. `roms/snes`, `roms/gba`, `roms/n64`, `roms/arcade`). LaunchBox doesn't care about names, RomM does. ⚠️ Verify the exact slugs on RomM's "Supported platforms" page before renaming a big collection.
+**ROM folder names.** RomM finds each system by its folder name (`roms/<platform>/`), using the short names on its "Supported platforms" page: for example `gba`, `gb`, `gbc`, `arcade`, `atari2600`. LaunchBox doesn't care about names. If your folders already have other names, don't rename a big collection: map them instead in RomM's `config.yml` under `system.platforms` (e.g. `"Super Nintendo": snes`).
 
 - [ ] LaunchBox installer from launchbox-app.com → restore the backed-up LaunchBox folder over it (to `D:\LaunchBox` if the WD drive has room, otherwise `C:\LaunchBox`)
-- [ ] **Emulator:** Tools → Manage → Emulators → Add → RetroArch → path to `retroarch.exe` (winget puts it in `C:\RetroArch-Win64\` ⚠️ Verify). On the **Associated Platforms** tab, let LaunchBox fill in its default core for each platform, then set Arcade to **FinalBurn Neo** (`fbneo_libretro.dll`) or **MAME 2003-Plus** to match your romset.
+- [ ] **Emulator:** Tools → Manage → Emulators → Add → RetroArch → path to `retroarch.exe` (Start menu → right-click RetroArch → Open file location; usually `C:\RetroArch-Win64\`). On the **Associated Platforms** tab, let LaunchBox fill in its default core for each platform, then set Arcade to **FinalBurn Neo** (`fbneo_libretro.dll`) or **MAME 2003-Plus** to match your romset.
 - [ ] **Importing games:** Tools → Import → ROM Files → pick `R:\<platform>` → when asked, choose **use the files in their current location**. The other choice copies every ROM onto the cabinet's disk.
 - [ ] Big Box: Options → Startup → start Big Box on Windows startup
 - [ ] RetroArch: copy back `saves states system config playlists`. Its own ROM browser can point at `R:\` (Settings → Directory → File Browser), but day to day LaunchBox launches the games.
@@ -108,7 +108,7 @@ Start-ScheduledTask 'Cobra nightly copy'      # first run now; the first pull to
 ```
 
 - `-StartWhenAvailable`: if the cabinet was off at 3:30, it runs at next boot.
-- ⚠️ Verify the folder names under your RetroArch install match the ones in `$up`.
+- Before the first run, open your RetroArch folder and check that `saves`, `states`, `system`, `config` and `playlists` are there (they appear after RetroArch's first launch). If RetroArch lives somewhere else, change `$ra`.
 
 ## 4.6 The OptiPlex's WD drive
 

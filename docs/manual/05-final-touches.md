@@ -429,7 +429,7 @@ echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && P
 - [ ] PBS UI → Datastore **vault** → Sync Jobs → Add: source **store1** (local), daily. The VM backups now exist on two drives.
 - [ ] First run: start it by hand inside `tmux` (`sudo apt install -y tmux`, then paste everything after `root` from the cron line, prefixed with `sudo bash -c '...'`) so it survives closing the SSH window, and leave it overnight
 - [ ] Restore test: PBS UI → vault → library → browse → download one file and open it
-- ⚠️ Verify `--change-detection-mode=metadata` is in your PBS client version (`proxmox-backup-client help backup`). Without it, each night re-reads all 10 TB to find changes. It still works, just slowly.
+- `--change-detection-mode=metadata` (PBS backup client docs): each night it compares file metadata with the last snapshot and only reads files that changed, instead of re-reading all 10 TB.
 
 **What this doesn't cover: fire, theft, a power surge through the hub.** The backup drive sits next to the originals. For the files you could never get back (photos, home video, documents, your own music, saves), keep a third copy outside the house: a second backup drive you swap with one kept at a relative's every month or two, or a cloud backup of just that irreplaceable part. Movies and TV you could re-rip or re-buy can live with two copies at home.
 

@@ -138,7 +138,7 @@ Then:
 
 - [ ] **System → Settings → General**: DNS servers blank; **untick** "Allow DNS server list to be overridden by DHCP/PPP on WAN". Save.
 - [ ] **System → Settings → Administration**: Listen Interfaces = **LAN** only; HTTP redirect: disable; Secure Shell: off. Save.
-- [ ] **2FA:** System → Access → Servers → **Add** → Type **Local + Timebased One Time Password**, name `TOTP`. Save. → System → Access → Users → root → OTP seed: **Generate**, Save, scan the QR. → System → Settings → Administration → Authentication server: **TOTP** only. Log out; log in with password = **code then password** (e.g. `123456MyPassword`). ⚠️ Verify the token order on the TOTP server's "Reverse token order" setting.
+- [ ] **2FA:** System → Access → Servers → **Add** → Type **Local + Timebased One Time Password**, name `TOTP`, token length 6. Save. → System → Access → Users → root → OTP seed: **Generate**, Save, scan the QR. → **System → Access → Tester**: server `TOTP`, user root, password = **code then password** (e.g. `123456MyPassword`), Test. Only when that passes: System → Settings → Administration → Authentication server: **TOTP** only. Log out and back in the same way. (Code first is OPNsense's default; the server's reverse-order option flips it.)
 - [ ] **System → Firmware → Status → Check for updates** → update → reboot if asked
 - [ ] **System → Firmware → Plugins**: install `os-ddclient`, `os-crowdsec`
 
@@ -248,7 +248,7 @@ Keeps `songofeo.com` (apex A record) pointed at your home IP. App hostnames get 
 | Field | Value |
 |---|---|
 | Service | Cloudflare |
-| Username | ⚠️ Verify per the field's help text (token auth usually wants the zone name or `token`) |
+| Username | the literal word **`token`** (OPNsense's Cloudflare instructions for API-token login) |
 | Password | the API token |
 | Zone | `songofeo.com` |
 | Hostname(s) | `songofeo.com` |

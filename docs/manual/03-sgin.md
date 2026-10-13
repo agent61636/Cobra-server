@@ -411,7 +411,7 @@ ErsatzTV builds fake TV channels from your library (schedules, playlists, commer
 
 **4. Hand the channels to Jellyfin**
 
-- [ ] In ErsatzTV, the top-right buttons copy the **M3U** and **XMLTV** links. Replace the host part with `127.0.0.1:8409`; they look like `http://127.0.0.1:8409/iptv/channels.m3u` and `http://127.0.0.1:8409/iptv/xmltv.xml`. ⚠️ Verify the paths against what the buttons give you.
+- [ ] In ErsatzTV, the top-right buttons copy the **M3U** and **XMLTV** links. Replace the host part with `127.0.0.1:8409`; they are `http://127.0.0.1:8409/iptv/channels.m3u` and `http://127.0.0.1:8409/iptv/xmltv.xml`.
 - [ ] Jellyfin → Dashboard → **Live TV** → Tuner Devices **+** → type **M3U Tuner** → paste the M3U link → Save
 - [ ] Same page → TV Guide Data Providers **+** → **XMLTV** → paste the XMLTV link → Save → **Refresh Guide Data**
 - [ ] Jellyfin web → **Live TV** → the channel plays, and the guide shows what's on now and next
