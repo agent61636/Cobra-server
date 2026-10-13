@@ -75,11 +75,21 @@ echo 'UUID=<uuid> /srv/storage/media1 ext4 defaults,nofail,x-systemd.device-time
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/*
 ```
 
-Folder layout per drive: `movies tv music/eels music/rachel books audiobooks comics roms pbs`.
+Folder layout per drive: `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans pbs`.
+
+- `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin)
+- `youtube`: MeTube saves here from the gate (part 5)
+- `scans`: drop documents here from any machine and Paperless on the gate picks them up (part 5)
+
+```bash
+sudo mkdir -p /srv/storage/media1/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans,pbs}
+```
 
 ## 3.5 Users and permissions
 
-`podsvc` runs the containers; group `media` = everyone allowed to write the library (podsvc, eels, the cabinet's Samba login).
+`podsvc` runs the containers; group `media` = everyone allowed to write the library (podsvc, eels, the cabinet's and the gate's Samba logins).
+
+How the permissions fit together: files arrive from Samba owned by whoever wrote them, with group `media` and mode `664`/`2775`. Containers that only read the library (Jellyfin, Audiobookshelf, Kavita, Navidrome) can read those through the "other" bits. A rootless container drops `podsvc`'s supplementary groups unless its Quadlet says `GroupAdd=keep-groups`, so every container that **writes** to the library (RomM) or needs `/dev/dri` (Jellyfin, ErsatzTV) carries that line.
 
 ```bash
 sudo groupadd media
@@ -103,24 +113,44 @@ sudo tee /etc/samba/smb.conf >/dev/null <<'EOF'
    hosts allow = 10.10.10. 10.10.99. 127.
    map to guest = never
 
-[media]
-   path = /srv/storage/media1
+   # one set of permissions for every share
    valid users = @media
    force group = media
    create mask = 0664
    directory mask = 2775
    read only = no
 
+[media]
+   path = /srv/storage/media1
+   # the PBS datastore lives on this drive; keep it out of reach of SMB users
+   veto files = /pbs/
+   delete veto files = no
+
 [roms]
    path = /srv/storage/media1/roms
-   valid users = @media
-   force group = media
-   read only = no
+
+[scans]
+   path = /srv/storage/media1/scans
 EOF
 sudo testparm -s >/dev/null && sudo systemctl restart smbd
 sudo smbpasswd -a eels
 sudo useradd -M -s /usr/sbin/nologin -G media arcade && sudo smbpasswd -a arcade   # cabinet login
+sudo useradd -M -s /usr/sbin/nologin -G media gate   && sudo smbpasswd -a gate     # gate VM (part 5)
+sudo systemctl enable --now smbd
 ```
+
+Every machine, and every share, by the same path:
+
+| From | How | Path |
+|---|---|---|
+| Windows desktops | File Explorer → Map network drive (log in as `eels`) | `\\elysidrome-stream\media`, `\scans`, `\roms` |
+| Cabinet | `R:` mapped in part 4 (log in as `arcade`) | `\\elysidrome-stream\roms` |
+| Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\elysidrome-stream\media` |
+| Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/media1` |
+| Containers on the SGIN | Bind mounts in 3.8 | `/media/media1/...` |
+| Phones on Wi-Fi | Xfinity Wi-Fi is outside the firewall by design; use WireGuard there too | — |
+
+- [ ] Windows: `\\elysidrome-stream\media` opens and you can create and delete a test folder
 
 ## 3.7 Firewall (LAN + VPN only)
 
@@ -234,6 +264,7 @@ Requires=romm-db.service
 [Container]
 Image=docker.io/rommapp/romm:latest
 Pod=stream.pod
+GroupAdd=keep-groups
 Environment=DB_HOST=127.0.0.1 DB_NAME=romm DB_USER=romm DB_PASSWD=$DBPW ROMM_AUTH_SECRET_KEY=$SECRET
 Volume=/srv/stream/romm/resources:/romm/resources:Z
 Volume=/srv/stream/romm/assets:/romm/assets:Z

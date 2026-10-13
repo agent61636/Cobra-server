@@ -66,13 +66,31 @@ EOF
 sudo systemctl enable --now nftables
 ```
 
+Shared storage from the SGIN (MeTube saves into the library, Paperless reads the `scans` drop folder):
+
+```bash
+sudo apt install -y cifs-utils
+sudo install -m 600 /dev/null /root/smb-gate.cred
+printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
+sudo mkdir -p /srv/storage/media1
+PU=$(id -u podsvc); PG=$(id -g podsvc)
+echo "//elysidrome-stream.home.arpa/media /srv/storage/media1 cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0664,dir_mode=0775,_netdev,nofail,x-systemd.automount 0 0" \
+  | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/media1 && ls /srv/storage/media1
+```
+
+- `uid`/`gid=podsvc`: inside the rootless containers that user is "root", so MeTube and Paperless can write. On the SGIN the files still land as user `gate`, group `media`.
+- `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
+- `/srv/storage/media1` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
+- [ ] `touch /srv/storage/media1/scans/test && rm /srv/storage/media1/scans/test` works as eels
+
 ## 5.3 Wildcard cert (as eels)
 
 Token: Cloudflare → My Profile → API Tokens → **Edit zone DNS** template, zone `elysidrome.com`. Make a separate one from part 2's DDNS token so either can be revoked alone.
 
 ```bash
 sudo install -m 600 /dev/null /root/cloudflare.ini
-echo 'dns_cloudflare_api_token = <gate-acme token>' | sudo tee /root/cloudflare.ini
+echo 'dns_cloudflare_api_token = <gate-acme token>' | sudo tee /root/cloudflare.ini >/dev/null
 sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/cloudflare.ini \
   -d elysidrome.com -d '*.elysidrome.com' --agree-tos -m <your email> -n
 sudo tee /etc/letsencrypt/renewal-hooks/deploy/gate.sh >/dev/null <<'EOF'
