@@ -13,7 +13,7 @@
 | 3 | *Does Navidrome go on the Optiplex?* | **No.** Navidrome needs no GPU, and the cabinet should only run games. It goes on `cobra-stream` with the rest of the media apps. **One Navidrome instance is enough.** Navidrome 0.58+ supports multiple libraries with per-user access. `eelsmusic.` and `rupaulradio.` are two hostnames for the same instance, and Eels and Rachel each see only their own library. |
 | 4 | *Jellyfin on the gateway box is too much. Shouldn't it go on the Optiplex and use the Intel graphics?* | **You were right to worry: it doesn't belong on the gateway.** That box has 2 cores, 16 GB and the firewall. Putting a media server facing the internet on the same machine that *is* the firewall also widens the damage if it's ever compromised. **The Optiplex is the wrong fix too.** Its HD 530 is Skylake, which has **no hardware decode for HEVC 10-bit**, and that's the format most 4K MKVs use. It would also slow down games on the cabinet. **The SGIN's Celeron N5095A (Jasper Lake) is the best video engine you own.** It does hardware HEVC 10-bit decode and encode plus HDR tone mapping, at about 10 W. So the SGIN becomes **`cobra-stream`** and also keeps its jobs as backup server and Pi-hole #2. |
 | 5 | *SGIN = backup server + Pi-hole 2?* | **Yes, plus media** (see #4). It runs Proxmox Backup Server, Pi-hole #2, Samba, and the media pod. |
-| 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's a later part (not written yet). |
+| 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's part 9. |
 | 7 | *Seamless networking + SMB from the Windows 11 desktop?* | **Yes.** All the USB storage drives attach to `cobra-stream`, are pooled into one library and shared over SMB3 (Samba); every Windows machine, the gate and VPN clients use the same shares (part 3.4–3.6). The OptiPlex's internal WD drive stays in the cabinet as its game drive and an extra copy (part 4.6). "Put files wherever I want" means *any machine reads and writes the same library*. |
 | 8 | *Both desktops move to the gateway switch?* | **Yes, and they have to.** Anything plugged into the Xfinity gateway bypasses the firewall. |
 | — | *M3U or XMLTV for ErsatzTV?* | **Both.** M3U is the channel list and stream URLs (the "tuner"). XMLTV is the program guide. Jellyfin takes one of each. |
@@ -35,7 +35,7 @@
 | ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
 | **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
 | **cobra-arcade** | OptiPlex 7040: i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
-| **R620** (later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (2nd node) | On-demand security lab | 110–160 W *only while on* |
+| **cobra-lab** (R620, later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (standalone; not clustered, part 9) | On-demand security lab | 110–160 W *only while on* |
 | Windows desktops ×2 | — | Windows 11 | Daily use; SMB access to all shares | — |
 
 **Why `cobra-stream` is bare-metal Debian instead of a Proxmox guest:** the iGPU (needed for Quick Sync) and the USB storage drives are simplest and most reliable on bare metal. Running Podman inside an LXC container on Proxmox breaks regularly on AppArmor/runc updates. Real companies run hypervisors next to bare-metal appliances like this all the time. You still manage it from one place: Cockpit plus the Homepage dashboard, and its backups land in the same Proxmox Backup Server.
@@ -86,11 +86,12 @@
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
-| 10.6.9.40 / .41 | R620 iDRAC / Proxmox | Later |
+| 10.6.9.40 / .41 | cobra-lab iDRAC / cobra-lab Proxmox (R620) | Part 9. The iDRAC moves to `10.6.30.40` on the MGMT VLAN in phase B. |
 | 10.6.9.50 / .51 | Windows desktops | DHCP reservations |
 | 10.6.9.100–199 | DHCP pool | Everything else |
 | 10.6.9.200 | old server (SGIN, until it's rebuilt) | Static mapping in OPNsense, so its port forwards keep working through the cutover (part 2.4) |
 | 10.6.99.0/24 | WireGuard clients | Admin access from outside |
+| 10.6.20.0/24 · 10.6.21.0/24 · 10.6.30.0/24 | LAB · DETONATE · MGMT VLANs | Part 9, phase B (managed switch) |
 
 ### Port map
 
@@ -159,7 +160,7 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 | 6 | [`06-tv-breaks-plugin.md`](06-tv-breaks-plugin.md) | cobra-breaks: "… with breaks" playlists, a random filler video between episodes, on Roku, Apple TV and every other Jellyfin app | 30 min, after 3 |
 | 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Hiscore board at `scores.songofeo.com`: cabinet agent uploads every changed `.hi` file; board newest first | 1 h, after 1–5 |
 | 8 | [`08-site-and-radio.md`](08-site-and-radio.md) | Landing page at `songofeo.com`; radio at `radio.songofeo.com` (Liquidsoap + Icecast) | 1 h |
-| later | *(not written yet)* | R620 lab, VLANs | Later |
+| 9 | [`09-r620-lab-and-vlans.md`](09-r620-lab-and-vlans.md) | R620 as `cobra-lab` (standalone Proxmox, remote power), then lab/detonation/management VLANs | When you're ready |
 
 **Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
 
@@ -168,7 +169,7 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 ## 7. Conventions used in every part
 
 - **Two kinds of names, kept apart on purpose:**
-  - **Machines** are named for the theme and never change: `cobra-command` (Proxmox), `cobra-firewall` (OPNsense), `cobra-pihole-1`, `cobra-gate`, `cobra-stream`, `cobra-arcade`. They live under `.home.arpa`, the private suffix meant for home networks, e.g. `cobra-stream.home.arpa`.
+  - **Machines** are named for the theme and never change: `cobra-command` (Proxmox), `cobra-firewall` (OPNsense), `cobra-pihole-1`, `cobra-gate`, `cobra-stream`, `cobra-arcade`, `cobra-lab` (R620). They live under `.home.arpa`, the private suffix meant for home networks, e.g. `cobra-stream.home.arpa`.
   - **Public addresses** use the domain, currently **`songofeo.com`**: `tv.songofeo.com`, `docs.songofeo.com` and so on. Only these change if you ever switch domains (see "Changing the domain later" below).
 - `eels`: your admin login on every Linux box (has sudo).
 - `podsvc`: the unprivileged account that runs rootless Podman containers (no sudo, lingering enabled).
