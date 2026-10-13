@@ -125,8 +125,12 @@ The pool:
 
 ```bash
 sudo mkdir -p /srv/storage/pool
-echo '/srv/storage/disks/*/library /srv/storage/pool fuse.mergerfs defaults,allow_other,use_ino,cache.files=off,dropcacheonclose=true,category.create=mfs,moveonenospc=true,minfreespace=20G,fsname=pool,nofail,x-systemd.requires-mounts-for=/srv/storage/disks 0 0' \
-  | sudo tee -a /etc/fstab
+# Writes (or rewrites) the pool's fstab line. It waits for every drive mounted so far,
+# so at boot no drive is missing from the pool. Re-run it whenever you add a drive.
+OPTS=defaults,allow_other,use_ino,cache.files=off,dropcacheonclose=true,category.create=mfs,moveonenospc=true,minfreespace=20G,fsname=pool,nofail
+for d in /srv/storage/disks/*; do OPTS="$OPTS,x-systemd.after=$(systemd-escape --path --suffix=mount "$d")"; done
+sudo sed -i '\#[[:space:]]/srv/storage/pool[[:space:]]#d' /etc/fstab
+echo "/srv/storage/disks/*/library /srv/storage/pool fuse.mergerfs $OPTS 0 0" | sudo tee -a /etc/fstab
 sudo systemctl daemon-reload && sudo mount /srv/storage/pool && df -h /srv/storage/pool
 ```
 
@@ -162,7 +166,7 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
 ### Adding a drive later (the second dock)
 
 1. Label and mount it exactly as above (`dock2a`, `dock2b`), and `mkdir` its `library` folder.
-2. `sudo umount /srv/storage/pool && sudo mount /srv/storage/pool`. The `*` in the fstab line picks it up; nothing else changes.
+2. Re-run the pool block above (the `OPTS=...` lines through `mount`), after `sudo umount /srv/storage/pool`. The `*` picks up the new drive, and the rewritten line makes boot wait for it too.
 3. Optional, once there are four or more drives: **SnapRAID** turns one drive into parity for the rest, so a dead drive can be rebuilt. The parity drive must be at least as big as the biggest data drive. ⚠️ Decide when you know the sizes; it's a separate short setup.
 
 ## 3.5 Users and permissions
@@ -462,7 +466,7 @@ Components: pbs-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
 sudo apt update && sudo apt install -y proxmox-backup-server
-PBSDISK=dock1a        # the drive with the most free space that is NOT holding your only copy of anything irreplaceable
+PBSDISK=dock1a        # an ext4 drive (PBS can't use NTFS) with room to spare; moves to the vault drive later (part 5.6)
 sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs
 sudo proxmox-backup-manager user create pve@pbs --password "$(openssl rand -base64 24 | tee /dev/stderr)"   # store it
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id pve@pbs
