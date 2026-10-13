@@ -99,7 +99,7 @@
 | gate | nginx | 443 (80 only redirects to 443) | Internet on 443 (OPNsense forward) + LAN + VPN |
 | gate (in pod) | Authelia 9091 · Vaultwarden 8222 · Paperless 8000 · Postgres 5432 · Redis 6379 · MeTube 8081 · Homepage 3000 · Uptime Kuma 3001 | localhost only | Only nginx inside the pod |
 | gate | Cockpit | 9090 | LAN + VPN |
-| stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533 · RomM 8080 | LAN only (nftables) | gate's nginx + LAN clients |
+| stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533 · RomM 8080 · Icecast 8000 | LAN + VPN only (nftables) | gate's nginx + LAN clients |
 | stream | Samba | 445 | LAN + VPN |
 | stream | Pi-hole #2 | 53, 80/443 (admin) | LAN + VPN |
 | stream | Cockpit · SSH | 9090 · 22 | LAN + VPN |
@@ -129,8 +129,8 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 | Status page | `status.songofeo.com` | → gate: Uptime Kuma | Authelia 2FA |
 | Password vault | `vault.songofeo.com` | → gate: Vaultwarden | **LAN/VPN only.** Never public. |
 | High-score boards | `scores.songofeo.com` | → gate: reserved hiscore slot (§8, built later) | Login for viewers. The cabinet's sync agent uses an API key. |
-| Live radio | `radio.songofeo.com` | → stream: Icecast (later) | Public |
-| Landing site with buttons | `songofeo.com` | → gate: static site (later) | Public page, buttons to the apps above |
+| Live radio | `radio.songofeo.com` | → stream: Liquidsoap + Icecast (part 8) | Authelia password; public only with music you have the rights to stream |
+| Landing site with buttons | `songofeo.com` | → gate: static page (part 8) | Public page, buttons to the apps above |
 
 **Why Jellyfin, Audiobookshelf, Kavita, Navidrome and RomM aren't behind Authelia:** putting a login page in front of them breaks their phone and TV apps, which can't complete a web login. They rely on their own logins plus rate limiting, CrowdSec and strong passwords instead.
 
@@ -158,7 +158,8 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 | 5 | [`05-final-touches.md`](05-final-touches.md) | Gate VM: TLS, Authelia, Vaultwarden, Paperless, MeTube, Homepage; go public; backups; monitoring | 4–6 h |
 | 6 | [`06-tv-breaks-plugin.md`](06-tv-breaks-plugin.md) | cobra-breaks: "… with breaks" playlists, a random filler video between episodes, on Roku, Apple TV and every other Jellyfin app | 30 min, after 3 |
 | 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Hiscore board at `scores.songofeo.com`: cabinet agent uploads every changed `.hi` file; board newest first | 1 h, after 1–5 |
-| later | *(not written yet)* | R620 lab, VLANs, radio, landing site | Later |
+| 8 | [`08-site-and-radio.md`](08-site-and-radio.md) | Landing page at `songofeo.com`; radio at `radio.songofeo.com` (Liquidsoap + Icecast) | 1 h |
+| later | *(not written yet)* | R620 lab, VLANs | Later |
 
 **Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
 
