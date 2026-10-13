@@ -25,6 +25,7 @@ A playlist is a list of items stored on the server, and every Jellyfin app can p
 
 - [ ] Put short videos in `\\cobra-stream\media\filler` (subfolders are fine): old commercials, bumpers, station IDs, trailers. Aim for 50+ to start.
 - [ ] Jellyfin → Dashboard → Libraries → `Filler` → **Scan**. They show up in Jellyfin as Home Videos. ErsatzTV uses the same folder for Live TV breaks.
+- [ ] Jellyfin → Dashboard → Users → each person in a `[[show]]` → **Access**: tick the `Filler` library. A user who can't see a video can't have it in their playlist. To keep it off their home screen: their Settings → Home → untick `Filler` under the libraries shown.
 
 ## 6.2 Install (cobra-stream)
 
@@ -92,6 +93,7 @@ podman exec cobra-breaks python -m cobra_breaks run --config /config/breaks.toml
 | `no series named ...` | Use the show's exact title as Jellyfin shows it, and make sure that user can see the library |
 | `no library named 'Filler'` | Create it (part 3.8a), or set `filler_library` to its name |
 | `only N filler videos fit the rules; playlist shortened` | Add filler, raise `max_filler_minutes`, or lower `episodes_per_playlist` |
+| `0 breaks` or `no filler found` for one user only | That user has no access to the `Filler` library (6.1) |
 | `HTTP 401` | The API key in `/srv/stream/cobra-breaks/api_key` is wrong or was deleted in Jellyfin |
 
 ## Sources
