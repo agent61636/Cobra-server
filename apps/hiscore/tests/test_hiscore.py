@@ -74,6 +74,12 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(len(raw), 1)
         self.assertEqual(raw[0].read_bytes(), data)
 
+    def test_upload_path_alias(self):
+        s, b, _ = self.req("PUT", "/upload/fbneo/galaga.hi", b"abc")
+        self.assertEqual(s, 201)
+        self.assertEqual(self.games()[0]["game"], "galaga")
+        self.assertEqual(self.req("GET", "/upload/fbneo/galaga.hi", key=None)[0], 404)
+
     def test_same_bytes_twice_is_not_a_new_version(self):
         self.assertEqual(self.put("fbneo", "galaga.hi", b"abc")[0], 201)
         s, b, _ = self.put("fbneo", "galaga.hi", b"abc")

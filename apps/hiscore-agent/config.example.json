@@ -1,0 +1,9 @@
+{
+  "server": "https://scores.songofeo.com",
+  "intervalSeconds": 15,
+  "settleSeconds": 5,
+  "folders": [
+    { "path": "C:\\RetroArch-Win64\\saves",  "system": "auto" },
+    { "path": "C:\\RetroArch-Win64\\system", "system": "auto" }
+  ]
+}

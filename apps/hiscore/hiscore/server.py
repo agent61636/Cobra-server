@@ -3,7 +3,9 @@
 Runs inside the gate pod on 127.0.0.1:8090; nginx in front does TLS, Authelia
 (for people) and rate limits. Uploads authenticate with an API key.
 
-  PUT  /api/v1/files/<system>/<file>            upload (Authorization: Bearer <key>)
+  PUT  /upload/<system>/<file>                  upload (Authorization: Bearer <key>); nginx
+                                                lets this path through without Authelia
+  PUT  /api/v1/files/<system>/<file>            same, for use on the LAN
   GET  /api/v1/games[?system=&q=&limit=]        newest first
   GET  /api/v1/systems
   GET  /api/v1/files/<system>/<file>            latest raw file
@@ -141,6 +143,8 @@ def make_handler(app):
             label = app.key_label(self.headers.get("Authorization"))
             if label is None:
                 return self._error(401, "missing or wrong API key")
+            if len(parts) == 3 and parts[0] == "upload":
+                parts = ["api", "v1", "files", parts[1], parts[2]]
             if len(parts) != 5 or parts[:3] != ["api", "v1", "files"]:
                 return self._error(404, "not found")
             try:
