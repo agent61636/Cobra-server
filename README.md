@@ -13,7 +13,7 @@ Start with the overview, then follow the parts in order.
 | 3. SGIN (media, Samba, Pi-hole #2, PBS) | [docs/manual/03-sgin.md](docs/manual/03-sgin.md) |
 | 4. OptiPlex (arcade) | [docs/manual/04-optiplex.md](docs/manual/04-optiplex.md) |
 | 5. Gate VM, go public, backups | [docs/manual/05-final-touches.md](docs/manual/05-final-touches.md) |
-| 6. Design: breaks between episodes | [docs/manual/06-tv-breaks-plugin.md](docs/manual/06-tv-breaks-plugin.md) |
+| 6. Breaks between episodes (cobra-breaks) | [docs/manual/06-tv-breaks-plugin.md](docs/manual/06-tv-breaks-plugin.md) |
 | 7. Hiscore board (scores.songofeo.com) | [docs/manual/07-hiscore-platform.md](docs/manual/07-hiscore-platform.md) |
 
-Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader).
+Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader), [`apps/cobra-breaks`](apps/cobra-breaks) (episode breaks).

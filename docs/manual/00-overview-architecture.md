@@ -156,7 +156,7 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 | 3 | [`03-sgin.md`](03-sgin.md) | `cobra-stream`: Samba, Quick Sync media pod, Pi-hole #2, PBS | 4–6 h |
 | 4 | [`04-optiplex.md`](04-optiplex.md) | Arcade cabinet on Windows 11 | 3–5 h |
 | 5 | [`05-final-touches.md`](05-final-touches.md) | Gate VM: TLS, Authelia, Vaultwarden, Paperless, MeTube, Homepage; go public; backups; monitoring | 4–6 h |
-| 6 | [`06-tv-breaks-plugin.md`](06-tv-breaks-plugin.md) | Design: random filler between episodes on every Jellyfin client | After 1–5 |
+| 6 | [`06-tv-breaks-plugin.md`](06-tv-breaks-plugin.md) | cobra-breaks: "… with breaks" playlists, a random filler video between episodes, on Roku, Apple TV and every other Jellyfin app | 30 min, after 3 |
 | 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Hiscore board at `scores.songofeo.com`: cabinet agent uploads every changed `.hi` file; board newest first | 1 h, after 1–5 |
 | later | *(not written yet)* | R620 lab, VLANs, radio, landing site | Later |
 
@@ -223,6 +223,6 @@ The hiscore app gets designed and built **after the rest of the network is runni
 
 | Priority | Project | Notes |
 |---|---|---|
-| **1** | **Jellyfin "commercial break" plugin.** Play a random video from a chosen folder between episodes of a series (and between movies), on demand, not only on Live TV. | Researched: Jellyfin's TV and phone apps never request intros for episodes, so an intro plugin alone can't do it there. Plan: test the existing Projectionist plugin for browsers, then build a small "with breaks" playlist plugin that works on every client. Movie pre-rolls stay with Local Intros; Live TV breaks come from ErsatzTV filler (part 3.8a). Design: [06-tv-breaks-plugin.md](06-tv-breaks-plugin.md). |
+| **1** | **Breaks between episodes.** A random video from a chosen folder between episodes, on demand, not only on Live TV. | **Built** as `apps/cobra-breaks` (part 6). Roku and Apple TV apps never ask Jellyfin for intros before episodes, so instead of a plugin it builds per-show "with breaks" playlists that every app plays. Movie pre-rolls stay with Local Intros; Live TV breaks come from ErsatzTV filler (part 3.8a). |
 | 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.songofeo.com`. | **Built**: `apps/hiscore` and `apps/hiscore-agent`, install steps in [part 7](07-hiscore-platform.md). Optional later: a decoder for readable score tables, and browser-arcade scores. |
 | 3 | Custom CSS + X-Arcade Tankstick code from earlier this month | Landing site, Jellyfin theme, cabinet controls |

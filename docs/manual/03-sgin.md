@@ -418,7 +418,7 @@ ErsatzTV builds fake TV channels from your library (schedules, playlists, commer
 - [ ] Jellyfin web → **Live TV** → the channel plays, and the guide shows what's on now and next
 - [ ] From outside (phone on cellular, `tv.songofeo.com`): the same channel plays. Remote viewers watch through Jellyfin; ErsatzTV stays LAN-only.
 
-Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside** Live TV are separate pieces; see [06-tv-breaks-plugin.md](06-tv-breaks-plugin.md).
+Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside** Live TV are separate pieces; see [part 6](06-tv-breaks-plugin.md).
 
 ### 3.8b Web arcade: RomM + EmulatorJS
 
