@@ -27,7 +27,7 @@ qm start 110
 
 | Screen | Value |
 |---|---|
-| Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.6.9.10/24`, gateway `10.6.9.1`, DNS `10.6.9.1` |
+| Network | **Configure manually** (Esc out of DHCP if it already ran): IP `10.6.9.10/24`, gateway `10.6.9.1`, DNS **`10.6.9.3 10.6.9.20`** (both Pi-holes, so the gate's own apps, like Uptime Kuma checking `tv.songofeo.com`, reach the LAN addresses) |
 | Hostname | `cobra-gate` |
 | Disk | the 64 GB virtual disk (`sda`) |
 - [ ] `qm set 110 --ide2 none,media=cdrom`
@@ -81,7 +81,7 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/
 
 - `file_mode=0666,dir_mode=0777`: Paperless and MeTube run as a non-root user *inside* their containers, which is some unnamed ID on the gate, so the mount lets anyone on the gate write. Only `eels` and `podsvc` log in there. This setting is local to the gate; on the SGIN the files still land as user `gate`, group `media`, mode 664, like everything else written over Samba.
 - `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
-- The share is addressed by IP on purpose: the gate asks OPNsense (Unbound) for DNS, which doesn't know the `home.arpa` names Pi-hole serves, and an IP also mounts before any DNS is up.
+- The share is addressed by IP on purpose, so it mounts even if both Pi-holes are down.
 - `/srv/storage/pool` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
 - [ ] `touch /srv/storage/pool/scans/test && rm /srv/storage/pool/scans/test` works as eels
 
@@ -114,13 +114,14 @@ sudo chmod 755 /usr/local/sbin/gate-cert-deploy
 
 # First certificate (takes a few minutes while Porkbun's DNS updates)
 sudo sh -c 'set -a; . /root/porkbun.env; set +a; lego --path /etc/lego --email "<your email>" --accept-tos \
-  --dns porkbun --domains songofeo.com --domains "*.songofeo.com" run'
+  --dns porkbun --dns.resolvers 9.9.9.9:53 --domains songofeo.com --domains "*.songofeo.com" run'
 sudo /usr/local/sbin/gate-cert-deploy
 ```
 
 - `apt` can't find `lego`? Download the `linux_amd64` archive from github.com/go-acme/lego/releases, check it against the release's checksums file, put the `lego` binary in `/usr/local/bin/`, and use `/usr/local/bin/lego` in the renewal service below.
 - If `lego --version` says **5.x**, the options go **after** the word `run` or `renew` (`lego run --dns porkbun ...`), as in lego's current docs. 4.x takes them before, as written here.
 - `songofeo.com.crt` already contains the full chain, which is what nginx wants as `fullchain.pem`.
+- `--dns.resolvers 9.9.9.9:53`: lego checks the challenge record against public DNS, not the Pi-holes, which answer every `songofeo.com` name with the gate's LAN address.
 
 Automatic renewal (a systemd timer, daily; lego renews when fewer than 30 days remain):
 
@@ -133,7 +134,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile=/root/porkbun.env
-ExecStart=/usr/bin/lego --path /etc/lego --email "<your email>" --accept-tos --dns porkbun --domains songofeo.com --domains *.songofeo.com renew --days 30 --renew-hook /usr/local/sbin/gate-cert-deploy
+ExecStart=/usr/bin/lego --path /etc/lego --email "<your email>" --accept-tos --dns porkbun --dns.resolvers 9.9.9.9:53 --domains songofeo.com --domains *.songofeo.com renew --days 30 --renew-hook /usr/local/sbin/gate-cert-deploy
 EOF
 sudo tee /etc/systemd/system/lego-renew.timer >/dev/null <<'EOF'
 [Unit]
@@ -485,8 +486,47 @@ echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && P
 
 ## 5.7 Monitoring
 
-- [ ] Uptime Kuma: HTTP monitors for every hostname, TCP for `10.6.9.1:53`, `10.6.9.3:53`, `10.6.9.20:53`, `10.6.9.2:8006`, `10.6.9.20:8007`
-- [ ] Homepage `services.yaml`: tiles for all apps + Proxmox, OPNsense, PBS, both Pi-holes
+- [ ] Uptime Kuma (`status.songofeo.com`): an **HTTP** monitor for every public hostname (the gate resolves them to itself through the Pi-holes, so this tests nginx + the app); **HTTP with "Ignore TLS errors"** for `https://10.6.9.2:8006`, `https://10.6.9.1`, `https://10.6.9.20:8007`; **DNS** monitors against `10.6.9.3` and `10.6.9.20` (resolve `tv.songofeo.com`, expect `10.6.9.10`); **TCP** `10.6.9.20:445` (Samba). Settings → Notifications: add your email or phone app, and attach it to every monitor.
+- [ ] Homepage: a starter dashboard. As podsvc on the gate, write these two files, then `systemctl --user restart homepage`. Each tile links to the app, and the dot on it turns red when the app stops answering.
+
+```bash
+cat > /srv/gate/homepage/settings.yaml <<'EOF'
+title: Cobra
+theme: dark
+color: slate
+headerStyle: clean
+layout:
+  Watch & listen: { style: row, columns: 4 }
+  Read & play:    { style: row, columns: 3 }
+  Files:          { style: row, columns: 3 }
+  Admin:          { style: row, columns: 4 }
+EOF
+cat > /srv/gate/homepage/services.yaml <<'EOF'
+- Watch & listen:
+    - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
+    - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
+    - Eels' music:  { href: "https://eelsmusic.songofeo.com",   icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
+    - Rachel's music: { href: "https://rupaulradio.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4533" }
+- Read & play:
+    - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }
+    - Kavita:       { href: "https://comics.songofeo.com",      icon: kavita.png,         siteMonitor: "http://10.6.9.20:5000" }
+    - Arcade:       { href: "https://arcade.songofeo.com",      icon: romm.png,           siteMonitor: "http://10.6.9.20:8080" }
+- Files:
+    - Paperless:    { href: "https://docs.songofeo.com",        icon: paperless-ngx.png,  siteMonitor: "http://127.0.0.1:8000" }
+    - MeTube:       { href: "https://metube.songofeo.com",      icon: metube.png,         siteMonitor: "http://127.0.0.1:8081" }
+    - Vaultwarden:  { href: "https://vault.songofeo.com",       icon: vaultwarden.png,    description: "LAN/VPN only", siteMonitor: "http://127.0.0.1:8222" }
+- Admin:
+    - Proxmox:      { href: "https://10.6.9.2:8006",            icon: proxmox.png }
+    - OPNsense:     { href: "https://10.6.9.1",                 icon: opnsense.png }
+    - Backups (PBS): { href: "https://10.6.9.20:8007",          icon: proxmox.png }
+    - Pi-hole 1:    { href: "http://10.6.9.3/admin",            icon: pi-hole.png,        siteMonitor: "http://10.6.9.3/admin" }
+    - Pi-hole 2:    { href: "http://10.6.9.20/admin",           icon: pi-hole.png,        siteMonitor: "http://10.6.9.20/admin" }
+    - Status:       { href: "https://status.songofeo.com",      icon: uptime-kuma.png,    siteMonitor: "http://127.0.0.1:3001" }
+EOF
+```
+
+- Proxmox, OPNsense and PBS have no status dot: they use self-signed certificates, which Homepage's checker rejects. Uptime Kuma watches them instead (below), where you can tick "ignore TLS errors".
+- Later, Homepage widgets can show live numbers (Jellyfin streams, Pi-hole blocks, Proxmox load). Each needs an API key in `services.yaml`; see Homepage's docs per service.
 - [ ] Proxmox → Datacenter → Notifications: SMTP target with your email
 - [ ] OPNsense → System → Firmware: check updates weekly; Proxmox/Debian: `apt full-upgrade` weekly
 - [ ] Container updates, weekly, as podsvc on the gate and on the SGIN: `podman auto-update --dry-run` lists which images have a newer version; `podman auto-update` pulls them and restarts those containers (and rolls a container back if it fails to start). Read the release notes for Authelia, Paperless and RomM first; they occasionally change their config between major versions.
