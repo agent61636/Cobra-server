@@ -226,7 +226,7 @@ sshd -t && systemctl reload ssh
 ```
 
 - [ ] New PowerShell: `ssh eels@10.6.9.2` works; `ssh -o PubkeyAuthentication=no eels@10.6.9.2` is refused
-- [ ] (`prohibit-password` not `no`: adding the R620 as a 2nd node later needs root SSH with keys)
+- [ ] (`prohibit-password` not `no`: root may still log in with a key, which Proxmox's own tools and part 9's `lab off` use)
 
 ## 1.8 Laptop-as-server settings
 
