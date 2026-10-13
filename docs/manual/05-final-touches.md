@@ -336,6 +336,31 @@ echo '30 3 * * * root . /root/pbs.env && export PBS_REPOSITORY PBS_PASSWORD PBS_
 - [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901. **Before starting it**, cut its network so it doesn't steal Pi-hole #1's `10.10.10.3`: `pct set 901 --net0 name=eth0,bridge=vmbr0,ip=10.10.10.3/24,gw=10.10.10.1,link_down=1`. Start, `pct enter 901`, check `pihole status`, then stop and destroy
 - [ ] Second copy of the PBS datastore (`/srv/storage/disks/<drive>/pbs`) and of anything irreplaceable: see part 4.6 (the OptiPlex drive) and add a cloud copy for photos and documents
 
+### Backing up the library (the ~10 TB on the pool)
+
+Until the backup drive exists, the pool has **no backup**: a dead drive loses whatever was on it. The fix is one dedicated backup drive that is never part of the pool.
+
+**What to buy:** one 3.5" desktop drive of **18–20 TB** (NAS or enterprise class), for a bay of the second dock. 10 TB of data plus room to grow, plus a few weeks of older versions. 14 TB is the smallest that works, and it would fill within a year or two.
+
+**How it works:** Proxmox Backup Server, already running on the SGIN, gets a second datastore called `vault` on the new drive. Every night the SGIN backs up the whole pool into it. After the first full run (expect a day or more for 10 TB over USB), each night only reads what changed. You can restore a single file from the PBS web UI, and a weekly verify job re-reads everything to catch a failing disk early. The VM backups get copied into `vault` too, so they no longer depend on a pool drive.
+
+On stream (eels), once the drive is mounted at `/srv/storage/disks/vault` (same steps as 3.4, but **don't** create a `library` folder, so it stays out of the pool):
+
+```bash
+sudo proxmox-backup-manager datastore create vault /srv/storage/disks/vault/pbs
+sudo proxmox-backup-manager acl update /datastore/vault DatastoreBackup --auth-id pve@pbs
+echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && PBS_REPOSITORY=pve@pbs@127.0.0.1:vault proxmox-backup-client backup library.pxar:/srv/storage/pool --change-detection-mode=metadata' \
+  | sudo tee /etc/cron.d/pbs-library
+```
+
+- [ ] PBS UI → Datastore **vault** → Prune: keep-daily 7, keep-weekly 4, keep-monthly 3. GC daily. Verify weekly.
+- [ ] PBS UI → Datastore **vault** → Sync Jobs → Add: source **store1** (local), daily. The VM backups now exist on two drives.
+- [ ] First run: start it by hand inside `tmux` (`sudo apt install -y tmux`, then paste everything after `root` from the cron line, prefixed with `sudo bash -c '...'`) so it survives closing the SSH window, and leave it overnight
+- [ ] Restore test: PBS UI → vault → library → browse → download one file and open it
+- ⚠️ Verify `--change-detection-mode=metadata` is in your PBS client version (`proxmox-backup-client help backup`). Without it, each night re-reads all 10 TB to find changes. It still works, just slowly.
+
+**What this doesn't cover: fire, theft, a power surge through the hub.** The backup drive sits next to the originals. For the files you could never get back (photos, home video, documents, your own music, saves), keep a third copy outside the house: a second backup drive you swap with one kept at a relative's every month or two, or a cloud backup of just that irreplaceable part. Movies and TV you could re-rip or re-buy can live with two copies at home.
+
 ## 5.7 Monitoring
 
 - [ ] Uptime Kuma: HTTP monitors for every hostname, TCP for `10.10.10.1:53`, `10.10.10.3:53`, `10.10.10.20:53`, `10.10.10.2:8006`, `10.10.10.20:8007`
