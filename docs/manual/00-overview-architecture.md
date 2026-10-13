@@ -155,7 +155,9 @@ At home, Pi-hole answers `*.elysidrome.com` with `10.6.9.10`, so LAN traffic nev
 | 3 | [`03-sgin.md`](03-sgin.md) | `elysidrome-stream`: Samba, Quick Sync media pod, Pi-hole #2, PBS | 4–6 h |
 | 4 | [`04-optiplex.md`](04-optiplex.md) | Arcade cabinet on Windows 11 | 3–5 h |
 | 5 | [`05-final-touches.md`](05-final-touches.md) | Gate VM: TLS, Authelia, Vaultwarden, Paperless, MeTube, Homepage; go public; backups; monitoring | 4–6 h |
-| later | *(not written yet)* | R620 lab, VLANs, radio, landing site, hiscore platform | Later |
+| 6 | [`06-tv-breaks-plugin.md`](06-tv-breaks-plugin.md) | Design: random filler between episodes on every Jellyfin client | After 1–5 |
+| 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Design: cabinet hiscore sync + scoreboard, newest first | After 1–5 |
+| later | *(not written yet)* | R620 lab, VLANs, radio, landing site | Later |
 
 **Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
 
@@ -198,6 +200,6 @@ The hiscore app gets designed and built **after the rest of the network is runni
 
 | Priority | Project | Notes |
 |---|---|---|
-| **1** | **Jellyfin "commercial break" plugin.** Play a random video from a chosen folder between episodes of a series (and between movies), on demand, not only on Live TV. | First research whether an existing plugin already does this (pre-roll/intro plugins and Jellyfin's intro/"cinema mode" hooks). If nothing does, design and build a custom Jellyfin plugin (C#/.NET, Jellyfin plugin template). Movie pre-rolls are already handled by the "Local Intros"-style plugin you plan to use. **Live TV commercials** are handled by ErsatzTV's filler settings (pre/mid/post-roll), so channels get commercial breaks from day one. |
-| 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.elysidrome.com`. | Slot already reserved (§8). |
+| **1** | **Jellyfin "commercial break" plugin.** Play a random video from a chosen folder between episodes of a series (and between movies), on demand, not only on Live TV. | Researched: Jellyfin's TV and phone apps never request intros for episodes, so an intro plugin alone can't do it there. Plan: test the existing Projectionist plugin for browsers, then build a small "with breaks" playlist plugin that works on every client. Movie pre-rolls stay with Local Intros; Live TV breaks come from ErsatzTV filler (part 3.8a). Design: [06-tv-breaks-plugin.md](06-tv-breaks-plugin.md). |
+| 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.elysidrome.com`. | Slot reserved (§8). Design, phases and the `.hi` decoding plan: [07-hiscore-platform.md](07-hiscore-platform.md). |
 | 3 | Custom CSS + X-Arcade Tankstick code from earlier this month | Landing site, Jellyfin theme, cabinet controls |
