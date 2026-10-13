@@ -14,4 +14,6 @@ Start with the overview, then follow the parts in order.
 | 4. OptiPlex (arcade) | [docs/manual/04-optiplex.md](docs/manual/04-optiplex.md) |
 | 5. Gate VM, go public, backups | [docs/manual/05-final-touches.md](docs/manual/05-final-touches.md) |
 | 6. Design: breaks between episodes | [docs/manual/06-tv-breaks-plugin.md](docs/manual/06-tv-breaks-plugin.md) |
-| 7. Design: hiscore sync and scoreboard | [docs/manual/07-hiscore-platform.md](docs/manual/07-hiscore-platform.md) |
+| 7. Hiscore board (scores.songofeo.com) | [docs/manual/07-hiscore-platform.md](docs/manual/07-hiscore-platform.md) |
+
+Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader).

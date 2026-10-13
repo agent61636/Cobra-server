@@ -18,7 +18,7 @@
 | 8 | *Both desktops move to the gateway switch?* | **Yes, and they have to.** Anything plugged into the Xfinity gateway bypasses the firewall. |
 | — | *M3U or XMLTV for ErsatzTV?* | **Both.** M3U is the channel list and stream URLs (the "tuner"). XMLTV is the program guide. Jellyfin takes one of each. |
 | — | *Can the cabinet's RetroArch play with web (browser) users?* | **Not directly.** RetroArch netplay and browser EmulatorJS netplay are different protocols. Both setups that do work are planned: friends join the cabinet with RetroArch, or everyone plays in the browser. |
-| — | *Does the arcade need a 3rd pod for the web arcade + hiscore sync?* | **You do need a third pod, but not on the arcade.** (1) The **web arcade (RomM/EmulatorJS) runs the game in the player's browser**. The server only hands out ROM files and the web page, so it lives in the `stream` pod next to the ROM storage and stays up when the cabinet is off. (2) **Hiscore sync has to read files RetroArch writes on Windows.** That's a job for a small **native Windows agent** (background service/tray app). Podman on Windows runs inside a WSL2 virtual machine, which doesn't start until someone logs in, and its file-watching doesn't reliably see changes Windows programs make. (3) The **hiscore server** (scores API + storage + scoreboard website at `scores.songofeo.com`) runs on Linux, in a **reserved slot inside the `gate` pod** (see §8). Flow: cabinet RetroArch writes `.hi` → Windows sync agent → HTTPS + API key → `hiscore` pod stores the raw `.hi` files (your backup against power loss) and the parsed scores → scoreboard page with logins and filters. |
+| — | *Does the arcade need a 3rd pod for the web arcade + hiscore sync?* | **You do need a third pod, but not on the arcade.** (1) The **web arcade (RomM/EmulatorJS) runs the game in the player's browser**. The server only hands out ROM files and the web page, so it lives in the `stream` pod next to the ROM storage and stays up when the cabinet is off. (2) **Hiscore sync has to read files RetroArch writes on Windows.** That's a job for a small **native Windows agent** (a hidden logon task). Podman on Windows runs inside a WSL2 virtual machine, which doesn't start until someone logs in, and its file-watching doesn't reliably see changes Windows programs make. (3) The **hiscore server** (scores API + storage + scoreboard website at `scores.songofeo.com`) runs on Linux, in a **reserved slot inside the `gate` pod** (see §8). Flow: cabinet RetroArch writes `.hi` → Windows sync agent → HTTPS + API key → `hiscore` pod stores the raw `.hi` files (your backup against power loss) and the parsed scores → scoreboard page with logins and filters. |
 | — | *IncusOS for security on the gate?* | **No.** IncusOS is an immutable OS whose only job is running Incus (containers/VMs). It isn't a security product, and it can't be installed on Debian. It goes into the R620 lab as a learning VM. |
 | — | *Steam Link / Arch-on-USB Pi-hole?* | **No.** The Steam Link has 512 MB of RAM and frozen firmware, and Pi-hole doesn't support Arch. Both Pi-holes run on hardware that's already on 24/7. |
 | — | *Joe Sandbox?* | It's a commercial product. The free, self-hosted equivalent is **CAPEv2** (R620 lab, later). |
@@ -157,7 +157,7 @@ At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never
 | 4 | [`04-optiplex.md`](04-optiplex.md) | Arcade cabinet on Windows 11 | 3–5 h |
 | 5 | [`05-final-touches.md`](05-final-touches.md) | Gate VM: TLS, Authelia, Vaultwarden, Paperless, MeTube, Homepage; go public; backups; monitoring | 4–6 h |
 | 6 | [`06-tv-breaks-plugin.md`](06-tv-breaks-plugin.md) | Design: random filler between episodes on every Jellyfin client | After 1–5 |
-| 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Design: cabinet hiscore sync + scoreboard, newest first | After 1–5 |
+| 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Hiscore board at `scores.songofeo.com`: cabinet agent uploads every changed `.hi` file; board newest first | 1 h, after 1–5 |
 | later | *(not written yet)* | R620 lab, VLANs, radio, landing site | Later |
 
 **Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
@@ -205,14 +205,14 @@ The hiscore app gets designed and built **after the rest of the network is runni
 
 | Touch-point | Reservation | Set up in |
 |---|---|---|
-| Public hostname | `scores.songofeo.com` (Porkbun CNAME, created when the app goes live) | Hiscore stage |
+| Public hostname | `scores.songofeo.com` (Porkbun CNAME, created when the app goes live) | Part 7 |
 | Local DNS | `scores.songofeo.com → 10.6.9.10` in Pi-hole (already covered by the `address=/songofeo.com/` line) | Part 2 |
 | TLS | Already covered by the `*.songofeo.com` wildcard certificate | Part 5 |
 | nginx | `scores.songofeo.com` server block, **commented out** until the app exists | Part 5 |
-| Where it runs | Inside the **`gate` pod** so nginx reaches it over localhost: **API on `127.0.0.1:8090`**; if it needs its own Postgres, **`127.0.0.1:5433`** (5432 is Paperless's) | Hiscore stage |
-| Data | `/srv/gate/hiscore/` (raw `.hi` files under `raw/` = the power-loss backup; parsed scores in the DB). It's inside VM 110, so the nightly backups already cover it. | Hiscore stage |
-| Logins | Viewers: app login (or Authelia). Cabinet agent: API key over HTTPS. Upload endpoint rate-limited in nginx. | Hiscore stage |
-| Cabinet side | Native Windows agent in `C:\Cobra\hiscore-agent\`, watching RetroArch's hiscore folders (paths noted in part 4) | Hiscore stage |
+| Where it runs | Inside the **`gate` pod** so nginx reaches it over localhost: **API on `127.0.0.1:8090`**; if it needs its own Postgres, **`127.0.0.1:5433`** (5432 is Paperless's) | Part 7 |
+| Data | `/srv/gate/hiscore/` (raw `.hi` files under `raw/` = the power-loss backup; parsed scores in the DB). It's inside VM 110, so the nightly backups already cover it. | Part 7 |
+| Logins | Viewers: app login (or Authelia). Cabinet agent: API key over HTTPS. Upload endpoint rate-limited in nginx. | Part 7 |
+| Cabinet side | Windows agent in `C:\Cobra\hiscore-agent\` (a logon task as `arcade`), watching RetroArch's hiscore folders (paths noted in part 4) | Part 7 |
 | Dashboard / monitoring | Homepage tile + Uptime Kuma monitor added at go-live | Part 5 |
 
 **Port `8090` and the hostname `scores` are reserved.** Don't assign them to anything else.
@@ -224,5 +224,5 @@ The hiscore app gets designed and built **after the rest of the network is runni
 | Priority | Project | Notes |
 |---|---|---|
 | **1** | **Jellyfin "commercial break" plugin.** Play a random video from a chosen folder between episodes of a series (and between movies), on demand, not only on Live TV. | Researched: Jellyfin's TV and phone apps never request intros for episodes, so an intro plugin alone can't do it there. Plan: test the existing Projectionist plugin for browsers, then build a small "with breaks" playlist plugin that works on every client. Movie pre-rolls stay with Local Intros; Live TV breaks come from ErsatzTV filler (part 3.8a). Design: [06-tv-breaks-plugin.md](06-tv-breaks-plugin.md). |
-| 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.songofeo.com`. | Slot reserved (§8). Design, phases and the `.hi` decoding plan: [07-hiscore-platform.md](07-hiscore-platform.md). |
+| 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.songofeo.com`. | **Built**: `apps/hiscore` and `apps/hiscore-agent`, install steps in [part 7](07-hiscore-platform.md). Optional later: a decoder for readable score tables, and browser-arcade scores. |
 | 3 | Custom CSS + X-Arcade Tankstick code from earlier this month | Landing site, Jellyfin theme, cabinet controls |
