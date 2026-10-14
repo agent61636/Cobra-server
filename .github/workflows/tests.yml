@@ -34,3 +34,13 @@ jobs:
             if ($errs) { $errs | ForEach-Object { Write-Error "$f : $_" }; exit 1 }
           }
           Write-Host "PowerShell $($PSVersionTable.PSVersion): both scripts parse"
+  launchbox-plugin:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: hiscore plugin builds and its tests pass
+        working-directory: apps/hiscore-launchbox
+        run: dotnet test tests/CobraHiscore.Tests.csproj -v minimal
