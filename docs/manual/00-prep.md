@@ -45,7 +45,7 @@ The domain stays where it is: Porkbun is the registrar **and** the DNS. The buil
 - [ ] **Nameservers:** Porkbun → Domain Management → `songofeo.com` → Details → Authoritative Nameservers are Porkbun's own (`*.porkbun.com`). If they point somewhere else (an old Cloudflare setup, say), switch them back to Porkbun's defaults and give it an hour.
 - [ ] **API Access: on** for `songofeo.com` (same Details page). It's off per domain by default, and without it every API call fails.
 - [ ] **Clean the DNS records** (Details → DNS Records):
-  - **Keep the records Porkbun's Static Hosting created for the bare domain** (usually an **ALIAS** or **A** for `songofeo.com` and a `www` CNAME). Your public homepage lives there (`apps/songofeo-web`).
+  - **Keep the records Porkbun's Static Hosting created for the bare domain** (usually an **ALIAS** or **A** for `songofeo.com` and a `www` CNAME). Your public homepage lives there (the SongofEo project).
   - Delete the **`*` wildcard CNAME** if Porkbun added one (pointing at `pixie.porkbun.com` / `uixie.porkbun.com`); it would send every app name to Porkbun.
   - Delete every **AAAA** record (they're what broke things when your IP "turned into IPv6").
   - Keep any **MX/TXT** records for email you actually use.

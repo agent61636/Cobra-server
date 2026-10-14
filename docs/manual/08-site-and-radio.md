@@ -2,7 +2,7 @@
 
 **Result:** `https://radio.songofeo.com` (also `music.songofeo.com`) is an always-on station shuffled from your music library.
 
-> **The public homepage lives on Porkbun's static hosting** at the bare `songofeo.com`: see `apps/songofeo-web/README.md`. Its Cinema, Radio and Arcade buttons send people to `tv.`, `music.` and `arcade.songofeo.com`, where Authelia asks for the login. 8.1 below is optional: use it only for a buttons page served from home on another hostname (for example `home.songofeo.com`), never on the bare domain. If you do, change `server_name songofeo.com` below to that hostname and add its CNAME to `gate.songofeo.com`.
+> **The public homepage lives on Porkbun's static hosting** at the bare `songofeo.com`: see the SongofEo project's `site/README.md`. Its Cinema, Radio and Arcade buttons send people to `tv.`, `music.` and `arcade.songofeo.com`, where Authelia asks for the login. 8.1 below is optional: use it only for a buttons page served from home on another hostname (for example `home.songofeo.com`), never on the bare domain. If you do, change `server_name songofeo.com` below to that hostname and add its CNAME to `gate.songofeo.com`.
 
 **Needs:** parts 3 and 5.
 

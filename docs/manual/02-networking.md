@@ -248,7 +248,7 @@ exit
 
 ## 2.10 Dynamic DNS (Services → Dynamic DNS)
 
-Keeps **`gate.songofeo.com`** (an A record) pointed at your home IP. The bare `songofeo.com` is **not** touched: Porkbun's static hosting serves your public homepage there (`apps/songofeo-web`, see its README). App hostnames get CNAMEs to `gate.songofeo.com` in part 5.
+Keeps **`gate.songofeo.com`** (an A record) pointed at your home IP. The bare `songofeo.com` is **not** touched: Porkbun's static hosting serves your public homepage there (the SongofEo project). App hostnames get CNAMEs to `gate.songofeo.com` in part 5.
 
 - [ ] **Settings**: Enable. Accounts → Add:
 
