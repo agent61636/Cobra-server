@@ -78,6 +78,13 @@ Console menu:
 
 **Do this at the Latitude's own keyboard and screen.** The desktop loses its connection partway through. Plan 30–60 minutes; Xfinity Wi-Fi drops briefly while the gateway restarts.
 
+> **If it goes wrong: get the internet back in 2 minutes.** Nothing in this section is permanent until you finish it.
+> 1. Latitude keyboard: `qm stop 100` (so OPNsense stops handing out addresses).
+> 2. Plug the switch's uplink back into the Xfinity gateway (the TP-Link USB NIC cable can stay or come out).
+> 3. Every device renews from Xfinity and has internet again: `10.0.0.x` if you already did step 1 below, `10.6.9.x` if you didn't. (Reboot or unplug/replug a device that doesn't.)
+> 4. To reach Proxmox while rolled back: it is still `10.6.9.2`. If your desktop now has a `10.0.0.x` address, it can't see `10.6.9.2`; either use the Latitude's own screen, or set the desktop to a fixed address for a moment (Windows: Settings → Network → Ethernet → IP assignment → Edit → Manual, IPv4 `10.6.9.50`, mask `255.255.255.0`, gateway blank). It has no internet while set that way; switch it back to Automatic (DHCP) when you're done.
+> 5. Try again later: `qm start 100`, then pick up at step 2 (Recable) below. Your OPNsense install and settings are kept.
+
 **1. Move Xfinity off 10.6.9.x.** Xfinity app (or `http://10.6.9.1` → Gateway → Connection → Local IP Network):
 
 - [ ] Gateway IP **`10.0.0.1`**, subnet `255.255.255.0`, DHCP range **`10.0.0.10`–`10.0.0.250`** → Save. The gateway restarts and every device on it gets a new `10.0.0.x` address.
@@ -241,7 +248,7 @@ exit
 
 ## 2.10 Dynamic DNS (Services → Dynamic DNS)
 
-Keeps `songofeo.com` (apex A record) pointed at your home IP. App hostnames get CNAMEs to the apex in part 5.
+Keeps **`gate.songofeo.com`** (an A record) pointed at your home IP. The bare `songofeo.com` is **not** touched: Porkbun's static hosting serves your public homepage there (the SongofEo project). App hostnames get CNAMEs to `gate.songofeo.com` in part 5.
 
 - [ ] **Settings**: Enable. Accounts → Add:
 
@@ -250,14 +257,30 @@ Keeps `songofeo.com` (apex A record) pointed at your home IP. App hostnames get 
 | Service | **Porkbun** |
 | Username | the `cobra-ddns` **API key** (`pk1_…`) |
 | Password | its **secret API key** (`sk1_…`) |
-| Hostname(s) | `songofeo.com` |
+| Hostname(s) | `gate.songofeo.com` |
 | Check ip method | a web service (e.g. `ipify-ipv4`), **not** "Interface" (*WAN is `10.0.0.2`, a private address*) |
 
 ⚠️ Check the field help on screen: if the Porkbun form asks for the keys under other labels (e.g. "API key" / "Secret"), put the `pk1_` key and the `sk1_` key there instead.
 
-- [ ] Save, Apply. Within a few minutes Porkbun → `songofeo.com` → DNS shows an **A** record for `songofeo.com` (host blank) with your public IP. If it doesn't, the most common cause is API Access still being off for the domain (part 0.4).
-- [ ] **IPv4 only.** This build forwards IPv4 only; Xfinity also gives you an IPv6 address, but nothing behind OPNsense is reachable on it. If any updater (this one, or an older one from your old server) publishes it, browsers try the IPv6 first and every link breaks. Leave IPv6 off in the account (no AAAA), and in Porkbun's DNS **delete any AAAA records**. Check from any machine: `nslookup -type=AAAA songofeo.com 1.1.1.1` returns no address.
+- [ ] Save, Apply. Within a few minutes Porkbun → `songofeo.com` → DNS shows an **A** record for `gate` with your public IP. (If the updater won't create the record itself, add `gate` → `1.1.1.1` by hand first; it then corrects the address.) If it doesn't appear, the most common cause is API Access still being off for the domain (part 0.4). ⚠️ Never point the updater at the bare `songofeo.com`: it would overwrite Porkbun's hosting record and take your homepage down.
+- [ ] **IPv4 only.** This build forwards IPv4 only; Xfinity also gives you an IPv6 address, but nothing behind OPNsense is reachable on it. If any updater (this one, or an older one from your old server) publishes it, browsers try the IPv6 first and every link breaks. Leave IPv6 off in the account (no AAAA), and in Porkbun's DNS **delete any AAAA records**. Check from any machine: `nslookup -type=AAAA gate.songofeo.com 1.1.1.1` returns no address.
 - [ ] Turn off any old updater (a script or container on the old server) that also writes to this domain, so two updaters don't fight
+
+## 2.10a Wi-Fi devices (TVs, phones, laptops)
+
+Xfinity's Wi-Fi sits **outside** OPNsense on `10.0.0.x`, the untrusted side. That's deliberate (guests and smart gadgets can't see your servers), but it means:
+
+| On Xfinity Wi-Fi | Works? |
+|---|---|
+| Internet | Yes |
+| `https://tv.songofeo.com`, `arcade.`, etc. | Yes, the same way as from outside the house (through the public address and port 443) |
+| `\\cobra-stream` shares, Proxmox, `10.6.9.x` addresses | **No**, unless WireGuard is on (2.8) |
+
+- [ ] **Test the TVs now.** On the Roku and the Apple TV, open the Jellyfin app and use the server address `https://tv.songofeo.com` (not an IP). It should connect once part 3 is done; the bare `songofeo.com` is hosted by Porkbun, so it always loads and proves nothing here; test with an app hostname.
+- [ ] **If it doesn't load on Wi-Fi but does on cellular:** the Xfinity gateway isn't looping traffic for your own public address back in ("NAT loopback"). Two fixes, best first:
+  1. **Wire the TVs to the switch.** Streaming is smoother wired anyway, and they then get `10.6.9.x` and Pi-hole sends `tv.songofeo.com` straight to the gate.
+  2. **Add a trusted Wi-Fi access point on the LAN side**: any Wi-Fi router set to "access point" (or "bridge") mode, plugged into the switch. Devices on it are on `10.6.9.x` like wired ones. Use it for the TVs and your own laptops; leave guests and gadgets on Xfinity Wi-Fi.
+- [ ] **Laptops that need the shares** (`\\cobra-stream`): plug in, join the access point from the fix above, or turn on WireGuard (2.8). On Xfinity Wi-Fi alone they can't see the shares, by design.
 
 ## 2.11 IDS/IPS and CrowdSec
 
@@ -274,8 +297,9 @@ Keeps `songofeo.com` (apex A record) pointed at your home IP. App hostnames get 
 - [ ] Wired devices get `10.6.9.1xx` (or their reservation), DNS `10.6.9.3`, and browse normally
 - [ ] Proxmox at `https://10.6.9.2:8006`, OPNsense at `https://10.6.9.1` (TOTP)
 - [ ] `nslookup anything.songofeo.com` on the LAN → `10.6.9.10`
-- [ ] Porkbun A record for `songofeo.com` = your public IP; no AAAA records
+- [ ] Porkbun A record for `gate.songofeo.com` = your public IP; no AAAA records; the bare `songofeo.com` still shows your Porkbun-hosted homepage
 - [ ] Phone on cellular reaches Proxmox through WireGuard
+- [ ] Once part 5 is done: a phone on Xfinity Wi-Fi loads `https://tv.songofeo.com` (if not, see 2.10a before you rely on the TVs)
 - [ ] Back up the OPNsense config: System → Configuration → Backups → **Download configuration**
 
 Next: **[3. Set up SGIN](03-sgin.md)**.
