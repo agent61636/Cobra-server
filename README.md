@@ -18,4 +18,4 @@ Start with the overview, then follow the parts in order.
 | 8. Landing site and radio | [docs/manual/08-site-and-radio.md](docs/manual/08-site-and-radio.md) |
 | 9. R620 lab and VLANs | [docs/manual/09-r620-lab-and-vlans.md](docs/manual/09-r620-lab-and-vlans.md) |
 
-Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader), [`apps/cobra-breaks`](apps/cobra-breaks) (episode breaks), [`apps/site`](apps/site) (landing page), [`apps/radio`](apps/radio) (radio script).
+Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader), [`apps/hiscore-launchbox`](apps/hiscore-launchbox) (LaunchBox plugin), [`apps/cobra-breaks`](apps/cobra-breaks) (episode breaks), [`apps/site`](apps/site) (landing page), [`apps/radio`](apps/radio) (radio script).

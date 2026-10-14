@@ -90,7 +90,7 @@
       ${fresh ? '<span class="badge">NEW</span>' : ""}
       <div class="title">${esc(pretty(g))}</div>
       <div class="rom">${esc(g.name)}</div>
-      <span class="tag">${esc(g.system)}</span>
+      ${g.platform ? `<span class="tag">${esc(g.platform)}</span> ` : ""}<span class="tag">${esc(g.system)}</span>
       ${body}
       <div class="foot"><span title="${esc(g.updated_at)}">Updated ${esc(ago(g.updated_at))}</span>
         <span>${g.versions} version${g.versions === 1 ? "" : "s"} · <a href="${file}">download</a></span></div>
@@ -115,6 +115,7 @@
       render();
     } catch (e) { meta.textContent = "Can't reach the score server right now. Retrying…"; }
   }
+  try { if (location.hash.length > 1) q.value = decodeURIComponent(location.hash.slice(1)); } catch (e) {}   // e.g. /#galaga
   q.addEventListener("input", render); sys.addEventListener("change", render);
   load(); setInterval(load, 60000);
 })();
