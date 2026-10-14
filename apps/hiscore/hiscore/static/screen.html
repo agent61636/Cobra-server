@@ -82,7 +82,7 @@
   /* One game's table */
   .stage { display: grid; grid-template-rows: auto 1fr; min-height: 0; transition: opacity .35s, transform .35s; }
   .stage.out { opacity: 0; transform: scale(.985); }
-  .game { display: flex; align-items: baseline; justify-content: space-between; gap: 2cqw;
+  .game { display: flex; align-items: center; justify-content: space-between; gap: 2cqw;
           border-bottom: .5cqh solid; border-image: linear-gradient(90deg, var(--red), var(--blue), var(--green), var(--yellow), var(--brown)) 1;
           padding-bottom: 1.4cqh; margin-bottom: 1.6cqh; }
   .title { font-size: 4cqh; color: var(--yellow); text-shadow: 0 0 .3em rgba(255,210,63,.55);
@@ -93,8 +93,8 @@
   .tag.new { color: var(--red); box-shadow: 0 0 .8cqh rgba(255,59,48,.5), inset 0 0 .8cqh rgba(255,59,48,.3); }
   .tag.demo { color: var(--brown); box-shadow: none; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 3.2cqh; }
-  td { padding: .75cqh 0; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 3.4cqh; align-self: start; }
+  td { padding: 1.5cqh 0; white-space: nowrap; }
   td.rank { width: 18%; }
   td.score { text-align: right; width: 44%; letter-spacing: .06em; }
   td.name { padding-left: 8%; letter-spacing: .2em; }
@@ -106,8 +106,9 @@
   tr:nth-child(5n+5) { color: var(--brown); }
   tr.top td { font-size: 1.15em; }
   tr.top td.name::after { content: " \2605"; color: var(--yellow); }
-  .saved { display: grid; place-items: center; text-align: center; font-size: 2.6cqh; line-height: 2; color: var(--green); }
-  .saved small { display: block; color: var(--dim); font-size: .7em; }
+  .saved { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2cqh;
+           text-align: center; font-size: 2.6cqh; line-height: 1.6; color: var(--green); text-shadow: 0 0 .3em currentColor; }
+  .saved small { color: var(--dim); font-size: .7em; text-shadow: none; }
 
   /* Footer: progress pips and the ticker of newest scores */
   .foot { display: grid; gap: 1.4cqh; }
@@ -169,7 +170,7 @@
     { game: "belt-miner", title: "Belt Miner", system: "demo", scores: [["EEL", 98250], ["SEV", 74120], ["MUS", 61300], ["ORN", 50210], ["TAC", 42000]] },
     { game: "howler-run", title: "Howler Run", system: "demo", scores: [["RAG", 312900], ["EEL", 280400], ["QNN", 199950], ["PAX", 150000], ["VIC", 99990]] },
     { game: "lunar-drop", title: "Lunar Drop", system: "demo", scores: [["SEV", 45550], ["EEL", 39010], ["DAN", 30200], ["HOL", 22080], ["KAV", 12000]] },
-  ].map((g, n) => ({ ...g, platform: "Demo", updated_at: new Date(Date.now() - n * 7200000).toISOString(),
+  ].map((g, n) => ({ ...g, platform: "Station", updated_at: new Date(Date.now() - n * 7200000).toISOString(),
                      scores: g.scores.map(([name, score], i) => ({ rank: String(i + 1), score: score.toLocaleString("en-US"), name })) }));
 
   let games = [], index = 0, demo = false, timer = null;
