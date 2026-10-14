@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Song of Eo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600&family=Michroma&display=swap">
+<style>
+/* Layout: one fixed scene. Space backdrop fills the screen (cropped as needed);
+   the station layer is a square that always fits, centered under the title. */
+:root {
+  --void: #020308;
+  --hull-hi: #59626e;
+  --ink: #e6ebf1;
+  --muted: #8f9aa8;
+  --blood: #c1121f;
+  --ember: #ff6a3d;
+  --gold: #c9a13b;
+  --silver: #aeb7c2;
+  --display: "Michroma", "Eurostile", "Arial Narrow", sans-serif;
+  --body: "Exo 2", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--void); color: var(--ink); font-family: var(--body); overflow: hidden; }
+
+.scene { position: fixed; inset: 0; animation: wake 3.4s ease-out both; }
+@keyframes wake {
+  0% { filter: blur(14px) brightness(.25); }
+  55% { filter: blur(4px) brightness(.7); }
+  100% { filter: none; }
+}
+.backdrop { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 2.5vh) 16px calc(env(safe-area-inset-bottom, 0px) + 8px); box-sizing: border-box; }
+header { text-align: center; display: grid; gap: .55rem; flex: none; }
+h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(26px, 4.6vw, 60px);
+  letter-spacing: .2em; padding-left: .2em; color: var(--ink); text-wrap: balance;
+  text-shadow: 0 0 18px rgba(160, 190, 230, .25); }
+.sub { margin: 0; font-weight: 600; font-size: clamp(10px, 1.35vw, 15px); letter-spacing: .42em; padding-left: .42em;
+  color: var(--muted); text-transform: uppercase; }
+.sub b { color: var(--blood); font-weight: 600; text-shadow: 0 0 10px rgba(193, 18, 31, .55); }
+
+.station { flex: 1; min-height: 0; width: 100%; max-width: 1200px; display: block; overflow: visible; }
+
+footer { flex: none; font-size: 11px; letter-spacing: .08em; color: rgba(255, 230, 220, .55); text-align: center; }
+
+/* Eyelids */
+.lid { position: fixed; left: -10vw; right: -10vw; height: 62vh; background: #000; z-index: 10; pointer-events: none; }
+.lid.top { top: 0; border-radius: 0 0 50% 50% / 0 0 38% 38%; animation: lidTop 3.2s cubic-bezier(.6, .05, .25, 1) forwards; }
+.lid.bot { bottom: 0; border-radius: 50% 50% 0 0 / 38% 38% 0 0; animation: lidBot 3.2s cubic-bezier(.6, .05, .25, 1) forwards; }
+@keyframes lidTop { 0% { transform: translateY(0); } 30% { transform: translateY(-28%); } 42% { transform: translateY(-12%); } 100% { transform: translateY(-112%); } }
+@keyframes lidBot { 0% { transform: translateY(0); } 30% { transform: translateY(28%); } 42% { transform: translateY(12%); } 100% { transform: translateY(112%); } }
+
+/* Interactive bays */
+.bay { cursor: pointer; transform-box: fill-box; transform-origin: center; transition: transform .35s cubic-bezier(.2, .8, .2, 1), filter .35s; }
+.bay:hover, .bay:focus-visible { transform: scale(1.06); filter: drop-shadow(0 0 14px rgba(255, 210, 160, .35)); }
+.bay:focus { outline: none; }
+.bay:focus-visible .frame { stroke: #ffd9a8; stroke-width: 3; }
+.bay .tag { font-family: var(--display); font-size: 11px; letter-spacing: .3em; fill: #f3e7d4; }
+.bay .hint { font-family: var(--body); font-size: 9px; letter-spacing: .18em; fill: #c9b9a4; opacity: 0; transition: opacity .3s; }
+.bay:hover .hint, .bay:focus-visible .hint { opacity: 1; }
+
+.screen { animation: flicker 5s infinite; }
+@keyframes flicker { 0%, 100% { fill: #f6e9cf; } 18% { fill: #cfe3ff; } 36% { fill: #ffd2a6; } 52% { fill: #e9f6ff; } 71% { fill: #ffb9a0; } 86% { fill: #fff3d8; } }
+.beam { animation: beam 5s infinite; }
+@keyframes beam { 0%, 100% { opacity: .16; } 30% { opacity: .1; } 60% { opacity: .2; } }
+.eq rect { transform-box: fill-box; transform-origin: bottom; animation: eq 1.1s ease-in-out infinite alternate; }
+@keyframes eq { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
+.onair { animation: onair 2.4s infinite; }
+@keyframes onair { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.px { animation: px 1.6s steps(1) infinite; }
+@keyframes px { 0%, 49% { opacity: 1; } 50%, 100% { opacity: .15; } }
+.beacon { animation: beacon 1.8s infinite; }
+@keyframes beacon { 0%, 70%, 100% { opacity: .15; } 75%, 90% { opacity: 1; } }
+.ember { animation: ember 1.3s infinite alternate; }
+@keyframes ember { from { opacity: .35; } to { opacity: .9; } }
+
+.cone { transform-box: fill-box; transform-origin: center; animation: thump .46s ease-out infinite; }
+@keyframes thump { 0% { transform: scale(1); } 18% { transform: scale(1.07); } 100% { transform: scale(1); } }
+.wave { transform-box: view-box; transform-origin: 170px 495px; animation: wave 1.38s linear infinite; opacity: 0; }
+@keyframes wave { 0% { transform: scale(.8); opacity: .75; } 100% { transform: scale(2.1); opacity: 0; } }
+
+.banner { transform-box: fill-box; transform-origin: top center; animation: sway 4s ease-in-out infinite alternate; }
+.banner.b2 { animation-delay: -2s; }
+@keyframes sway { from { transform: skewX(-3deg); } to { transform: skewX(3deg); } }
+
+.ship { cursor: pointer; }
+.ship .bob { animation: bob 5s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.ship:hover .hull, .ship:focus-visible .hull { stroke: #d8c2ff; }
+.ship:focus { outline: none; }
+.rave { animation: rave 1.2s steps(6) infinite; }
+@keyframes rave { 0% { fill: #ff2d6f; } 17% { fill: #ffb12d; } 33% { fill: #e9ff2d; } 50% { fill: #2dffa8; } 67% { fill: #2db8ff; } 83% { fill: #b02dff; } 100% { fill: #ff2d6f; } }
+.ray { animation: ray 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: top center; }
+@keyframes ray { 0%, 100% { opacity: .1; transform: rotate(-8deg); } 50% { opacity: .5; transform: rotate(8deg); } }
+
+.twinkle { animation: twinkle 3s ease-in-out infinite alternate; }
+@keyframes twinkle { from { opacity: .25; } to { opacity: 1; } }
+
+/* Playlist */
+dialog { width: min(480px, calc(100vw - 32px)); box-sizing: border-box; border: 1px solid #3a3f4a; border-radius: 6px;
+  background: #0b0d12; color: var(--ink); padding: 22px; font-family: var(--body); }
+dialog::backdrop { background: rgba(0, 0, 0, .7); }
+dialog h2 { margin: 0 0 4px; font-family: var(--display); font-weight: 400; font-size: 15px; letter-spacing: .24em; }
+dialog p { margin: 0 0 16px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.tracks { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 6px; }
+.tracks button { width: 100%; text-align: left; background: #141821; color: var(--ink); border: 1px solid #262c38; border-radius: 4px;
+  padding: 10px 12px; font: inherit; font-size: 14px; cursor: pointer; display: grid; gap: 2px; }
+.tracks button:hover, .tracks button:focus-visible, .tracks button[aria-current="true"] { border-color: #b02dff; outline: none; }
+.tracks small { color: var(--muted); font-size: 12px; }
+audio { width: 100%; margin-bottom: 14px; }
+.close { background: none; border: 1px solid #3a3f4a; color: var(--ink); border-radius: 4px; padding: 8px 14px; font: inherit; cursor: pointer; }
+.close:focus-visible { outline: 2px solid #ffd9a8; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scene, .lid, .screen, .beam, .eq rect, .onair, .px, .beacon, .ember, .cone, .wave, .banner, .ship .bob, .rave, .ray, .twinkle { animation: none !important; }
+  .lid { display: none; }
+  .wave { opacity: .35; }
+}
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <svg class="backdrop" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <radialGradient id="space" cx=".5" cy=".25" r=".95">
+        <stop offset="0" stop-color="#0c1226"></stop><stop offset=".5" stop-color="#05070f"></stop><stop offset="1" stop-color="#010103"></stop>
+      </radialGradient>
+      <radialGradient id="sunwash" cx="0" cy=".3" r=".7">
+        <stop offset="0" stop-color="#ffcf9a" stop-opacity=".16"></stop><stop offset="1" stop-color="#ffcf9a" stop-opacity="0"></stop>
+      </radialGradient>
+      <radialGradient id="earth" cx=".34" cy=".32" r=".8">
+        <stop offset="0" stop-color="#8cc8ff"></stop><stop offset=".45" stop-color="#2a6fbd"></stop><stop offset="1" stop-color="#0a2550"></stop>
+      </radialGradient>
+      <linearGradient id="night" x1="0" y1="0" x2="1" y2="0">
+        <stop offset=".45" stop-color="#000" stop-opacity="0"></stop><stop offset="1" stop-color="#000" stop-opacity=".85"></stop>
+      </linearGradient>
+      <radialGradient id="mars" gradientUnits="userSpaceOnUse" cx="760" cy="690" r="1150">
+        <stop offset="0" stop-color="#e08452"></stop><stop offset=".22" stop-color="#bf5a32"></stop><stop offset=".5" stop-color="#83301b"></stop><stop offset="1" stop-color="#2e0e07"></stop>
+      </radialGradient>
+      <linearGradient id="beltdust" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#8b7a68" stop-opacity="0"></stop><stop offset=".5" stop-color="#8b7a68" stop-opacity=".18"></stop><stop offset="1" stop-color="#8b7a68" stop-opacity="0"></stop>
+      </linearGradient>
+      <clipPath id="marsclip"><circle cx="800" cy="2410" r="1700"></circle></clipPath>
+      <clipPath id="earthclip"><circle cx="190" cy="360" r="50"></circle></clipPath>
+      <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter>
+      <filter id="haze" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="14"></feGaussianBlur></filter>
+    </defs>
+    <rect width="1600" height="1000" fill="url(#space)"></rect>
+    <rect width="1600" height="1000" fill="url(#sunwash)"></rect>
+    <g id="stars"></g>
+
+    <!-- The Belt, far right -->
+    <path d="M1300 -40 C1420 220 1520 520 1660 900 L1760 900 C1640 520 1540 200 1440 -40 Z" fill="url(#beltdust)" filter="url(#haze)"></path>
+    <g id="belt"></g>
+
+    <!-- Earth and Luna, far left -->
+    <circle cx="190" cy="360" r="62" fill="#5aa8ff" opacity=".18" filter="url(#soft)"></circle>
+    <circle cx="190" cy="360" r="50" fill="url(#earth)"></circle>
+    <g clip-path="url(#earthclip)">
+      <path d="M150 330 C165 318 182 324 190 336 C196 346 186 356 176 352 C166 362 150 356 148 344 Z" fill="#4c8a4a" opacity=".85"></path>
+      <path d="M200 372 C214 366 228 372 232 386 C222 396 206 398 198 388 Z" fill="#6a8a46" opacity=".8"></path>
+      <path d="M140 362 C170 352 200 352 236 344" stroke="#fff" stroke-opacity=".55" stroke-width="3" fill="none" stroke-linecap="round"></path>
+      <path d="M150 390 C180 384 205 392 232 380" stroke="#fff" stroke-opacity=".4" stroke-width="2.4" fill="none" stroke-linecap="round"></path>
+      <path d="M156 318 C176 312 196 314 214 322" stroke="#fff" stroke-opacity=".45" stroke-width="2" fill="none" stroke-linecap="round"></path>
+      <rect x="130" y="300" width="120" height="120" fill="url(#night)"></rect>
+    </g>
+    <circle cx="190" cy="360" r="50.5" fill="none" stroke="#9fd0ff" stroke-opacity=".5" stroke-width="1.2"></circle>
+    <circle cx="268" cy="318" r="9" fill="#b9b6ae"></circle>
+    <circle cx="271" cy="318" r="9" fill="#000" opacity=".55"></circle>
+
+    <!-- Mars: only its crest rises at the bottom -->
+    <circle cx="800" cy="2410" r="1716" fill="#ff8f5e" opacity=".22" filter="url(#haze)"></circle>
+    <circle cx="800" cy="2410" r="1700" fill="url(#mars)"></circle>
+    <g clip-path="url(#marsclip)">
+      <g id="marsfeatures"></g>
+      <path d="M380 780 C520 752 640 760 760 742 C860 728 960 744 1100 730" stroke="#4a160c" stroke-opacity=".55" stroke-width="9" fill="none" stroke-linecap="round" filter="url(#soft)"></path>
+      <ellipse cx="800" cy="702" rx="260" ry="10" fill="#fff1e6" opacity=".14" filter="url(#soft)"></ellipse>
+    </g>
+    <circle cx="800" cy="2410" r="1700" fill="none" stroke="#ffb08a" stroke-opacity=".55" stroke-width="2"></circle>
+  </svg>
+
+  <div class="stage">
+    <header>
+      <h1>SONG OF EO</h1>
+      <p class="sub"><b>R</b>ebel <b>E</b>ntertainment <b>D</b>ivision</p>
+    </header>
+
+    <svg class="station" viewBox="40 40 940 860" preserveAspectRatio="xMidYMid meet" role="group" aria-label="The station">
+      <defs>
+        <linearGradient id="hull" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#535b66"></stop><stop offset=".42" stop-color="#2a3038"></stop><stop offset="1" stop-color="#101318"></stop>
+        </linearGradient>
+        <linearGradient id="hullV" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#4b535e"></stop><stop offset=".5" stop-color="#262b33"></stop><stop offset="1" stop-color="#121519"></stop>
+        </linearGradient>
+        <linearGradient id="room" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#0d0f16"></stop><stop offset="1" stop-color="#1a1520"></stop>
+        </linearGradient>
+        <linearGradient id="studio" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#140d1d"></stop><stop offset="1" stop-color="#0c1018"></stop>
+        </linearGradient>
+        <linearGradient id="arcadeFloor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#0b0b14"></stop><stop offset=".7" stop-color="#16102a"></stop><stop offset="1" stop-color="#2a1640"></stop>
+        </linearGradient>
+        <linearGradient id="lightcone" x1="1" y1="0" x2="0" y2="0">
+          <stop offset="0" stop-color="#fff4dc" stop-opacity=".9"></stop><stop offset="1" stop-color="#fff4dc" stop-opacity="0"></stop>
+        </linearGradient>
+        <linearGradient id="raygrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#d8a6ff" stop-opacity=".9"></stop><stop offset="1" stop-color="#d8a6ff" stop-opacity="0"></stop>
+        </linearGradient>
+        <radialGradient id="coneGrad" cx=".4" cy=".35" r=".7">
+          <stop offset="0" stop-color="#3c424c"></stop><stop offset=".7" stop-color="#16191f"></stop><stop offset="1" stop-color="#0a0b0e"></stop>
+        </radialGradient>
+        <radialGradient id="glow" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#ff7a45" stop-opacity=".9"></stop><stop offset="1" stop-color="#ff7a45" stop-opacity="0"></stop>
+        </radialGradient>
+        <clipPath id="wCinema"><rect x="285" y="330" width="370" height="90" rx="8"></rect></clipPath>
+        <clipPath id="wRadio"><rect x="305" y="458" width="330" height="78" rx="8"></rect></clipPath>
+        <clipPath id="wArcade"><rect x="265" y="575" width="410" height="135" rx="10"></rect></clipPath>
+        <clipPath id="wDeck"><rect x="322" y="238" width="296" height="42" rx="6"></rect></clipPath>
+        <!-- Generic people, drawn as silhouettes -->
+        <symbol id="seated" viewBox="0 0 30 40"><circle cx="15" cy="10" r="7"></circle><path d="M2 40 Q2 20 15 20 Q28 20 28 40 Z"></path></symbol>
+        <symbol id="standing" viewBox="0 0 30 80"><circle cx="15" cy="9" r="7"></circle><path d="M5 20 Q15 16 25 20 L27 50 L21 50 L20 80 L10 80 L9 50 L3 50 Z"></path></symbol>
+        <!-- Original howling-wolf mark for the banners -->
+        <symbol id="wolf" viewBox="0 0 40 44"><path d="M9 43 L11 31 L8 25 L10 18 L14 15 L17 7 L19 1 L22 8 L27 5 L26 11 L30 14 L28 19 L23 20 L25 27 L30 34 L32 43 Z"></path></symbol>
+      </defs>
+
+      <!-- Solar wings: left intact, right shot away -->
+      <g>
+        <rect x="150" y="246" width="122" height="9" fill="#2a2f37"></rect>
+        <g fill="#0f1a2c" stroke="#3b4a63" stroke-width="1.2">
+          <rect x="70" y="208" width="80" height="84"></rect>
+          <path d="M70 236 H150 M70 264 H150 M97 208 V292 M123 208 V292" fill="none"></path>
+        </g>
+        <rect x="668" y="246" width="62" height="9" fill="#2a2f37"></rect>
+        <path d="M730 244 L738 249 L733 252 L741 257 L729 257 Z" fill="#2a2f37"></path>
+        <g transform="rotate(21 760 300)" fill="#0f1a2c" stroke="#3b4a63" stroke-width="1.2">
+          <path d="M745 262 L800 262 L800 300 L782 312 L772 296 L745 318 Z"></path>
+          <path d="M745 290 H800 M772 262 V296" fill="none"></path>
+        </g>
+      </g>
+
+      <!-- Mast, dish, beacon, bent antenna -->
+      <rect x="466" y="70" width="8" height="92" fill="url(#hullV)"></rect>
+      <path d="M474 104 Q500 90 512 112 Q492 108 474 118 Z" fill="#3a414b" stroke="#0a0c0f"></path>
+      <circle class="beacon" cx="470" cy="66" r="5" fill="#ff3b2f"></circle>
+      <path d="M526 160 L548 126 L566 132" stroke="#3a414b" stroke-width="4" fill="none" stroke-linecap="round"></path>
+
+      <!-- Crest plate. Original emblem; swap in your own licensed art here if you have it. -->
+      <path d="M418 158 H522 L544 186 L522 214 H418 L396 186 Z" fill="url(#hull)" stroke="#0a0c0f" stroke-width="2"></path>
+      <path d="M422 162 H518 L538 186 L518 210 H422 L402 186 Z" fill="none" stroke="#6b7480" stroke-width="1"></path>
+      <g fill="none" stroke="#c1121f" stroke-width="3" stroke-linejoin="round">
+        <circle cx="470" cy="186" r="17"></circle>
+        <path d="M456 176 L470 199 L484 176"></path>
+        <path d="M462 176 L470 188 L478 176"></path>
+      </g>
+
+      <!-- Command deck -->
+      <path d="M300 216 H640 L670 250 L640 302 H300 L270 250 Z" fill="url(#hull)" stroke="#0a0c0f" stroke-width="2"></path>
+      <path d="M300 216 H640 L670 250" stroke="var(--hull-hi)" stroke-width="1.4" fill="none"></path>
+      <rect x="322" y="238" width="296" height="42" rx="6" fill="#0c1019"></rect>
+      <g clip-path="url(#wDeck)">
+        <rect x="322" y="270" width="296" height="10" fill="#1d3550" opacity=".8"></rect>
+        <use href="#standing" x="350" y="244" width="15" height="40" fill="#8c7230"></use>
+        <use href="#standing" x="404" y="242" width="16" height="42" fill="#7d8790"></use>
+        <use href="#standing" x="468" y="240" width="17" height="44" fill="#9b7d33"></use>
+        <use href="#standing" x="530" y="244" width="15" height="40" fill="#7d8790"></use>
+        <use href="#standing" x="580" y="243" width="15" height="41" fill="#8c7230"></use>
+      </g>
+      <rect x="322" y="238" width="296" height="42" rx="6" fill="none" stroke="#6f7a88" stroke-width="1.5"></rect>
+      <text x="470" y="296" text-anchor="middle" font-family="Michroma, sans-serif" font-size="7" letter-spacing="2.5" fill="#8f9aa8">COMMAND DECK</text>
+
+      <!-- Hull spine connecting the modules -->
+      <rect x="440" y="300" width="60" height="450" fill="#191d23"></rect>
+
+      <!-- CINEMA: Golds and Silvers at the movies -->
+      <a class="bay" href="/cinema/" aria-label="Cinema: watch movies and shows (sign in required)">
+        <path class="frame" d="M280 314 H660 L690 344 V406 L660 436 H280 L250 406 V344 Z" fill="url(#hull)" stroke="#0a0c0f" stroke-width="2"></path>
+        <path d="M280 314 H660 L690 344" stroke="var(--hull-hi)" stroke-width="1.4" fill="none"></path>
+        <rect x="285" y="330" width="370" height="90" rx="8" fill="url(#room)"></rect>
+        <g clip-path="url(#wCinema)">
+          <polygon class="beam" points="560,338 560,408 285,430 285,320" fill="url(#lightcone)"></polygon>
+          <rect class="screen" x="560" y="338" width="88" height="70" rx="2"></rect>
+          <g>
+            <use href="#seated" x="318" y="356" width="17" height="23" fill="#9b7d33"></use>
+            <use href="#seated" x="352" y="356" width="17" height="23" fill="#8c949d"></use>
+            <use href="#seated" x="386" y="356" width="17" height="23" fill="#a98a3a"></use>
+            <use href="#seated" x="420" y="356" width="17" height="23" fill="#8c949d"></use>
+            <use href="#seated" x="454" y="356" width="17" height="23" fill="#9b7d33"></use>
+            <use href="#seated" x="488" y="356" width="17" height="23" fill="#a2aab3"></use>
+            <use href="#seated" x="302" y="372" width="21" height="28" fill="#b8963f"></use>
+            <use href="#seated" x="342" y="372" width="21" height="28" fill="#a2aab3"></use>
+            <use href="#seated" x="382" y="372" width="21" height="28" fill="#b8963f"></use>
+            <use href="#seated" x="422" y="372" width="21" height="28" fill="#98a0a9"></use>
+            <use href="#seated" x="462" y="372" width="21" height="28" fill="#c9a13b"></use>
+            <use href="#seated" x="502" y="372" width="21" height="28" fill="#aeb7c2"></use>
+            <use href="#seated" x="292" y="392" width="26" height="34" fill="#c9a13b"></use>
+            <use href="#seated" x="340" y="392" width="26" height="34" fill="#aeb7c2"></use>
+            <use href="#seated" x="388" y="392" width="26" height="34" fill="#c9a13b"></use>
+            <use href="#seated" x="436" y="392" width="26" height="34" fill="#aeb7c2"></use>
+            <use href="#seated" x="484" y="392" width="26" height="34" fill="#d1ad4c"></use>
+          </g>
+        </g>
+        <rect x="285" y="330" width="370" height="90" rx="8" fill="none" stroke="#6f7a88" stroke-width="1.5"></rect>
+        <text class="tag" x="298" y="347">CINEMA</text>
+        <text class="hint" x="298" y="360">TAP TO ENTER</text>
+        <!-- Battle damage: hull breach with exposed frame -->
+        <path d="M652 318 L676 330 L690 344 L688 372 L676 364 L670 378 L660 360 L648 352 L656 340 Z" fill="#07080a"></path>
+        <path d="M656 332 L684 368 M664 326 L672 372 M650 348 L688 352" stroke="#4a4f57" stroke-width="1.6"></path>
+        <circle class="ember" cx="668" cy="352" r="12" fill="url(#glow)"></circle>
+      </a>
+
+      <!-- RADIO: Grays and Obsidians on air -->
+      <a class="bay" href="/radio/" aria-label="Radio: live music and the station stream (sign in required)">
+        <path class="frame" d="M300 444 H640 L665 470 V526 L640 552 H300 L275 526 V470 Z" fill="url(#hull)" stroke="#0a0c0f" stroke-width="2"></path>
+        <path d="M300 444 H640 L665 470" stroke="var(--hull-hi)" stroke-width="1.4" fill="none"></path>
+        <rect x="305" y="458" width="330" height="78" rx="8" fill="url(#studio)"></rect>
+        <g clip-path="url(#wRadio)">
+          <g class="eq" fill="#5b4a8a">
+            <rect x="420" y="470" width="7" height="34" style="animation-delay:-.1s"></rect>
+            <rect x="431" y="474" width="7" height="30" style="animation-delay:-.5s"></rect>
+            <rect x="442" y="466" width="7" height="38" style="animation-delay:-.3s"></rect>
+            <rect x="453" y="476" width="7" height="28" style="animation-delay:-.8s"></rect>
+            <rect x="464" y="468" width="7" height="36" style="animation-delay:-.2s"></rect>
+            <rect x="475" y="472" width="7" height="32" style="animation-delay:-.6s"></rect>
+            <rect x="486" y="466" width="7" height="38" style="animation-delay:-.4s"></rect>
+            <rect x="497" y="474" width="7" height="30" style="animation-delay:-.9s"></rect>
+            <rect x="508" y="470" width="7" height="34" style="animation-delay:-.15s"></rect>
+            <rect x="519" y="476" width="7" height="28" style="animation-delay:-.7s"></rect>
+          </g>
+          <g class="onair">
+            <rect x="566" y="466" width="56" height="17" rx="2" fill="#4a0a10" stroke="#ff3b3b" stroke-width="1"></rect>
+            <text x="594" y="478" text-anchor="middle" font-family="Michroma, sans-serif" font-size="7.5" letter-spacing="1.5" fill="#ff6b6b">ON AIR</text>
+          </g>
+          <!-- Obsidian on the mic -->
+          <path d="M372 496 V532" stroke="#6b6f7a" stroke-width="2"></path>
+          <circle cx="372" cy="494" r="3.5" fill="#9aa0aa"></circle>
+          <use href="#standing" x="340" y="470" width="30" height="78" fill="#1d1d25" stroke="#4c4f63" stroke-width="1"></use>
+          <!-- Grays at the desk -->
+          <use href="#seated" x="438" y="502" width="24" height="32" fill="#8d929a"></use>
+          <use href="#seated" x="500" y="502" width="24" height="32" fill="#7c8189"></use>
+          <rect x="420" y="522" width="160" height="16" rx="2" fill="#1b1f27" stroke="#3b4250"></rect>
+          <g fill="#3dd6a0"><circle cx="432" cy="530" r="1.6"></circle><circle cx="442" cy="530" r="1.6"></circle><circle cx="452" cy="530" r="1.6" fill="#ffb12d"></circle><circle cx="548" cy="530" r="1.6"></circle><circle cx="558" cy="530" r="1.6" fill="#ff3b3b"></circle><circle cx="568" cy="530" r="1.6"></circle></g>
+          <use href="#standing" x="596" y="486" width="22" height="56" fill="#22222b" stroke="#4c4f63" stroke-width="1"></use>
+        </g>
+        <rect x="305" y="458" width="330" height="78" rx="8" fill="none" stroke="#6f7a88" stroke-width="1.5"></rect>
+        <text class="tag" x="318" y="475">RADIO</text>
+        <text class="hint" x="318" y="488">TAP TO TUNE IN</text>
+      </a>
+
+      <!-- ARCADE: the low Colors at play -->
+      <a class="bay" href="/arcade/" aria-label="Arcade: retro games and high scores (sign in required)">
+        <path class="frame" d="M260 560 H680 L710 590 V702 L680 732 H260 L230 702 V590 Z" fill="url(#hull)" stroke="#0a0c0f" stroke-width="2"></path>
+        <path d="M260 560 H680 L710 590" stroke="var(--hull-hi)" stroke-width="1.4" fill="none"></path>
+        <rect x="265" y="575" width="410" height="135" rx="10" fill="url(#arcadeFloor)"></rect>
+        <g clip-path="url(#wArcade)">
+          <rect x="265" y="578" width="410" height="3" fill="#ff2d9b" opacity=".7"></rect>
+          <g id="cabinets"></g>
+        </g>
+        <rect x="265" y="575" width="410" height="135" rx="10" fill="none" stroke="#6f7a88" stroke-width="1.5"></rect>
+        <text class="tag" x="279" y="596">ARCADE</text>
+        <text class="hint" x="279" y="609">TAP TO PLAY</text>
+      </a>
+
+      <!-- Docking bay with Howler banners -->
+      <path d="M330 742 H610 L590 802 H350 Z" fill="url(#hull)" stroke="#0a0c0f" stroke-width="2"></path>
+      <rect x="370" y="758" width="200" height="34" rx="3" fill="#06070a"></rect>
+      <g fill="#ffb347"><circle cx="384" cy="788" r="1.8"></circle><circle cx="408" cy="788" r="1.8"></circle><circle cx="432" cy="788" r="1.8"></circle><circle cx="456" cy="788" r="1.8"></circle><circle cx="480" cy="788" r="1.8"></circle><circle cx="504" cy="788" r="1.8"></circle><circle cx="528" cy="788" r="1.8"></circle><circle cx="552" cy="788" r="1.8"></circle></g>
+      <g class="banner">
+        <path d="M352 802 H392 V872 L372 860 L352 872 Z" fill="#5e0d14" stroke="#2a0507"></path>
+        <use href="#wolf" x="358" y="812" width="28" height="31" fill="#e4d8c4"></use>
+      </g>
+      <g class="banner b2">
+        <path d="M548 802 H588 V872 L568 860 L548 872 Z" fill="#5e0d14" stroke="#2a0507"></path>
+        <use href="#wolf" x="554" y="812" width="28" height="31" fill="#e4d8c4"></use>
+      </g>
+
+      <!-- Subwoofer pod -->
+      <path d="M250 486 H232 M250 520 H232" stroke="#2a2f37" stroke-width="7"></path>
+      <rect x="110" y="420" width="122" height="150" rx="18" fill="url(#hull)" stroke="#0a0c0f" stroke-width="2"></rect>
+      <path class="wave" d="M104 452 A62 62 0 0 0 104 538" fill="none" stroke="#ff7a52" stroke-width="3" stroke-linecap="round"></path>
+      <path class="wave" style="animation-delay:.46s" d="M104 452 A62 62 0 0 0 104 538" fill="none" stroke="#ff7a52" stroke-width="3" stroke-linecap="round"></path>
+      <path class="wave" style="animation-delay:.92s" d="M104 452 A62 62 0 0 0 104 538" fill="none" stroke="#ff7a52" stroke-width="3" stroke-linecap="round"></path>
+      <circle cx="170" cy="495" r="50" fill="#0b0c0f" stroke="#3a414b" stroke-width="2"></circle>
+      <g class="cone">
+        <circle cx="170" cy="495" r="41" fill="url(#coneGrad)"></circle>
+        <circle cx="170" cy="495" r="41" fill="none" stroke="#2c3139" stroke-width="5"></circle>
+        <circle cx="170" cy="495" r="13" fill="#262b33" stroke="#4a515b"></circle>
+      </g>
+      <g fill="#4a515b"><circle cx="128" cy="440" r="2.2"></circle><circle cx="212" cy="440" r="2.2"></circle><circle cx="128" cy="550" r="2.2"></circle><circle cx="212" cy="550" r="2.2"></circle></g>
+
+      <!-- Rave ship: opens the public playlist -->
+      <a class="ship" href="#playlist" id="ship" aria-label="Open the public playlist">
+        <g class="bob">
+          <polygon class="ray" points="842,512 812,620 842,620" fill="url(#raygrad)"></polygon>
+          <polygon class="ray" points="868,514 862,630 896,630" fill="url(#raygrad)" style="animation-delay:-.8s"></polygon>
+          <polygon class="ray" points="894,510 912,612 940,606" fill="url(#raygrad)" style="animation-delay:-1.6s"></polygon>
+          <path class="hull" d="M790 492 L834 470 L920 472 L952 492 L920 512 L834 514 Z" fill="#1b1e24" stroke="#4a515b" stroke-width="1.6"></path>
+          <path d="M834 470 L846 492 L834 514 M880 471 V513" stroke="#2c3139" stroke-width="1.2" fill="none"></path>
+          <path d="M912 480 L936 492 L912 500 Z" fill="#3a2a55" stroke="#8b6bd6" stroke-width="1"></path>
+          <ellipse cx="790" cy="492" rx="6" ry="10" fill="#7a5cff" opacity=".8"></ellipse>
+          <circle class="rave" cx="852" cy="492" r="3.4"></circle>
+          <circle class="rave" cx="866" cy="492" r="3.4" style="animation-delay:-.2s"></circle>
+          <circle class="rave" cx="880" cy="492" r="3.4" style="animation-delay:-.4s"></circle>
+          <circle class="rave" cx="894" cy="492" r="3.4" style="animation-delay:-.6s"></circle>
+          <circle class="rave" cx="908" cy="492" r="3.4" style="animation-delay:-.8s"></circle>
+        </g>
+      </a>
+    </svg>
+
+    <footer>Private station · members only · Fan-made tribute, not affiliated with Pierce Brown or his publishers</footer>
+  </div>
+</div>
+
+<div class="lid top" aria-hidden="true"></div>
+<div class="lid bot" aria-hidden="true"></div>
+
+<dialog id="playlist" aria-labelledby="pl-title">
+  <h2 id="pl-title">PIRATE SIGNAL</h2>
+  <p>Music cleared for public play on this station.</p>
+  <ul class="tracks" id="tracks"></ul>
+  <audio id="player" controls preload="none"></audio>
+  <button class="close" id="pl-close" type="button">Close</button>
+</dialog>
+
+<script>
+/* Add only tracks you have the right to play publicly.
+   Put the audio files next to this page (for example in /music/) and list them here. */
+const PLAYLIST = [
+  // { title: "Track name", artist: "Artist", src: "music/track.mp3", note: "Licensed under CC BY 4.0" },
+];
+
+(function () {
+  const NS = "http://www.w3.org/2000/svg";
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  const el = (name, attrs, parent) => {
+    const n = document.createElementNS(NS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    parent.appendChild(n);
+    return n;
+  };
+
+  const stars = document.getElementById("stars");
+  for (let i = 0; i < 320; i++) {
+    const s = el("circle", { cx: (rnd() * 1600).toFixed(1), cy: (rnd() * 760).toFixed(1), r: (0.3 + rnd() * 1.2).toFixed(2), fill: rnd() > 0.85 ? "#ffe2c4" : "#dfe8ff" }, stars);
+    if (rnd() > 0.82) { s.setAttribute("class", "twinkle"); s.style.animationDelay = (-rnd() * 3).toFixed(2) + "s"; }
+    else s.setAttribute("opacity", (0.35 + rnd() * 0.6).toFixed(2));
+  }
+
+  const belt = document.getElementById("belt");
+  for (let i = 0; i < 150; i++) {
+    const t = rnd();
+    const cx = 1330 + t * 300 + (rnd() - 0.5) * 120 + t * t * 40;
+    const cy = -20 + t * 900 + (rnd() - 0.5) * 60;
+    const r = 1.2 + Math.pow(rnd(), 3) * 9;
+    const n = 6 + Math.floor(rnd() * 3);
+    let d = "";
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2, rr = r * (0.65 + rnd() * 0.5);
+      d += (k ? "L" : "M") + (cx + Math.cos(a) * rr).toFixed(1) + " " + (cy + Math.sin(a) * rr * 0.8).toFixed(1);
+    }
+    const shade = 70 + Math.floor(rnd() * 60);
+    el("path", { d: d + "Z", fill: `rgb(${shade + 20},${shade + 8},${shade - 6})`, opacity: (0.55 + rnd() * 0.45).toFixed(2) }, belt);
+  }
+
+  const mf = document.getElementById("marsfeatures");
+  for (let i = 0; i < 26; i++) {
+    el("ellipse", { cx: (rnd() * 1600).toFixed(0), cy: (735 + rnd() * 300).toFixed(0), rx: (60 + rnd() * 220).toFixed(0), ry: (8 + rnd() * 26).toFixed(0), fill: rnd() > 0.5 ? "#5a1d0e" : "#e09060", opacity: (0.12 + rnd() * 0.18).toFixed(2), filter: "url(#soft)" }, mf);
+  }
+  for (let i = 0; i < 40; i++) {
+    const x = 120 + rnd() * 1360, y = 712 + rnd() * 200, r = 1.5 + rnd() * 6;
+    el("ellipse", { cx: x.toFixed(1), cy: y.toFixed(1), rx: r.toFixed(1), ry: (r * 0.35).toFixed(1), fill: "none", stroke: "#3f130a", "stroke-opacity": "0.5", "stroke-width": "1" }, mf);
+  }
+
+  // Arcade: five cabinets, five players in Red, Blue, Brown, Yellow and Green.
+  const cab = document.getElementById("cabinets");
+  const players = ["#a3262a", "#2f5fa8", "#7a5233", "#c9a227", "#3e8b47"];
+  const marquee = ["#ff2d6f", "#2db8ff", "#ffb12d", "#e9ff2d", "#2dffa8"];
+  players.forEach((color, i) => {
+    const x = 296 + i * 76;
+    el("path", { d: `M${x} 702 V612 L${x + 6} 600 H${x + 42} L${x + 48} 612 V702 Z`, fill: "#141320", stroke: "#2c2a40" }, cab);
+    el("rect", { x: x + 6, y: 603, width: 36, height: 6, fill: marquee[i], opacity: "0.85" }, cab);
+    el("rect", { x: x + 7, y: 614, width: 34, height: 26, fill: "#05060a" }, cab);
+    for (let p = 0; p < 7; p++) {
+      const px = el("rect", { x: (x + 9 + Math.floor(rnd() * 28)).toFixed(0), y: (616 + Math.floor(rnd() * 20)).toFixed(0), width: 3, height: 3, fill: marquee[(i + p) % 5], class: "px" }, cab);
+      px.style.animationDelay = (-rnd() * 1.6).toFixed(2) + "s";
+    }
+    el("rect", { x: x + 4, y: 646, width: 40, height: 8, fill: "#22202f" }, cab);
+    el("use", { href: "#standing", x: x + 9, y: 640, width: 30, height: 74, fill: color }, cab);
+  });
+
+  // Playlist dialog
+  const dlg = document.getElementById("playlist");
+  const list = document.getElementById("tracks");
+  const player = document.getElementById("player");
+  if (!PLAYLIST.length) {
+    const li = document.createElement("li");
+    li.innerHTML = '<p style="margin:0">The signal is quiet. No tracks are loaded yet.</p>';
+    list.appendChild(li);
+    player.hidden = true;
+  }
+  PLAYLIST.forEach((t) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<span></span><small></small>`;
+    b.querySelector("span").textContent = t.title;
+    b.querySelector("small").textContent = [t.artist, t.note].filter(Boolean).join(" · ");
+    b.addEventListener("click", () => {
+      list.querySelectorAll("button").forEach((x) => x.removeAttribute("aria-current"));
+      b.setAttribute("aria-current", "true");
+      player.src = t.src;
+      player.play().catch(() => {});
+    });
+    li.appendChild(b);
+    list.appendChild(li);
+  });
+  const open = (e) => { e.preventDefault(); if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", ""); };
+  const ship = document.getElementById("ship");
+  ship.addEventListener("click", open);
+  ship.addEventListener("keydown", (e) => { if (e.key === " ") open(e); });
+  document.getElementById("pl-close").addEventListener("click", () => { player.pause(); dlg.close(); });
+})();
+</script>
+</body>
+</html>

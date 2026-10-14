@@ -126,7 +126,7 @@ Friends who should see the board each get an entry in `/srv/gate/authelia/users.
 podman exec nginx nginx -t && systemctl --user restart nginx authelia
 ```
 
-**DNS:** Porkbun → `songofeo.com` → add a **CNAME** `scores` → `songofeo.com`. The Pi-holes already answer `scores.songofeo.com` on the LAN.
+**DNS:** Porkbun → `songofeo.com` → add a **CNAME** `scores` → `gate.songofeo.com`. The Pi-holes already answer `scores.songofeo.com` on the LAN.
 
 - [ ] `https://scores.songofeo.com` from a desktop asks for an Authelia login, then shows the empty board ("No scores yet")
 - [ ] `curl -X PUT -H "Authorization: Bearer wrong" --data-binary x https://scores.songofeo.com/upload/test/x.hi` answers `401`

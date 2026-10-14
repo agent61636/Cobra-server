@@ -45,10 +45,11 @@ The domain stays where it is: Porkbun is the registrar **and** the DNS. The buil
 - [ ] **Nameservers:** Porkbun → Domain Management → `songofeo.com` → Details → Authoritative Nameservers are Porkbun's own (`*.porkbun.com`). If they point somewhere else (an old Cloudflare setup, say), switch them back to Porkbun's defaults and give it an hour.
 - [ ] **API Access: on** for `songofeo.com` (same Details page). It's off per domain by default, and without it every API call fails.
 - [ ] **Clean the DNS records** (Details → DNS Records):
-  - Delete Porkbun's parking defaults: the **ALIAS** for the bare domain and the **`*` CNAME** pointing at `pixie.porkbun.com` / `uixie.porkbun.com`.
+  - **Keep the records Porkbun's Static Hosting created for the bare domain** (usually an **ALIAS** or **A** for `songofeo.com` and a `www` CNAME). Your public homepage lives there (`apps/songofeo-web`).
+  - Delete the **`*` wildcard CNAME** if Porkbun added one (pointing at `pixie.porkbun.com` / `uixie.porkbun.com`); it would send every app name to Porkbun.
   - Delete every **AAAA** record (they're what broke things when your IP "turned into IPv6").
   - Keep any **MX/TXT** records for email you actually use.
-  - If your old server is public now, keep or create one **A** record for the bare domain (host blank) with the IPv4 from 0.2. OPNsense takes it over in part 2.10.
+  - If your old server is public now, create one **A** record for **`gate`** with the IPv4 from 0.2 and point its app names (CNAMEs) at `gate.songofeo.com`. OPNsense keeps `gate` up to date from part 2.10. Never put your home IP on the bare domain: that's the homepage's record.
 - [ ] **URL Forwarding** (Details → URL Forwarding): remove any forwards for `songofeo.com` or names you'll use (`tv`, `docs`, …). A forward replaces the DNS answer with Porkbun's redirect servers.
 - [ ] **Two API keys** (Account → API Access → Create API Key):
   - `cobra-ddns` (for OPNsense) and `cobra-acme` (for the gate)

@@ -427,7 +427,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 
 ## 5.5 Go public
 
-- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `songofeo.com`: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`, which stays LAN/VPN-only). They follow the apex A record that DDNS keeps up to date. Make sure Porkbun's **URL Forwarding** has nothing for these names.
+- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv books comics eelsmusic rupaulradio arcade auth docs metube home status` (not `vault`, which stays LAN/VPN-only). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` records alone: they belong to Porkbun's static hosting. Make sure Porkbun's **URL Forwarding** has nothing for these names.
 - [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
 
