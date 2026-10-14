@@ -15,6 +15,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .tables import clean_rows, parse_hi2txt
+
 SEGMENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 SCHEMA = """
@@ -41,6 +43,14 @@ CREATE TABLE IF NOT EXISTS versions (
 );
 CREATE INDEX IF NOT EXISTS idx_files_updated ON files(updated_at);
 """
+
+# Columns added after the first release; added to older databases on start.
+MIGRATIONS = {
+    "files": {"meta_title": "TEXT", "platform": "TEXT"},
+    "versions": {"decoded_by": "TEXT"},
+}
+
+META_TEXT = re.compile(r"^[^\x00-\x1f\x7f]*$")
 
 
 class BadRequest(ValueError):
@@ -69,6 +79,12 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
+        for table, cols in MIGRATIONS.items():
+            have = {r[1] for r in self.db.execute(f"PRAGMA table_info({table})")}
+            for col, kind in cols.items():
+                if col not in have:
+                    self.db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {kind}")
+        self.db.commit()
 
     def close(self):
         self.db.close()
@@ -108,10 +124,10 @@ class Store:
             os.replace(tmp, dest)
             decoded = self._decode(dest, game, system)
             cur = self.db.execute(
-                "INSERT INTO versions (file_id, sha256, size, received_at, file_mtime, source, path, decoded) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO versions (file_id, sha256, size, received_at, file_mtime, source, path, decoded, "
+                "decoded_by) VALUES (?,?,?,?,?,?,?,?,?)",
                 (file_id, digest, len(body), received, file_mtime, source[:64], rel.as_posix(),
-                 json.dumps(decoded) if decoded is not None else None))
+                 json.dumps(decoded) if decoded is not None else None, "server" if decoded else None))
             vid = cur.lastrowid
             self.db.execute("UPDATE files SET latest_id = ?, updated_at = ? WHERE id = ?",
                             (vid, received, file_id))
@@ -127,19 +143,52 @@ class Store:
             rows = json.loads(out)
         except (OSError, subprocess.SubprocessError, ValueError):
             return None
-        if not isinstance(rows, list):
+        return clean_rows(rows) or None
+
+    def set_meta(self, system, name, meta):
+        """Details the cabinet knows and the server can't work out from a .hi file.
+
+        meta: {"title": str, "platform": str, "rows": [...], "hi2txt": str}, every key
+        optional. Title and platform describe the game; rows (or hi2txt's text output,
+        parsed here) are the readable score table of the newest version. The server's
+        own decoder, when it has one, wins over rows sent by the cabinet.
+        Returns the number of score rows stored, or None if the file is unknown.
+        """
+        check_segment(system, "system")
+        check_segment(name, "file name")
+        if not isinstance(meta, dict):
+            raise BadRequest("send a JSON object")
+        title = self._meta_text(meta.get("title"), 128, "title")
+        platform = self._meta_text(meta.get("platform"), 64, "platform")
+        rows = clean_rows(meta.get("rows")) if "rows" in meta else parse_hi2txt(meta.get("hi2txt"))
+        with self.db:
+            row = self.db.execute(
+                "SELECT f.id, f.latest_id, v.decoded_by FROM files f JOIN versions v ON v.id = f.latest_id "
+                "WHERE f.system = ? AND f.name = ?", (system, name)).fetchone()
+            if row is None:
+                return None
+            if title:
+                self.db.execute("UPDATE files SET meta_title = ? WHERE id = ?", (title, row["id"]))
+            if platform:
+                self.db.execute("UPDATE files SET platform = ? WHERE id = ?", (platform, row["id"]))
+            if rows and row["decoded_by"] != "server":
+                self.db.execute("UPDATE versions SET decoded = ?, decoded_by = 'cabinet' WHERE id = ?",
+                                (json.dumps(rows), row["latest_id"]))
+        return len(rows)
+
+    @staticmethod
+    def _meta_text(value, limit, what):
+        if value is None or value == "":
             return None
-        clean = []
-        for r in rows[:20]:
-            if isinstance(r, dict):
-                clean.append({k: str(r.get(k, ""))[:32] for k in ("rank", "score", "name")})
-        return clean or None
+        if not isinstance(value, str) or not META_TEXT.match(value):
+            raise BadRequest(f"invalid {what}")
+        return value.strip()[:limit] or None
 
     # -- reading ----------------------------------------------------------
 
     def games(self, system=None, query=None, limit=500):
-        sql = ("SELECT f.system, f.name, f.game, f.first_seen, f.updated_at, v.size, v.sha256, "
-               "v.file_mtime, v.source, v.decoded, "
+        sql = ("SELECT f.system, f.name, f.game, f.first_seen, f.updated_at, f.meta_title, f.platform, "
+               "v.size, v.sha256, v.file_mtime, v.source, v.decoded, "
                "(SELECT COUNT(*) FROM versions x WHERE x.file_id = f.id) AS versions "
                "FROM files f JOIN versions v ON v.id = f.latest_id")
         where, args = [], []
@@ -147,8 +196,9 @@ class Store:
             where.append("f.system = ?")
             args.append(system)
         if query:
-            where.append("(f.game LIKE ? ESCAPE '\\')")
-            args.append("%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")
+            where.append("(f.game LIKE ? ESCAPE '\\' OR f.meta_title LIKE ? ESCAPE '\\')")
+            like = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            args += [like, like]
         if where:
             sql += " WHERE " + " AND ".join(where)
         sql += " ORDER BY f.updated_at DESC, f.id DESC LIMIT ?"
@@ -157,9 +207,18 @@ class Store:
         for r in self.db.execute(sql, args):
             d = dict(r)
             d["decoded"] = json.loads(d["decoded"]) if d["decoded"] else None
-            d["title"] = self.titles.get(d["game"], "")
+            meta_title = d.pop("meta_title")
+            d["title"] = self.titles.get(d["game"]) or meta_title or ""
+            d["platform"] = d["platform"] or ""
             out.append(d)
         return out
+
+    def board(self, limit=100, scores=10):
+        """The public view: games and their score tables, nothing about files or the cabinet."""
+        return [{
+            "game": g["game"], "title": g["title"], "system": g["system"], "platform": g["platform"],
+            "updated_at": g["updated_at"], "scores": (g["decoded"] or [])[:scores],
+        } for g in self.games(limit=limit)]
 
     def systems(self):
         return [r[0] for r in self.db.execute("SELECT DISTINCT system FROM files ORDER BY system")]
