@@ -58,6 +58,8 @@ The server keeps only the key's hash. To replace a key, make a new one and swap 
 
 ## 7.3 The container (gate, as podsvc)
 
+Using the Podman scripts instead of Quadlets? Run `gate/hiscore.sh` from [`scripts/podman`](../../scripts/podman/README.md) and skip the file below.
+
 ```bash
 cd ~/.config/containers/systemd
 cat > hiscore.container <<'EOF'

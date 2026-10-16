@@ -261,6 +261,8 @@ sudo systemctl enable --now nftables
 
 Run as podsvc: `sudo machinectl shell podsvc@` (a full login session, needed for `systemctl --user`). `exit` to leave.
 
+**Prefer plain `podman run` scripts?** [`scripts/podman`](../../scripts/podman/README.md) has one script per app (`sgin/up-all.sh` runs them all) that builds the same `stream` pod with the same images, ports and folders. Use either the scripts or the Quadlet files below for an app, not both; the scripts' README explains how to switch.
+
 ```bash
 mkdir -p ~/.config/containers/systemd /srv/stream/{jellyfin/config,jellyfin/cache,ersatztv,abs/config,abs/metadata,kavita,navidrome,romm/resources,romm/assets,romm/config,romm/redis,romm/db}
 cd ~/.config/containers/systemd
@@ -303,6 +305,7 @@ AutoUpdate=registry
 AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/ersatztv:/config:Z
+Tmpfs=/transcode:rw,size=2g,mode=1777
 Volume=/srv/storage/pool:/media:ro
 [Install]
 WantedBy=default.target
@@ -382,7 +385,7 @@ podman ps                                     # 7 containers Up
 
 - [ ] App URLs: Jellyfin `http://10.6.9.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
 
-- [ ] Image names checked against the official docs (Oct 2026): ErsatzTV is now published as `ghcr.io/ersatztv/legacy`; RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders
+- [ ] Image names (Oct 2026): ErsatzTV is published as `ghcr.io/ersatztv/legacy` (its GitHub repo ErsatzTV/legacy builds that image; the older `ghcr.io/ersatztv/ersatztv` name still exists but isn't what that repo publishes); RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders. `Tmpfs=/transcode` keeps ErsatzTV's live segments in RAM instead of wearing the SSD
 - [ ] Don't put `:Z` on `/srv/storage/pool` mounts (shared with Samba)
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable H.264/HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), hardware encoding on, **Low-Power H.264/HEVC encoder on**, tone mapping on **and VPP tone mapping on**. Leave the transcode path on the internal SSD (the default). Users: hidden, Quick Connect off. If some movies stutter, see 3.8c
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
