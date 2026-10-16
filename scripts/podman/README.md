@@ -14,7 +14,7 @@ Each folder also has `up-all.sh`, which runs every script on that host in order.
 The host part of the manual must be done first, because the scripts don't use sudo:
 
 - **SGIN:** parts 3.3 to 3.7 (Intel driver and HuC firmware, the mergerfs pool at `/srv/storage/pool` with its folders, user `podsvc` in groups `media`, `render`, `video` with linger on, `/srv/stream` owned by podsvc, Samba, nftables).
-- **Gate:** part 5.2 (podsvc with linger, `/srv/gate` owned by podsvc, ports 80/443 allowed for rootless, the CIFS mount of the pool). nginx also needs the certificate from 5.3 and the site config from 5.5; Authelia needs its config from 5.5.
+- **Gate:** part 5.2 (podsvc with linger, `/srv/gate` owned by podsvc, ports 80/443 allowed for rootless, the CIFS mount of the pool). nginx also needs the certificate from 5.3 and the site config from 5.4; Authelia needs its config from 5.4.
 
 ## Run
 
