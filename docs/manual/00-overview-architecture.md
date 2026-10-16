@@ -190,7 +190,7 @@ Machine names, IPs, shares and backups don't mention the domain, so a swap touch
 |---|---|
 | Porkbun | Turn on API Access for the new domain; recreate the app CNAMEs (part 5.5); new API keys (or widen the old ones to the new domain) |
 | OPNsense → Dynamic DNS | Hostname (part 2.10) |
-| WireGuard clients | `Endpoint =` in each client config (part 2.8) |
+| WireGuard clients | `Endpoint = gate.<new domain>:51820` in each client config (part 2.8) |
 | Both Pi-holes | The `address=/<domain>/10.6.9.10` line (part 2.9, 3.9) |
 | Gate: lego | New wildcard cert for the new domain (part 5.3): the domain in the first-run command, the renewal service and the deploy script |
 | Gate: nginx | Every `server_name` and the map keys in `songofeo.conf` (part 5.4) |

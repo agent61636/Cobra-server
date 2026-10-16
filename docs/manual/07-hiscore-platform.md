@@ -26,7 +26,7 @@ hiscore agent ── PUT https://scores.songofeo.com/upload/fbneo/galaga.hi ─�
 
 ## 7.1 Put the app on the gate (desktop, then gate as eels)
 
-On the desktop: GitHub → `cobra-server` → **Code → Download ZIP**, unzip it, then:
+On the desktop: the repository ZIP from part 6.2 (or GitHub → `cobra-server` → **Code → Download ZIP** again for the newest version), unzipped, then in PowerShell next to it:
 
 ```powershell
 scp -r .\cobra-server-*\apps\hiscore\hiscore eels@10.6.9.10:/tmp/

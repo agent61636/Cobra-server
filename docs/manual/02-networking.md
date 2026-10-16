@@ -74,16 +74,38 @@ Console menu:
 - [ ] Every port forward Xfinity has for it (Xfinity app → Advanced → Port forwarding). You'll recreate them on OPNsense in 2.4 so it keeps working until part 5 replaces it.
 - [ ] Any static mapping or reservation you rely on for other devices
 
+**Make the cutover a one-word command.** During 2.4 you work at the Latitude's keyboard without copy and paste, so write the two commands you'll need now, while the web Shell still works (cobra-command → **>_ Shell**, paste):
+
+```bash
+cat > /usr/local/bin/opn-connect <<'EOF'
+#!/bin/sh
+# Plug OPNsense's virtual cables in (2.4 step 3)
+for n in net0 net1; do
+  qm set 100 --$n "$(qm config 100 | sed -n "s/^$n: //p" | sed 's/,link_down=1//')"
+done
+qm config 100 | grep -E '^net[01]'
+EOF
+cat > /usr/local/bin/opn-disconnect <<'EOF'
+#!/bin/sh
+# Rollback: unplug OPNsense's virtual cables again
+for n in net0 net1; do
+  qm set 100 --$n "$(qm config 100 | sed -n "s/^$n: //p" | sed 's/,link_down=1//'),link_down=1"
+done
+qm config 100 | grep -E '^net[01]'
+EOF
+chmod 755 /usr/local/bin/opn-connect /usr/local/bin/opn-disconnect
+```
+
 ## 2.4 Cut over (internet down from here)
 
 **Do this at the Latitude's own keyboard and screen.** The desktop loses its connection partway through. Plan 30–60 minutes; Xfinity Wi-Fi drops briefly while the gateway restarts.
 
 > **If it goes wrong: get the internet back in 2 minutes.** Nothing in this section is permanent until you finish it.
-> 1. Latitude keyboard: `qm stop 100` (so OPNsense stops handing out addresses).
+> 1. Latitude keyboard: `opn-disconnect` (so OPNsense stops handing out addresses; `qm stop 100` works too).
 > 2. Plug the switch's uplink back into the Xfinity gateway (the TP-Link USB NIC cable can stay or come out).
 > 3. Every device renews from Xfinity and has internet again: `10.0.0.x` if you already did step 1 below, `10.6.9.x` if you didn't. (Reboot or unplug/replug a device that doesn't.)
 > 4. To reach Proxmox while rolled back: it is still `10.6.9.2`. If your desktop now has a `10.0.0.x` address, it can't see `10.6.9.2`; either use the Latitude's own screen, or set the desktop to a fixed address for a moment (Windows: Settings → Network → Ethernet → IP assignment → Edit → Manual, IPv4 `10.6.9.50`, mask `255.255.255.0`, gateway blank). It has no internet while set that way; switch it back to Automatic (DHCP) when you're done.
-> 5. Try again later: `qm start 100`, then pick up at step 2 (Recable) below. Your OPNsense install and settings are kept.
+> 5. Try again later: `qm start 100` if you stopped it, then pick up at step 2 (Recable) below. Your OPNsense install and settings are kept.
 
 **1. Move Xfinity off 10.6.9.x.** Xfinity app (or `http://10.6.9.1` → Gateway → Connection → Local IP Network):
 
@@ -101,9 +123,7 @@ Console menu:
 **3. Connect OPNsense's virtual cables** (Latitude's keyboard, log in as root):
 
 ```bash
-qm set 100 --net0 "$(qm config 100 | sed -n 's/^net0: //p' | sed 's/,link_down=1//')"
-qm set 100 --net1 "$(qm config 100 | sed -n 's/^net1: //p' | sed 's/,link_down=1//')"
-qm config 100 | grep -E '^net[01]'            # no link_down left
+opn-connect                                   # the helper from 2.3; no link_down left in its output
 ip -br addr show vmbr0                        # still 10.6.9.2/24; the host's own settings never change
 ```
 
@@ -119,7 +139,7 @@ ip -br addr show vmbr0                        # still 10.6.9.2/24; the host's ow
 
 **5. Keep the old server reachable until part 5 replaces it:**
 
-- [ ] OPNsense DHCP (see 2.6 for which page): static mapping **`10.6.9.200`** for the old server's MAC. On the old server: renew DHCP or reboot, then check it got `.200`.
+- [ ] Old server on **`10.6.9.200`**. If it's already set to `.200` on the box itself (yours is, with gateway and DNS `10.6.9.1`), skip this: it keeps working once OPNsense owns `.1`. Only if it still uses DHCP: OPNsense DHCP (see 2.6 for which page) → static mapping `10.6.9.200` for its MAC, then renew DHCP or reboot it and check it got `.200`.
 - [ ] OPNsense → Firewall → NAT → Port Forward → Add, once per forward you wrote down in 2.3: Interface **WAN**, Protocol TCP (or UDP), Destination **WAN address**, Destination port = its port, Redirect target IP **`10.6.9.200`**, same port. Save, **Apply**. Each one auto-creates its WAN rule.
 - [ ] From a phone on cellular: the old server's public addresses answer again. If they don't, check the DNS records (2.10 last step: IPv4 only, no AAAA).
 
@@ -144,6 +164,7 @@ ip -br addr show vmbr0                        # still 10.6.9.2/24; the host's ow
 Then:
 
 - [ ] **System → Settings → General**: DNS servers blank; **untick** "Allow DNS server list to be overridden by DHCP/PPP on WAN". Save.
+- [ ] **Proxmox's own DNS** now goes to OPNsense (part 1 pointed it at Xfinity's public DNS): cobra-command shell, `printf 'search home.arpa\nnameserver 10.6.9.1\n' > /etc/resolv.conf && ping -c3 download.proxmox.com`. (UI: cobra-command → System → DNS.)
 - [ ] **System → Settings → Administration**: Listen Interfaces = **LAN** only; HTTP redirect: disable; Secure Shell: off. Save.
 - [ ] **2FA:** System → Access → Servers → **Add** → Type **Local + Timebased One Time Password**, name `TOTP`, token length 6. Save. → System → Access → Users → root → OTP seed: **Generate**, Save, scan the QR. → **System → Access → Tester**: server `TOTP`, user root, password = **code then password** (e.g. `123456MyPassword`), Test. Only when that passes: System → Settings → Administration → Authentication server: **TOTP** only. Log out and back in the same way. (Code first is OPNsense's default; the server's reverse-order option flips it.)
 - [ ] **System → Firmware → Status → Check for updates** → update → reboot if asked
@@ -202,7 +223,7 @@ DNS = 10.6.9.3, home.arpa      # the name after the IP is a search domain, so sh
 
 [Peer]
 PublicKey = <wg0 public key from OPNsense>
-Endpoint = songofeo.com:51820
+Endpoint = gate.songofeo.com:51820   # the DDNS name (2.10); the bare songofeo.com is Porkbun's homepage, not your house
 AllowedIPs = 10.6.9.0/24, 10.6.99.0/24
 PersistentKeepalive = 25
 ```

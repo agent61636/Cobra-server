@@ -7,7 +7,7 @@
 **This part replaces your old server.** The SGIN gets wiped and reinstalled, so the old server's sites go offline here and come back under the new names in part 5. Plan to do parts 3 and 5 close together.
 
 - [ ] Copy anything you need off the SGIN's internal disk (configs, databases, compose files). The USB drives aren't touched; they're unplugged during the install.
-- [ ] In 3.2's last step, **first** delete the old `10.6.9.200` static mapping (it's the same MAC, and OPNsense allows only one mapping per MAC) and the port forwards pointing at `.200` (from part 2.4), **then** add the `.20` mapping
+- [ ] Today the SGIN is `10.6.9.200`, set on the box itself (Cockpit at `https://10.6.9.200:9090`). The reinstall wipes that setting, and from 3.2 on it's `10.6.9.20`. In 3.2's last step, **first** delete the port forwards pointing at `.200` (part 2.4) and any `.200` static mapping you made in OPNsense (it's the same MAC, and OPNsense allows only one mapping per MAC), **then** add the `.20` mapping
 
 ## 3.1 Terms
 
@@ -36,7 +36,8 @@
 | Software selection | untick desktop + GNOME; tick **SSH server** and **standard system utilities** only |
 | GRUB | Yes, on the internal disk |
 
-- [ ] After reboot: OPNsense → delete the old `.200` mapping and its port forwards, then add DHCP static mapping `10.6.9.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
+- [ ] After reboot: OPNsense → delete the port forwards to `.200` (and the `.200` mapping, if you made one), then add DHCP static mapping `10.6.9.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
+- [ ] Check on the SGIN's screen: `ip -4 -br a` shows `10.6.9.20/24`
 - [ ] From the desktop: `ssh eels@10.6.9.20`
 
 ## 3.3 Packages
@@ -47,8 +48,10 @@ Needs `contrib non-free` for the Intel media driver (Quick Sync).
 sudo sed -i 's/^Components: main.*/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null \
   || sudo sed -i 's/ main non-free-firmware$/ main contrib non-free non-free-firmware/' /etc/apt/sources.list
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y intel-microcode firmware-misc-nonfree intel-media-va-driver-non-free vainfo \
+sudo apt install -y intel-microcode firmware-misc-nonfree firmware-intel-graphics intel-media-va-driver-non-free vainfo \
   podman crun slirp4netns passt uidmap fuse-overlayfs samba nftables cockpit curl rsync smartmontools systemd-container
+# Debian 13 moved the Intel GPU firmware (GuC/HuC) out of firmware-misc-nonfree into
+# firmware-intel-graphics; without it the i915 driver can't load HuC.
 # Jasper Lake can ONLY encode in low-power mode, which needs the HuC firmware loaded.
 # Without this, decode works but every transcode fails.
 echo 'options i915 enable_guc=2' | sudo tee /etc/modprobe.d/i915.conf
@@ -62,7 +65,7 @@ sudo dmesg | grep -i -E 'guc|huc'                                        # "HuC 
 sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc   # expect HEVC Main10 decode and EncSliceLP
 ```
 
-- [ ] No `HEVC Main10` lines from vainfo → the media driver isn't installed. No `EncSliceLP` lines → HuC didn't load; recheck `/etc/modprobe.d/i915.conf` and `firmware-misc-nonfree`
+- [ ] No `HEVC Main10` lines from vainfo → the media driver isn't installed. No `EncSliceLP` lines → HuC didn't load; recheck `/etc/modprobe.d/i915.conf` and that `firmware-intel-graphics` is installed
 - [ ] SSH key from the desktop: `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.6.9.20 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`
 - [ ] Same `/etc/ssh/sshd_config.d/10-cobra.conf` as part 1.7, but `PermitRootLogin no`; `sudo sshd -t && sudo systemctl reload ssh`
 
@@ -101,7 +104,7 @@ For each drive, pick a short label: `wd1`, `wd2` for the externals, `dock1a`, `d
 sudo wipefs -a /dev/sdX && sudo parted -s /dev/sdX mklabel gpt mkpart data ext4 0% 100%
 sudo mkfs.ext4 -L wd1 -m 0 /dev/sdX1                       # -m 0: no space reserved for root on a data drive
 L=wd1; U=$(sudo blkid -s UUID -o value /dev/sdX1)
-sudo mkdir -p /srv/storage/disks/$L
+sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L   # empty mount point can't be written to
 echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
 ```
 
@@ -109,9 +112,11 @@ echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.devic
 
 ```bash
 L=wd2; U=$(sudo blkid -s UUID -o value /dev/sdY1)
-sudo mkdir -p /srv/storage/disks/$L
+sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
 echo "UUID=$U /srv/storage/disks/$L ntfs-3g uid=0,gid=$(getent group media | cut -d: -f3),umask=002,noatime,nofail,x-systemd.device-timeout=15 0 0" | sudo tee -a /etc/fstab
 ```
+
+`chattr +i` locks the **empty** folder under each mount. If a drive is missing at boot (`nofail` lets the SGIN boot anyway), nothing can write into that folder by mistake and fill the system SSD; PBS and the pool just report the drive as missing. The mounted drive itself is unaffected.
 
 Then mount everything and give each drive its `library` folder. On a drive that already has files, move them into `library` (a move on the same drive is instant):
 
@@ -379,7 +384,7 @@ podman ps                                     # 7 containers Up
 
 - [ ] Image names checked against the official docs (Oct 2026): ErsatzTV is now published as `ghcr.io/ersatztv/legacy`; RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders
 - [ ] Don't put `:Z` on `/srv/storage/pool` mounts (shared with Samba)
-- [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), **Low-Power H.264/HEVC encoder on**, tone mapping on. Users: hidden, Quick Connect off
+- [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable H.264/HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), hardware encoding on, **Low-Power H.264/HEVC encoder on**, tone mapping on **and VPP tone mapping on**. Leave the transcode path on the internal SSD (the default). Users: hidden, Quick Connect off. If some movies stutter, see 3.8c
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
 - [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
 - [ ] Each app: create admin user now (first visit = admin)
@@ -419,6 +424,22 @@ ErsatzTV builds fake TV channels from your library (schedules, playlists, commer
 - [ ] From outside (phone on cellular, `tv.songofeo.com`): the same channel plays. Remote viewers watch through Jellyfin; ErsatzTV stays LAN-only.
 
 Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside** Live TV are separate pieces; see [part 6](06-tv-breaks-plugin.md).
+
+### 3.8c If some movies stutter
+
+File size is rarely the cause: a 4 GB two-hour movie averages about 4.5 Mbps. The big files are usually **HEVC 10-bit or HDR, often with PGS/ASS subtitles**, and when a client can't play those natively Jellyfin transcodes them. The stutter comes from that transcode.
+
+1. Play the movie, then Jellyfin → **Dashboard → Activity** (or ⚙ → Playback Info in the web player): note the play method and the **reason** for transcoding.
+2. Fix by reason, most common first:
+
+| Reason | Fix |
+|---|---|
+| Subtitle codec not supported | Subtitle burn-in. Pick an SRT track, or set the user's subtitle mode to *Smart* with image subtitles off by default |
+| Video codec not supported | Use a client that plays HEVC 10-bit itself: the Android TV / Fire TV app, Jellyfin Media Player, Swiftfin or Infuse; Chrome or Edge rather than Firefox |
+| Bitrate exceeds limit | Client app → Maximum streaming quality → *Auto*/highest; for VPN viewing, Dashboard → Playback → Streaming → raise the remote limit |
+
+3. If it still transcodes, check the newest `FFmpeg.Transcode-…log` (Dashboard → Logs): the encoder must be `h264_qsv`/`hevc_qsv`. `libx264`/`libx265` means the CPU is doing it; recheck 3.3's `vainfo` and the Transcoding settings above. Inside the container: `podman exec jellyfin /usr/lib/jellyfin-ffmpeg/vainfo | grep -i hevc`.
+4. Smooth but jerky pans: a 24 fps film on a 60 Hz TV. Turn on match frame rate in the TV app.
 
 ### 3.8b Web arcade: RomM + EmulatorJS
 

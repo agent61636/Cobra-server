@@ -29,7 +29,7 @@ A playlist is a list of items stored on the server, and every Jellyfin app can p
 
 ## 6.2 Install (cobra-stream)
 
-On the desktop: from the repository ZIP (part 7.1), copy the app over:
+On the desktop: GitHub → `cobra-server` → **Code → Download ZIP**, unzip it, open PowerShell in the folder that holds the unzipped `cobra-server-…` folder, and copy the app over:
 
 ```powershell
 scp -r .\cobra-server-*\apps\cobra-breaks\cobra_breaks .\cobra-server-*\apps\cobra-breaks\breaks.example.toml eels@10.6.9.20:/tmp/

@@ -45,8 +45,10 @@ Proxmox VE is Debian with a hypervisor and a web UI on top. Everything below can
 
 | Physical port | Bridge | Part 1 (now) | After part 2 |
 |---|---|---|---|
-| Onboard I219-LM (`enp0s31f6`) | `vmbr0` = **LAN** | `10.6.9.2/24`, gateway `10.6.9.1` (today that's Xfinity), cabled to your switch | Exactly the same; `10.6.9.1` is now OPNsense |
+| Onboard I219-LM (`nic0`) | `vmbr0` = **LAN** | `10.6.9.2/24`, gateway `10.6.9.1` (today that's Xfinity), cabled to your switch | Exactly the same; `10.6.9.1` is now OPNsense |
 | USB 3 NIC (`enx…`) | `vmbr1` = **WAN** | No IP, no cable | Cabled to Xfinity. Host still has **no IP** here; only OPNsense's WAN uses it |
+
+**Port names.** Proxmox 9 pins the names of the ports it sees during install, so the onboard port is **`nic0`** (older guides and Proxmox 8 call it `enp0s31f6`). The TP-Link isn't plugged in during the install, so it keeps the name Linux gives USB NICs: `enx` followed by its MAC, e.g. `enx9c69d3b61792`. Whatever this guide writes, the names that count are the ones `ip -br link` prints on your machine.
 
 **Before you pick `.2`:** today Xfinity's DHCP hands out addresses from low numbers up, so it may give `.2` to something else. In the Xfinity app, either reserve `10.6.9.2` for the Latitude's onboard NIC, or set the DHCP range to start at `.100`. Do the same for every address in the IP plan you'll use before the cutover.
 
@@ -90,69 +92,90 @@ Finish 1.7 (2FA, SSH keys) the same day: until part 2, the host sits on the Xfin
 | 3 | Target harddisk | The 256 GB NVMe. **Options** → Filesystem **ext4** (default). *ZFS wants more disks and RAM.* |
 | 4 | Location | Country, time zone, keyboard **U.S. English** |
 | 5 | Password / Email | Generated root password (letters + digits, ~20 chars; you'll type it on the console). Real email for alerts. |
-| 6 | Management interface | Onboard NIC, usually **`enp0s31f6`** |
+| 6 | Management interface | The onboard NIC (the only one listed, since the TP-Link isn't plugged in). It shows as `nic0`, or `enp0s31f6` before pinning. |
 | 7 | Hostname (FQDN) | **`cobra-command.home.arpa`** (*not* `.songofeo.com`: Pi-hole sends that whole domain to the gate) |
 | 8 | IP address (CIDR) | **`10.6.9.2/24`**. ⚠️ The installer pre-fills whatever address DHCP just handed out (e.g. `10.6.9.34`). **Overwrite it**, or that address becomes permanent. |
 | 9 | Gateway | **`10.6.9.1`** |
-| 10 | DNS server | **`10.6.9.1`** |
-| 11 | "Pin network interface names" (if shown) | **Yes** (stops a kernel update from renaming NICs) |
+| 10 | DNS server | **`75.75.75.75`** (Xfinity's public DNS). Some Xfinity gateways don't answer DNS on `10.6.9.1`; part 2.5 switches this to OPNsense. |
+| 11 | "Pin network interface names" (if shown) | **Yes** (stops a kernel update from renaming NICs; this is what makes the onboard port `nic0`) |
 | 12 | Summary | Check the IP says `10.6.9.2/24`, then **Install**. Pull the stick when told; it reboots. |
 
 ✅ Console shows a login prompt and `https://10.6.9.2:8006/`, and that page opens from the desktop.
 
-## 1.5 Network config (on the Latitude's own keyboard)
+## 1.5 Network config
 
-🔌 **Now** plug the TP-Link into a USB port, **no cable** yet. Onboard → switch.
+🔌 **Now** plug the TP-Link into a USB port, **no cable** yet. The Ethernet cable goes in the Latitude's **built-in** port → switch. (If it's in the TP-Link, the Latitude still gets online, but on the wrong bridge and with a random address.)
 
-- [ ] Log in as `root`
+**Use copy and paste.** If `https://10.6.9.2:8006` (or any `https://10.6.9.x:8006` address the console shows) opens from the desktop, log in and use **cobra-command → >_ Shell**: you can paste everything below instead of typing it. Otherwise type it at the Latitude's keyboard.
 
-**Already installed with the wrong address** (e.g. `10.6.9.34`)? This section fixes it; the address lives in two files.
+**1. Look before you change anything:**
 
 ```bash
-ip -br link                                   # USB NIC shows as enx<mac>; write the name down
-cp /etc/network/interfaces /root/interfaces.installer
-nano /etc/network/interfaces
+ip -br link            # onboard port = nic0 (or enp…), TP-Link = enx…; write both names down
+ip -br addr            # which bridge has an address right now
+cat /etc/network/interfaces
 ```
 
-Replace the whole file with this, using your real `enx…` name (nano: Ctrl+O Enter to save, Ctrl+X to exit):
+The onboard port should say `UP` with the cable in it. If it says `DOWN` or `NO-CARRIER`, the cable is in the wrong port.
 
-```
+**2. Write the final file.** If the onboard port isn't called `nic0`, or the TP-Link isn't `enx9c69d3b61792`, change the two names at the top first. Then paste the whole block. It saves a backup, writes the file, fixes `/etc/hosts` and DNS, and applies everything **90 seconds later**, so you have time to move a cable if you need to:
+
+```bash
+LAN=nic0                      # onboard port, from ip -br link
+WAN=enx9c69d3b61792           # TP-Link, from ip -br link
+cp /etc/network/interfaces /root/interfaces.bak
+cat > /etc/network/interfaces <<EOF
 auto lo
 iface lo inet loopback
 
-iface enp0s31f6 inet manual
+iface $LAN inet manual
 
-# LAN bridge (onboard NIC -> switch). Host management address. Never changes.
+# LAN bridge: onboard port -> switch. Host management address. Never changes.
 auto vmbr0
 iface vmbr0 inet static
         address 10.6.9.2/24
         gateway 10.6.9.1
-        bridge-ports enp0s31f6
+        bridge-ports $LAN
         bridge-stp off
         bridge-fd 0
 
-iface enxXXXXXXXXXXXX inet manual
+iface $WAN inet manual
 
-# WAN bridge (USB NIC -> Xfinity in part 2). The host never has an address here;
-# only OPNsense's WAN NIC uses it.
+# WAN bridge: TP-Link -> Xfinity (part 2). The host never has an address here;
+# only OPNsense's WAN uses it.
 auto vmbr1
 iface vmbr1 inet manual
-        bridge-ports enxXXXXXXXXXXXX
+        bridge-ports $WAN
         bridge-stp off
         bridge-fd 0
+EOF
+# this machine's name -> 10.6.9.2, whatever address the installer wrote
+sed -i -E "/[[:space:]]$(hostname)([[:space:].]|\$)/ s/^[0-9.]+/10.6.9.2/" /etc/hosts
+printf 'search home.arpa\nnameserver 75.75.75.75\nnameserver 1.1.1.1\n' > /etc/resolv.conf
+grep -n "$(hostname)" /etc/hosts      # must start with 10.6.9.2
+nohup sh -c 'sleep 90; ifreload -a; systemctl restart pve-cluster pveproxy' >/root/reload.log 2>&1 &
+echo "Applying in 90 seconds"
 ```
 
-Proxmox also needs its own name to point at its address:
+If the `grep` line prints nothing, add `10.6.9.2 cobra-command.home.arpa cobra-command` to `/etc/hosts` with `nano /etc/hosts`.
+
+The web Shell freezes when the address changes. That's expected. Wait 2 minutes.
+
+**3. Check** (from the desktop at `https://10.6.9.2:8006` → Shell, or at the keyboard):
 
 ```bash
-sed -i -E 's/^10\.6\.9\.[0-9]+(\s+cobra-command)/10.6.9.2\1/' /etc/hosts
-grep cobra-command /etc/hosts                # 10.6.9.2 cobra-command.home.arpa cobra-command
-printf 'search home.arpa\nnameserver 10.6.9.1\n' > /etc/resolv.conf
-ifreload -a                                   # applies the file without a reboot
-ip -br addr                                   # vmbr0 10.6.9.2/24; vmbr1 has NO address
+ip -br addr            # vmbr0 UP 10.6.9.2/24; vmbr1 UP with NO address
+ip route               # exactly one "default via 10.6.9.1 dev vmbr0"
 ping -c3 download.proxmox.com
-systemctl restart pve-cluster pveproxy        # only needed if you changed the address
 ```
+
+**If `10.6.9.2` doesn't come up**, undo it at the Latitude's keyboard: `cp /root/interfaces.bak /etc/network/interfaces; ifreload -a`. Then check the three usual causes:
+
+| Symptom | Cause |
+|---|---|
+| vmbr0 `DOWN` / `NO-CARRIER` | Cable in the TP-Link instead of the built-in port, or a port name in the file doesn't match `ip -br link` exactly (both `iface` and `bridge-ports` lines) |
+| No `default via` line | `gateway 10.6.9.1` is missing or has a `#` in front of it |
+| `ping 1.1.1.1` works but names don't | Typo in `/etc/resolv.conf` (it's `nameserver`); rerun the `printf` line |
 
 - [ ] On the desktop: browse to `https://10.6.9.2:8006` → accept the certificate warning (self-signed; normal) → user `root`, realm **Linux PAM** → OK on the subscription popup
 
@@ -261,7 +284,7 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 
 - [ ] Close the lid; `ping 10.6.9.2` from the desktop keeps answering
 - [ ] If your UPower ignores `UPower.conf.d`, put the same lines in `/etc/UPower/UPower.conf`
-- [ ] If `journalctl -k` ever shows `Detected Hardware Unit Hang` (known I219 quirk): add `        post-up /usr/sbin/ethtool -K enp0s31f6 tso off gso off` under `iface vmbr0`, then `ifreload -a`
+- [ ] If `journalctl -k` ever shows `Detected Hardware Unit Hang` (known I219 quirk): add `        post-up /usr/sbin/ethtool -K nic0 tso off gso off` under `iface vmbr0` (your onboard name), then `ifreload -a`
 
 ## 1.9 Put the next installers on Proxmox
 

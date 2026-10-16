@@ -17,8 +17,8 @@ Copy this table into KeePassXC as a note, or keep it on paper next to the machin
 
 | What | Where to find it | Value |
 |---|---|---|
-| Latitude onboard NIC MAC | Proxmox shell: `ip -br link` (`enp0s31f6`) | |
-| Latitude USB NIC MAC | same (`enx…`) | |
+| Latitude onboard NIC name and MAC | Proxmox shell: `ip -br link` (Proxmox 9 calls it `nic0`) | |
+| Latitude USB NIC name and MAC | same (`enx…` followed by its MAC) | |
 | SGIN (old server) MAC and current IP | Xfinity app → Connected devices | |
 | OptiPlex MAC | `ipconfig /all` on it | |
 | Desktop 1 / Desktop 2 MACs | `ipconfig /all` | |

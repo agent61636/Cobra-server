@@ -96,7 +96,7 @@ The Latitude's bridge must carry the tags into the OPNsense VM. Edit `/etc/netwo
 ```
 
 ```bash
-ifreload -a && bridge vlan show dev enp0s31f6 | head     # VLANs 2-4094 listed on the NIC
+ifreload -a && bridge vlan show dev nic0 | head          # VLANs 2-4094 listed on the NIC (use your onboard name from part 1.5)
 ```
 
 The host's own address stays untagged at `10.6.9.2`, and OPNsense's LAN NIC (`net1`, no `tag=`) now receives every VLAN.
