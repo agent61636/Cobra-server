@@ -1,0 +1,21 @@
+- Watch & listen:
+    - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
+    - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
+    - Eels' music:  { href: "https://eelsmusic.songofeo.com",   icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
+    - Rachel's music: { href: "https://rupaulradio.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4533" }
+- Read & play:
+    - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }
+    - Kavita:       { href: "https://comics.songofeo.com",      icon: kavita.png,         siteMonitor: "http://10.6.9.20:5000" }
+    - Arcade:       { href: "https://arcade.songofeo.com",      icon: romm.png,           siteMonitor: "http://10.6.9.20:8080" }
+    - High scores:  { href: "https://scores.songofeo.com",      icon: mdi-trophy,         siteMonitor: "http://127.0.0.1:8090/healthz" }
+- Files:
+    - Paperless:    { href: "https://docs.songofeo.com",        icon: paperless-ngx.png,  siteMonitor: "http://127.0.0.1:8000" }
+    - MeTube:       { href: "https://metube.songofeo.com",      icon: metube.png,         siteMonitor: "http://127.0.0.1:8081" }
+    - Vaultwarden:  { href: "https://vault.songofeo.com",       icon: vaultwarden.png,    description: "LAN/VPN only", siteMonitor: "http://127.0.0.1:8222" }
+- Admin:
+    - Proxmox:      { href: "https://10.6.9.2:8006",            icon: proxmox.png }
+    - OPNsense:     { href: "https://10.6.9.1",                 icon: opnsense.png }
+    - Backups (PBS): { href: "https://10.6.9.20:8007",          icon: proxmox.png }
+    - Pi-hole 1:    { href: "http://10.6.9.3/admin",            icon: pi-hole.png,        siteMonitor: "http://10.6.9.3/admin" }
+    - Pi-hole 2:    { href: "http://10.6.9.20/admin",           icon: pi-hole.png,        siteMonitor: "http://10.6.9.20/admin" }
+    - Status:       { href: "https://status.songofeo.com",      icon: uptime-kuma.png,    siteMonitor: "http://127.0.0.1:3001" }
