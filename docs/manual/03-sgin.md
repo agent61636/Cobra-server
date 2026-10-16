@@ -138,15 +138,16 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/pool && df -h /srv/stora
 - `minfreespace=20G`: a drive with less than 20 GB free gets no new files
 - `moveonenospc=true`: if a drive fills mid-copy, the file moves to another drive instead of failing
 
-Folder layout (made once, on the pool): `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans backups`.
+Folder layout (made once, on the pool): `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans backups art`.
 
 - `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin)
 - `youtube`: MeTube saves here from the gate (part 5)
 - `scans`: drop documents here from any machine and Paperless on the gate picks them up (part 5)
 - `backups`: machines that keep files only on themselves (the cabinet's saves, part 4.5) copy them here, so the vault backup covers them
+- `art`: pictures for the station's landing pages (`art/movies`, `albums`, `books`, `comics`, `gaming`), served by eo-art on the gate (part 5.4)
 
 ```bash
-sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans,backups}
+sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans,backups,art/{movies,albums,books,comics,gaming}}
 ```
 
 - [ ] `df -h /srv/storage/pool` shows the combined size of all drives
@@ -332,7 +333,7 @@ ContainerName=navidrome
 Image=docker.io/deluan/navidrome:latest
 Pod=stream.pod
 AutoUpdate=registry
-Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/music/eels
+Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/music/eels ND_REVERSEPROXYWHITELIST=10.6.9.10/32
 Volume=/srv/stream/navidrome:/data:Z
 Volume=/srv/storage/pool:/media:ro
 [Install]
@@ -382,6 +383,7 @@ podman ps                                     # 7 containers Up
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), **Low-Power H.264/HEVC encoder on**, tone mapping on. Users: hidden, Quick Connect off
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
 - [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
+- `ND_REVERSEPROXYWHITELIST=10.6.9.10/32`: Navidrome trusts the `Remote-User` header from the gate only, so someone the station's sign-in (part 5.4) already let in isn't asked again. Give each person the same username here as in Authelia's `users.yml`.
 - [ ] Each app: create admin user now (first visit = admin)
 - [ ] If one container keeps restarting with `Permission denied` in `journalctl --user -u <name>`: that image switches to a non-root user inside, so its files must belong to that user. Find it with `podman exec <name> id` (often `1000`), add `UserNS=keep-id:uid=1000,gid=1000` under `[Container]` in its `.container` file, then `systemctl --user daemon-reload && systemctl --user restart <name>`. Your `podsvc` then *is* that user inside the container, so the folders it owns become writable.
 
@@ -449,7 +451,7 @@ sudo pihole setpassword
 sudo pihole-FTL --config dns.upstreams '["10.6.9.1"]'
 sudo pihole-FTL --config dns.listeningMode ALL      # answer WireGuard clients too; nftables limits who can reach :53
 # the same local DNS as cobra-pihole-1 (part 2.9)
-sudo pihole-FTL --config misc.dnsmasq_lines '["address=/songofeo.com/10.6.9.10"]'
+sudo pihole-FTL --config misc.dnsmasq_lines '["address=/*.songofeo.com/10.6.9.10","server=/www.songofeo.com/#"]'
 sudo pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
 ```
 

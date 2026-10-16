@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Authelia: the login + TOTP portal at auth.songofeo.com that nginx asks before serving protected apps.
+# Authelia: the station's sign-in at auth.songofeo.com (one password for every floor, 6 h; TOTP for admin apps).
+# nginx asks it before serving any app.
 # Needs configuration.yml and users.yml from part 5.4 in /srv/gate/authelia.
 # Run as podsvc on the gate:  ./authelia.sh
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

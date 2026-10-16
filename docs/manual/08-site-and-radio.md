@@ -1,8 +1,8 @@
 # 8. Landing site and radio
 
-**Result:** `https://radio.songofeo.com` (also `music.songofeo.com`) is an always-on station shuffled from your music library.
+**Result:** `https://radio.songofeo.com` is an always-on station shuffled from your music library.
 
-> **The public homepage lives on Porkbun's static hosting** at the bare `songofeo.com`: see the SongofEo project's `site/README.md`. Its Cinema, Radio and Arcade buttons send people to `tv.`, `music.` and `arcade.songofeo.com`, where Authelia asks for the login. 8.1 below is optional: use it only for a buttons page served from home on another hostname (for example `home.songofeo.com`), never on the bare domain. If you do, change `server_name songofeo.com` below to that hostname and add its CNAME to `gate.songofeo.com`.
+> **The public homepage lives on Porkbun's static hosting** at the bare `songofeo.com`: the station from the Project-Eo repository. Its **Sign in** button goes to `auth.songofeo.com`, and its floors send people to `tv.`, `music.` (Navidrome), `books.`, `comics.`, `arcade.`, `gaming.` and `sessions.songofeo.com`, all behind the one sign-in from part 5.4. 8.1 below is optional: use it only for a buttons page served from home on another hostname (for example `links.songofeo.com`; `home.` is the Homepage dashboard), never on the bare domain. If you do, change `server_name songofeo.com` below to that hostname and add its CNAME to `gate.songofeo.com`.
 
 **Needs:** parts 3 and 5.
 
@@ -116,7 +116,7 @@ Add this to `/srv/gate/nginx/conf.d/songofeo.conf`:
 ```nginx
 # --- radio: listeners log in through Authelia (see 8.2 about licences); Icecast's admin pages are LAN/VPN-only ---
 server {
-  listen 443 ssl; http2 on; server_name radio.songofeo.com music.songofeo.com;
+  listen 443 ssl; http2 on; server_name radio.songofeo.com;
   location /internal/authelia/authz {
     internal;
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
@@ -144,7 +144,7 @@ server {
 Authelia (`configuration.yml` → `access_control.rules`):
 
 ```yaml
-    - domain: [radio.songofeo.com, music.songofeo.com]
+    - domain: [radio.songofeo.com]
       policy: one_factor
 ```
 
@@ -152,7 +152,7 @@ Authelia (`configuration.yml` → `access_control.rules`):
 podman exec nginx nginx -t && systemctl --user restart nginx authelia
 ```
 
-Porkbun: add **CNAMEs** `radio` and `music` → `gate.songofeo.com`. (The wildcard certificate from part 5 already covers both.)
+Porkbun: add a **CNAME** `radio` → `gate.songofeo.com`. (The wildcard certificate from part 5 already covers it.) `music.` is Navidrome, the station's Music floor (part 5.4).
 
 - [ ] `https://radio.songofeo.com/stream` asks for a login once, then plays in the browser
 - [ ] `https://radio.songofeo.com/admin/` from a phone on cellular (VPN off) is refused

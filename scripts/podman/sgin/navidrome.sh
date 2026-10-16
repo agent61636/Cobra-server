@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Navidrome music server, one music library per person. http://10.6.9.20:4533
-# (public: eelsmusic.songofeo.com and rupaulradio.songofeo.com, both the same server)
+# (public: music.songofeo.com, eelsmusic.songofeo.com and rupaulradio.songofeo.com, all the same server)
+# Trusts the gate's Remote-User header (the station's Authelia sign-in, part 5.4), so Music doesn't ask twice.
 # Run as podsvc on the SGIN:  ./navidrome.sh            other people:  MUSIC_USERS="eels rachel sam" ./navidrome.sh
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=../lib.sh
@@ -25,6 +26,7 @@ run_container navidrome "$STREAM_POD" "$IMAGE" \
   -e ND_MUSICFOLDER="/media/music/${USERS[0]}" \
   -e ND_SESSIONTIMEOUT=8h \
   -e ND_ENABLEINSIGHTSCOLLECTOR=false \
+  -e ND_REVERSEPROXYWHITELIST=10.6.9.10/32 \
   -v "$DATA:/data:Z" \
   -v "$POOL:/media:ro"
 
