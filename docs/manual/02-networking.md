@@ -202,7 +202,7 @@ DNS = 10.6.9.3, home.arpa      # the name after the IP is a search domain, so sh
 
 [Peer]
 PublicKey = <wg0 public key from OPNsense>
-Endpoint = songofeo.com:51820
+Endpoint = gate.songofeo.com:51820     # the DDNS name (2.10); the bare songofeo.com is the station on Porkbun's hosting
 AllowedIPs = 10.6.9.0/24, 10.6.99.0/24
 PersistentKeepalive = 25
 ```
@@ -234,8 +234,10 @@ pihole-FTL --config dns.upstreams '["10.6.9.1"]'
 # Default "LOCAL" mode ignores clients on subnets Pi-hole has no interface on, which
 # includes WireGuard (10.6.99.0/24). Only the LAN can reach this CT, so ALL is safe here.
 pihole-FTL --config dns.listeningMode ALL
-# *.songofeo.com -> the gate, so LAN traffic never leaves the house
-pihole-FTL --config misc.dnsmasq_lines '["address=/songofeo.com/10.6.9.10"]'
+# *.songofeo.com -> the gate, so LAN traffic never leaves the house. "*." matches only the names
+# under songofeo.com, so the bare songofeo.com and www (the station, on Porkbun's hosting) still
+# resolve normally; without that, the station wouldn't load at home.
+pihole-FTL --config misc.dnsmasq_lines '["address=/*.songofeo.com/10.6.9.10","server=/www.songofeo.com/#"]'
 # local names, full and short. The short ones matter over WireGuard: a VPN client doesn't
 # get the home.arpa search suffix, so \\cobra-stream would otherwise not resolve.
 pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
@@ -245,6 +247,7 @@ exit
 - [ ] Admin UI: `http://10.6.9.3/admin`
 - [ ] Desktop: `ipconfig /renew`, then `ipconfig /all` lists DNS `10.6.9.3`
 - [ ] `nslookup tv.songofeo.com` → `10.6.9.10`; `nslookup google.com` → real IP; queries show in Pi-hole
+- [ ] `nslookup songofeo.com` and `nslookup www.songofeo.com` → Porkbun's addresses, **not** `10.6.9.10` (the station has to load at home too)
 
 ## 2.10 Dynamic DNS (Services → Dynamic DNS)
 
@@ -296,7 +299,7 @@ Xfinity's Wi-Fi sits **outside** OPNsense on `10.0.0.x`, the untrusted side. Tha
 
 - [ ] Wired devices get `10.6.9.1xx` (or their reservation), DNS `10.6.9.3`, and browse normally
 - [ ] Proxmox at `https://10.6.9.2:8006`, OPNsense at `https://10.6.9.1` (TOTP)
-- [ ] `nslookup anything.songofeo.com` on the LAN → `10.6.9.10`
+- [ ] `nslookup anything.songofeo.com` on the LAN → `10.6.9.10`; `nslookup songofeo.com` → not `10.6.9.10`
 - [ ] Porkbun A record for `gate.songofeo.com` = your public IP; no AAAA records; the bare `songofeo.com` still shows your Porkbun-hosted homepage
 - [ ] Phone on cellular reaches Proxmox through WireGuard
 - [ ] Once part 5 is done: a phone on Xfinity Wi-Fi loads `https://tv.songofeo.com` (if not, see 2.10a before you rely on the TVs)

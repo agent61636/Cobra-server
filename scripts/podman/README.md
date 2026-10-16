@@ -5,7 +5,7 @@ One bash script per app, using plain `podman run`. They build the same two pods 
 | Host | Folder | Pod | Scripts |
 |---|---|---|---|
 | SGIN, `cobra-stream` (10.6.9.20) | [`sgin/`](sgin/) | `stream` | `jellyfin.sh` (Quick Sync), `ersatztv.sh` (live TV channels + guide), `navidrome.sh` (one library per person), `audiobookshelf.sh`, `kavita.sh`, `romm.sh` (RomM + EmulatorJS + MariaDB), `radio.sh` (Icecast + Liquidsoap, part 8) |
-| Gate VM, `cobra-gate` (10.6.9.10) | [`gate/`](gate/) | `gate` | `vaultwarden.sh`, `paperless.sh` (Paperless + Postgres + Redis), `metube.sh`, `homepage.sh`, `hiscore.sh` (part 7), plus the pieces the gate needs to be reachable: `nginx.sh`, `authelia.sh`, `uptime-kuma.sh` |
+| Gate VM, `cobra-gate` (10.6.9.10) | [`gate/`](gate/) | `gate` | `vaultwarden.sh`, `paperless.sh` (Paperless + Postgres + Redis), `metube.sh`, `homepage.sh`, `hiscore.sh` (part 7), `eo-art.sh` (the station's pictures), plus the pieces the gate needs to be reachable: `nginx.sh`, `authelia.sh` (the station sign-in), `uptime-kuma.sh` |
 
 Each folder also has `up-all.sh`, which runs every script on that host in order.
 
