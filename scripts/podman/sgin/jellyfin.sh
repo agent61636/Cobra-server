@@ -34,7 +34,7 @@ wait_port 8096 90 || warn "Jellyfin isn't answering on :8096 yet; check podman l
 if podman exec jellyfin /usr/lib/jellyfin-ffmpeg/vainfo --display drm --device /dev/dri/renderD128 2>/dev/null | grep -qi hevc; then
   say "QSV check passed: the container sees the GPU's HEVC profiles"
 else
-  warn "QSV check failed: no HEVC profiles inside the container, so transcodes will fall back to the CPU (see part 3.3 checks)"
+  warn "QSV check failed: no HEVC profiles inside the container, so transcodes will fall back to the CPU. Check part 3.3: intel-media-va-driver-non-free, firmware-intel-graphics (HuC), enable_guc=2"
 fi
 
 done_msg jellyfin http://10.6.9.20:8096
