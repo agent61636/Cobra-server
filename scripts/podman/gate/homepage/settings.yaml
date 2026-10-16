@@ -1,0 +1,9 @@
+title: Cobra
+theme: dark
+color: slate
+headerStyle: clean
+layout:
+  Watch & listen: { style: row, columns: 4 }
+  Read & play:    { style: row, columns: 4 }
+  Files:          { style: row, columns: 3 }
+  Admin:          { style: row, columns: 4 }
