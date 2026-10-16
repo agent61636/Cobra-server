@@ -19,5 +19,6 @@ Start with the overview, then follow the parts in order.
 | 9. R620 lab and VLANs | [docs/manual/09-r620-lab-and-vlans.md](docs/manual/09-r620-lab-and-vlans.md) |
 
 Plain `podman run` scripts for every app (an alternative to the Quadlet files in parts 3, 5, 7 and 8): [`scripts/podman`](scripts/podman/README.md).
+Podman run scripts for every app (instead of the Quadlet files in parts 3, 5, 7 and 8): [scripts/podman/](scripts/podman/README.md).
 
 Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader), [`apps/cobra-breaks`](apps/cobra-breaks) (episode breaks), [`apps/site`](apps/site) (landing page), [`apps/radio`](apps/radio) (radio script).
