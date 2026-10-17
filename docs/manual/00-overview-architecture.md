@@ -232,6 +232,6 @@ The hiscore app gets designed and built **after the rest of the network is runni
 
 | Priority | Project | Notes |
 |---|---|---|
-| **1** | **Breaks between episodes.** A random video from a chosen folder between episodes, on demand, not only on Live TV. | **Built** as `apps/cobra-breaks` (part 6). Roku and Apple TV apps never ask Jellyfin for intros before episodes, so instead of a plugin it builds per-show "with breaks" playlists that every app plays. Movie pre-rolls stay with Local Intros; Live TV breaks come from ErsatzTV filler (part 3.8a). |
+| **1** | **Breaks between episodes.** A random video from a chosen folder between episodes, on demand, not only on Live TV. | **Built** as `apps/cobra-breaks` (part 6). Jellyfin apps never ask for intros before an autoplayed next episode, so instead of a plugin it builds per-show "with breaks" playlists that every app plays. Movie pre-rolls stay with Local Intros; Live TV breaks come from ErsatzTV filler (part 3.8a). |
 | 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.songofeo.com`. | **Built**: `apps/hiscore` and `apps/hiscore-agent`, install steps in [part 7](07-hiscore-platform.md). Optional later: a decoder for readable score tables, and browser-arcade scores. |
 | 3 | Custom CSS + X-Arcade Tankstick code from earlier this month | Landing site, Jellyfin theme, cabinet controls |

@@ -6,7 +6,9 @@
 
 ## Why playlists, not an intro plugin
 
-Jellyfin has a hook that lets a plugin play videos before an item. Local Intros uses it for movies. **But Jellyfin's apps only ask for intros before movies, never before episodes.** The plugins that work around this (Projectionist, for example) inject a script into the Jellyfin *web page*, so they only work in a browser and Jellyfin Media Player. The **Roku and Apple TV apps don't load that page**, so nothing a plugin does can put a break between episodes there.
+Jellyfin has a hook that lets a plugin play videos before an item. Local Intros uses it for movies. **But the apps only ask for intros when you press Play, never when the next episode autoplays.** The browser and Roku apps ask before the first episode you start, and the Android TV app asks only before movies. The plugins that get around this (Projectionist, for example) inject a script into the Jellyfin *web page*, so they only work in a browser and Jellyfin Media Player. The **Roku and Apple TV apps don't load that page**, so no plugin can put a break between autoplayed episodes there.
+
+For a break when you *start* an episode, there's also the **Show Intros** plugin (1, 2, 3 or a random 1–3 videos from a folder, episodes only) in the [Jellyfin-Commercials](https://github.com/agent61636/Jellyfin-Commercials) repository. It goes alongside Local Intros set to movies only.
 
 A playlist is a list of items stored on the server, and every Jellyfin app can play one. cobra-breaks builds those lists for you and keeps them current.
 
