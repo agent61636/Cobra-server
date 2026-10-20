@@ -292,6 +292,8 @@ Xfinity's Wi-Fi sits **outside** OPNsense on `10.0.0.x`, the untrusted side. Tha
 
 ### What to buy
 
+Full comparison of the models considered: [Future builds: Wi-Fi access points](../future-builds/wifi-access-points.md).
+
 | | Model | Price (Oct 2026) | Why |
 |---|---|---|---|
 | **Top pick** | **TP-Link Omada EAP772** (Wi-Fi 7, tri-band 2.4/5/6 GHz, 2.5 GbE port) | ~$160–170 | Full local web UI in **standalone mode**: no controller, no cloud account, nothing else to run. One SSID per VLAN when part 9 brings VLANs. 6 GHz gives the newest laptops and phones a clean band the neighbours aren't on. |
