@@ -34,13 +34,13 @@
 | ↳ **cobra-pihole-1** (CT 101) | 1 core / 512 MB | Debian 13 LXC | Primary ad/malware DNS filter + local DNS records | — |
 | ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
 | **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
-| **cobra-arcade** | OptiPlex 7040: i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
+| **cobra-arcade** | OptiPlex 7040 Mini Tower (240 W): i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class), to be replaced by an RTX 3050 6 GB (part 4.7) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
 | **cobra-lab** (R620, later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (standalone; not clustered, part 9) | On-demand security lab | 110–160 W *only while on* |
 | Windows desktops ×2 | — | Windows 11 | Daily use; SMB access to all shares | — |
 
 **Why `cobra-stream` is bare-metal Debian instead of a Proxmox guest:** the iGPU (needed for Quick Sync) and the USB storage drives are simplest and most reliable on bare metal. Running Podman inside an LXC container on Proxmox breaks regularly on AppArmor/runc updates. Real companies run hypervisors next to bare-metal appliances like this all the time. You still manage it from one place: Cockpit plus the Homepage dashboard, and its backups land in the same Proxmox Backup Server.
 
-**What the AMD Oland card does:** it drives the cabinet's display and is moderately faster than the HD 530 for emulation. It has **no HEVC support**, so it can't help Jellyfin.
+**What the AMD Oland card does:** it drives the cabinet's display and is moderately faster than the HD 530 for emulation. The planned **RTX 3050 6 GB** (slot-powered, 70 W) replaces it for modern PC games like MK11 and MK1 (part 4.7). It has **no HEVC support**, so it can't help Jellyfin.
 
 ---
 

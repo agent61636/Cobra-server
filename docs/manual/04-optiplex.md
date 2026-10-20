@@ -17,7 +17,7 @@
 
 ## 4.2 Software and shares
 
-GPU driver: current AMD Adrenalin does **not** support the Oland (R7 250-class, GCN 1) card. On amd.com/support, find your card (Graphics → Radeon R7 Series) and install the newest driver listed under **Windows Legacy Drivers**, or let Windows Update install its driver. Don't let AMD's auto-detect tool "upgrade" it to current Adrenalin.
+GPU driver: once the RTX 3050 is in (4.7), install NVIDIA's current Game Ready driver. Until then, with the old AMD Oland (R7 250-class, GCN 1) card: current AMD Adrenalin does **not** support it. On amd.com/support, find your card (Graphics → Radeon R7 Series) and install the newest driver listed under **Windows Legacy Drivers**, or let Windows Update install its driver. Don't let AMD's auto-detect tool "upgrade" it to current Adrenalin.
 
 PowerShell **as Admin** (right-click Start → Terminal (Admin)):
 
@@ -119,8 +119,31 @@ It stays in the OptiPlex as `D:` (if it's the OptiPlex's **only** disk, it's the
 
 - [ ] Before relying on it: `D:` shows healthy in `Get-PhysicalDisk | Select FriendlyName, HealthStatus` and has no SMART warnings in CrystalDiskInfo
 
+
+## 4.7 GPU upgrade: RTX 3050 6 GB (modern Mortal Kombat)
+
+The Oland card tops out around PS2-era games. A slot-powered **RTX 3050 6 GB** runs MK11 at 1080p high and MK1 at 1080p low/medium with DLSS, both at their 60 fps cap (estimate, not yet tested on this box).
+
+**Why it fits the 7040 Mini Tower:**
+
+- **Slot:** the PCIe 3.0 x16 slot takes full-height cards, so either version works: Zotac RTX 3050 6GB Solo (full height), or MSI RTX 3050 LP 6G OC / Gigabyte RTX 3050 OC Low Profile 6G (they ship with a full-height bracket too).
+- **Power:** the card draws 70 W from the slot and needs no cable. The Mini Tower's 240 W supply covers CPU (65 W) + card + drives with room left.
+- **CPU:** the i7-6700 is above MK1's minimum (i5-6600) and below its recommended (i5-8400). With the game capped at 60 fps, that's enough.
+
+⚠️ Buy the **6 GB** model. The RTX 3050 **8 GB** needs an 8-pin power cable the Dell supply doesn't have.
+
+- [ ] Before the swap: download DDU (Display Driver Uninstaller) and the newest NVIDIA Game Ready driver for the RTX 3050 from nvidia.com/drivers onto the cabinet
+- [ ] Boot into Safe Mode, run DDU → AMD → Clean and shut down
+- [ ] Power off, unplug, swap the Oland for the RTX 3050 in the x16 slot. Plug the monitor into the **card**, not the motherboard's ports.
+- [ ] Boot, install the NVIDIA driver (Express). BIOS needs no changes: the card boots fine with UEFI + Secure Boot on.
+- [ ] NVIDIA Control Panel → Change resolution → set the monitor's highest refresh rate
+- [ ] **Steam library on an SSD.** MK1 and MK11 each need 100 GB or more. If `D:` (the WD drive) is a hard drive, add a Steam library folder on the SSD for these two (Steam → Settings → Storage → Add drive); loading fights from a hard drive is slow.
+- [ ] MK1: Settings → Graphics → 1080p, preset Medium, upscaler DLSS Quality. Drop to Low if fights dip below 60.
+- [ ] LaunchBox: Tools → Import → Steam Games, so both games show in Big Box. Map the Tankstick in Steam Input (Steam → Settings → Controller) or in each game's controls.
+
 ## Done when
 
 - [ ] Power on → Big Box loads by itself → a game from `R:\` plays with the stick
 - [ ] The same game shows in the web arcade (`arcade.songofeo.com`) after a RomM library scan
 - [ ] Next morning: `C:\Cobra\nightly-copy.log` has no `ERROR` lines
+- [ ] After 4.7: MK11 and MK1 launch from Big Box and hold 60 fps in a fight
