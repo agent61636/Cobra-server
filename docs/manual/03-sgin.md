@@ -65,12 +65,33 @@
 
 ## 3.3 Packages
 
-Needs `contrib non-free` for the Intel media driver (Quick Sync).
+The Intel media driver (Quick Sync) is in Debian's `non-free` section, which the installer leaves off; it turns on only `main non-free-firmware`. Until `non-free` is on, apt answers *Package 'intel-media-va-driver-non-free' has no installation candidate*. The first block rewrites the package sources outright, so it works whichever format the installer wrote (the old one-line `/etc/apt/sources.list` or the newer `debian.sources`), and saves the old file as `sources.list.bak`.
 
 ```bash
-sudo sed -i 's/^Components: main.*/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null \
-  || sudo sed -i 's/ main non-free-firmware$/ main contrib non-free non-free-firmware/' /etc/apt/sources.list
-sudo apt update && sudo apt full-upgrade -y
+. /etc/os-release; echo "$PRETTY_NAME"      # must say Debian GNU/Linux 13 (trixie); anything else, stop here
+sudo tee /etc/apt/sources.list.d/debian.sources >/dev/null <<EOF
+Types: deb
+URIs: http://deb.debian.org/debian
+Suites: $VERSION_CODENAME $VERSION_CODENAME-updates
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: http://security.debian.org/debian-security
+Suites: $VERSION_CODENAME-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
+[ ! -f /etc/apt/sources.list ] || sudo mv /etc/apt/sources.list /etc/apt/sources.list.bak
+sudo apt update                                   # no "Failed to fetch" or "Err:" lines
+apt-cache policy intel-media-va-driver-non-free   # "Candidate:" shows a version, not (none)
+```
+
+- [ ] `apt update` shows `Err:`/`Failed to fetch` → the SGIN can't reach the internet or DNS. Check `ping -c2 deb.debian.org`, fix the network, rerun `sudo apt update`. Installing with old package lists is what gives "no installation candidate" even after the sources are right
+- [ ] `Candidate: (none)` → `cat /etc/apt/sources.list.d/*.sources` and check the `Components:` lines both read `main contrib non-free non-free-firmware`
+
+```bash
+sudo apt full-upgrade -y
 sudo apt install -y intel-microcode firmware-misc-nonfree firmware-intel-graphics intel-media-va-driver-non-free vainfo \
   podman crun slirp4netns passt uidmap fuse-overlayfs samba nftables cockpit curl rsync smartmontools systemd-container \
   intel-gpu-tools unattended-upgrades apt-listchanges needrestart lm-sensors mediainfo htop iotop-c ncdu upower pciutils git
@@ -91,7 +112,6 @@ sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc   # expect
 ```
 
 - [ ] No `HEVC Main10` lines from vainfo → the media driver isn't installed. No `EncSliceLP` lines → HuC didn't load; recheck `/etc/modprobe.d/i915.conf` and that `firmware-intel-graphics` is installed
-- [ ] `grep -h Components /etc/apt/sources.list.d/*.sources 2>/dev/null || grep '^deb ' /etc/apt/sources.list` shows `contrib non-free` on every line (if not, the `sed` above missed; add them by hand with `sudo nano`)
 
 Updates, file watching, disk health:
 
