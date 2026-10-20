@@ -2,12 +2,21 @@
 
 **Result:** the SGIN runs Debian 13 bare metal and serves all storage (Samba), the media apps (one rootless Podman pod), Pi-hole #2 and Proxmox Backup Server.
 
-🔌 SGIN onboard Ethernet → your switch (behind OPNsense, from part 2) for the whole part. **Unplug the USB hub from the SGIN until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive.
+🔌 SGIN onboard Ethernet → your switch (behind OPNsense, from part 2) for the whole part. **Unplug the USB hub from the SGIN until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive. Keep the SGIN's lid **open** until 3.3a; before that, closing it puts the laptop to sleep.
+
+**Where you work from:** the install (3.2) happens at the SGIN's own keyboard and screen. Everything after that is SSH and browser work from a desktop that is **wired to the switch** (or on WireGuard, part 2.8). A PC on Xfinity Wi-Fi can't reach `10.6.9.x` at all (part 2.10a), so it can't SSH in, open the web pages or map the shares.
 
 **This part replaces your old server.** The SGIN gets wiped and reinstalled, so the old server's sites go offline here and come back under the new names in part 5. Plan to do parts 3 and 5 close together.
 
 - [ ] Copy anything you need off the SGIN's internal disk (configs, databases, compose files). The USB drives aren't touched; they're unplugged during the install.
-- [ ] In 3.2's last step, **first** delete the old `10.6.9.200` static mapping (it's the same MAC, and OPNsense allows only one mapping per MAC) and the port forwards pointing at `.200` (from part 2.4), **then** add the `.20` mapping
+- [ ] Today the SGIN is `10.6.9.200`, set on the box itself (Cockpit at `https://10.6.9.200:9090`). The reinstall wipes that setting, and from 3.2 on it's `10.6.9.20`. Part 2.4 forwarded ports to `.200` and part 2.6 may already list the SGIN's MAC. OPNsense allows only one mapping per MAC, so 3.2's last step **changes** that mapping to `.20` rather than adding a second one.
+
+**Redoing part 3 on an SGIN that already ran it?** Do these first, then follow the part as written, with the reinstall notes in 3.4 and 3.10:
+
+- [ ] Save to the desktop or a pool drive: `/srv/stream` (every app's settings and database), `/home/podsvc/.config/containers/systemd` (the Quadlet files, which hold the RomM passwords), `/etc/fstab` (the drive labels and UUIDs), `/etc/samba/smb.conf`, and the RomM `DBPW`/`SECRET` if you kept them. If you ran the apps with the `scripts/podman` scripts, their passwords are podman secrets that the reinstall deletes: copy them out first with `sudo machinectl shell podsvc@ /usr/bin/podman secret inspect --showsecret --format '{{.Name}} {{.SecretData}}' romm-db-password romm-auth-secret icecast-source-password icecast-admin-password icecast-relay-password`. Stop the pod first so the databases are closed: `sudo machinectl shell podsvc@ /usr/bin/systemctl --user stop stream-pod`, then e.g. `sudo tar -C / -czf /srv/storage/disks/wd1/sgin-backup.tgz srv/stream home/podsvc/.config/containers etc/fstab etc/samba/smb.conf`
+- [ ] Pi-hole #2 → Settings → Teleporter → **Export** (or just re-import from Pi-hole #1 in 3.9)
+- [ ] The data drives keep their files. In 3.4 **don't** run the `wipefs`/`mkfs` lines on them; only add their mount lines back
+- [ ] On the desktop, forget the old SSH host key, or SSH refuses with "REMOTE HOST IDENTIFICATION HAS CHANGED": `ssh-keygen -R 10.6.9.20; ssh-keygen -R cobra-stream`
 
 ## 3.1 Terms
 
@@ -22,22 +31,37 @@
 
 ## 3.2 Install Debian
 
-- [ ] Back up anything on the SGIN first
-- [ ] Debian netinst USB (Rufus, DD mode) → F7/F11/Esc for the boot menu (varies by mini-PC) → **Install** (text)
+- [ ] Back up anything on the SGIN first (see the list above if part 3 ran before)
+- [ ] On the desktop: debian.org → **Download** → the small **amd64 netinst** ISO (`debian-13.x.x-amd64-netinst.iso`). Rufus → pick the USB stick and the ISO → **Start** → when Rufus asks how to write it, choose **DD Image mode** → OK (this erases the stick)
+- [ ] USB stick into the SGIN, Ethernet cable plugged in, charger plugged in. Power on and tap the boot-menu key (F7, F11, F12 or Esc depending on the model; the first screen sometimes names it) → pick the USB stick, preferably its **UEFI:** entry → **Install** (the text installer)
+- [ ] If it won't boot the stick: enter the firmware setup (Del or F2), leave Secure Boot as it is (Debian boots with it on), make sure USB boot is enabled, and try again
 
 | Screen | Value |
 |---|---|
 | Language / location / keyboard | English / yours / American English |
+| Primary network interface (only asked if it finds Wi-Fi too) | the **wired** one (`enp…`/`eno…`), not `wlp…` |
 | Network | Auto (DHCP), it gets `10.6.9.1xx` for now |
 | Hostname / Domain | `cobra-stream` / `home.arpa` |
-| Root password | **leave blank** (root is disabled and `eels` gets sudo) |
-| User | full name `Eels`, username `eels`, generated password |
-| Partitioning | Guided, use entire disk (the internal SSD, not a USB drive), all files in one partition |
-| Software selection | untick desktop + GNOME; tick **SSH server** and **standard system utilities** only |
-| GRUB | Yes, on the internal disk |
+| Root password | **leave blank** and Continue, then blank again to confirm (root is disabled and `eels` gets sudo) |
+| User | full name `Eels`, username `eels`, generated password (store it) |
+| Clock | your time zone |
+| Partitioning method | **Guided - use entire disk** |
+| Disk | the internal SSD (the only disk listed, since the hub is unplugged; check the size) |
+| Partitioning scheme | **All files in one partition** |
+| Write changes? | **Finish partitioning and write changes** → **Yes** |
+| Scan extra installation media? | No |
+| Mirror | your country → `deb.debian.org` → HTTP proxy: blank |
+| Popularity contest | No |
+| Software selection | untick **Debian desktop environment** and **GNOME**; tick **SSH server** and **standard system utilities** only (space toggles, Tab to Continue) |
+| GRUB (only asked on older BIOS-mode installs) | Yes, on the internal disk, not the USB stick |
+| Installation complete | pull the USB stick → Continue |
 
-- [ ] After reboot: OPNsense → delete the old `.200` mapping and its port forwards, then add DHCP static mapping `10.6.9.20` for its MAC (`ip -br link` on the SGIN), then on the SGIN `sudo systemctl restart networking` or reboot
-- [ ] From the desktop: `ssh eels@10.6.9.20`
+- [ ] After reboot, log in on the SGIN's screen as `eels` and note its MAC: `ip -br link` (the `enp…`/`eno…` line)
+- [ ] OPNsense → **Firewall → NAT → Port Forward**: delete each rule pointing at `10.6.9.200` (part 2.4) → **Apply**. The old sites stay offline until part 5's gate takes over 443
+- [ ] OPNsense DHCP page from part 2.6 (**Services → ISC DHCPv4 → LAN** or **Services → Dnsmasq DNS & DHCP**) → static mappings / hosts: if a row has the SGIN's MAC (at `.200` or `.20`), edit it to IP `10.6.9.20`, hostname `cobra-stream`; otherwise **+** add one. Save → **Apply**
+- [ ] On the SGIN: `sudo systemctl restart networking` (or `sudo reboot`)
+- [ ] Check on the SGIN's screen: `ip -4 -br a` shows `10.6.9.20/24`
+- [ ] From the desktop (PowerShell): `ssh eels@10.6.9.20` → type `yes` to the new host key → the `eels` password
 
 ## 3.3 Packages
 
@@ -47,8 +71,12 @@ Needs `contrib non-free` for the Intel media driver (Quick Sync).
 sudo sed -i 's/^Components: main.*/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null \
   || sudo sed -i 's/ main non-free-firmware$/ main contrib non-free non-free-firmware/' /etc/apt/sources.list
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y intel-microcode firmware-misc-nonfree intel-media-va-driver-non-free vainfo \
-  podman crun slirp4netns passt uidmap fuse-overlayfs samba nftables cockpit curl rsync smartmontools systemd-container
+sudo apt install -y intel-microcode firmware-misc-nonfree firmware-intel-graphics intel-media-va-driver-non-free vainfo \
+  podman crun slirp4netns passt uidmap fuse-overlayfs samba nftables cockpit curl rsync smartmontools systemd-container \
+  intel-gpu-tools unattended-upgrades apt-listchanges needrestart lm-sensors mediainfo htop iotop-c ncdu upower pciutils git
+lspci | grep -i ethernet && { lspci | grep -qi 'ethernet.*realtek' && sudo apt install -y firmware-realtek; }   # only for a Realtek NIC
+# Debian 13 moved the Intel GPU firmware (GuC/HuC) out of firmware-misc-nonfree into
+# firmware-intel-graphics; without it the i915 driver can't load HuC.
 # Jasper Lake can ONLY encode in low-power mode, which needs the HuC firmware loaded.
 # Without this, decode works but every transcode fails.
 echo 'options i915 enable_guc=2' | sudo tee /etc/modprobe.d/i915.conf
@@ -62,9 +90,68 @@ sudo dmesg | grep -i -E 'guc|huc'                                        # "HuC 
 sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc   # expect HEVC Main10 decode and EncSliceLP
 ```
 
-- [ ] No `HEVC Main10` lines from vainfo → the media driver isn't installed. No `EncSliceLP` lines → HuC didn't load; recheck `/etc/modprobe.d/i915.conf` and `firmware-misc-nonfree`
-- [ ] SSH key from the desktop: `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.6.9.20 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`
-- [ ] Same `/etc/ssh/sshd_config.d/10-cobra.conf` as part 1.7, but `PermitRootLogin no`; `sudo sshd -t && sudo systemctl reload ssh`
+- [ ] No `HEVC Main10` lines from vainfo → the media driver isn't installed. No `EncSliceLP` lines → HuC didn't load; recheck `/etc/modprobe.d/i915.conf` and that `firmware-intel-graphics` is installed
+- [ ] `grep -h Components /etc/apt/sources.list.d/*.sources 2>/dev/null || grep '^deb ' /etc/apt/sources.list` shows `contrib non-free` on every line (if not, the `sed` above missed; add them by hand with `sudo nano`)
+
+Updates, file watching, disk health:
+
+```bash
+sudo dpkg-reconfigure -plow unattended-upgrades     # Yes: security updates install themselves daily
+printf 'fs.inotify.max_user_instances=1024\nfs.inotify.max_user_watches=524288\n' | sudo tee /etc/sysctl.d/90-inotify.conf
+sudo sysctl --system                                # Jellyfin, Kavita, ABS and Navidrome all watch the library as podsvc
+sudo systemctl enable --now smartd fstrim.timer     # drive health warnings; weekly TRIM for the internal SSD
+```
+
+- Unattended upgrades never reboot on their own. After an upgrade, `needrestart` lists the services it restarted and says when the kernel needs a reboot.
+- ⚠️ **Don't install TLP or run `powertop --auto-tune`** on this laptop, whatever laptop guides say. Both turn on USB autosuspend, which drops the hub and the pool's drives. (`powertop` just to look is fine.)
+
+SSH keys (the desktop's key is the one made in part 1.7; if `type` says the file doesn't exist, run `ssh-keygen -t ed25519` first):
+
+- [ ] On the desktop (PowerShell): `type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh eels@10.6.9.20 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"`
+- [ ] `ssh eels@10.6.9.20` now logs in without the account password (it may ask for the key's passphrase). Keep this session open
+- [ ] On the SGIN, turn password logins off:
+
+```bash
+sudo tee /etc/ssh/sshd_config.d/10-cobra.conf >/dev/null <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+EOF
+sudo sshd -t && sudo systemctl reload ssh
+```
+
+- [ ] New PowerShell window: `ssh eels@10.6.9.20` works; `ssh -o PubkeyAuthentication=no eels@10.6.9.20` is refused. Only then close the old session
+- [ ] Cockpit: browser → `https://10.6.9.20:9090` → the certificate warning is expected (self-signed): **Advanced → Continue** → log in as `eels` with the account password → click **Turn on administrative access** (top) → enter the password again. Cockpit shows logs, updates, disks and a terminal
+
+## 3.3a Laptop-as-server settings
+
+The SGIN is a laptop. Without this, closing the lid (or an idle timer) suspends it and every share, stream and backup goes down. Same as part 1.8, minus the USB NIC rule (the SGIN uses onboard Ethernet):
+
+```bash
+# Keep running with the lid closed
+sudo mkdir -p /etc/systemd/logind.conf.d
+printf '[Login]\nHandleLidSwitch=ignore\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\n' \
+  | sudo tee /etc/systemd/logind.conf.d/10-lid.conf
+sudo systemctl restart systemd-logind
+# Nothing can suspend or hibernate it
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
+# Blank the built-in screen after 60 s
+sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 consoleblank=60"/' /etc/default/grub
+sudo update-grub
+
+# Battery = built-in UPS: clean power-off at 10 % during a long outage
+sudo mkdir -p /etc/UPower/UPower.conf.d
+printf '[UPower]\nUsePercentageForPolicy=true\nPercentageLow=25\nPercentageCritical=15\nPercentageAction=10\nCriticalPowerAction=PowerOff\n' \
+  | sudo tee /etc/UPower/UPower.conf.d/10-cobra.conf
+sudo systemctl restart upower
+upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
+```
+
+- [ ] Close the lid; `ping 10.6.9.20` from the desktop keeps answering
+- [ ] If your UPower ignores `UPower.conf.d`, put the same lines in `/etc/UPower/UPower.conf`
+- [ ] Battery wear: a laptop held at 100 % for years can swell. If `ls /sys/class/power_supply/BAT*/charge_control_end_threshold` finds a file, `echo 80 | sudo tee` that file (it resets at boot; a one-line systemd unit or `@reboot` cron makes it stick). If it doesn't exist, check the battery for bulging every few months
+- [ ] `sensors` shows the CPU temperature; with the lid shut it runs warmer, so keep the vents clear
 
 ## 3.4 Storage
 
@@ -95,13 +182,15 @@ lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every dr
 
 For each drive, pick a short label: `wd1`, `wd2` for the externals, `dock1a`, `dock1b` for the dock's bays.
 
+**Reinstalling, and the drives were set up here before?** Skip the `wipefs`/`parted`/`mkfs` lines: those erase the drive. `lsblk` shows each one's old label (`wd1`, `dock1a`…); for each, run only the `L=…; U=…`, `mkdir`/`chattr` and `echo … | sudo tee -a /etc/fstab` lines with its partition, then carry on at "Then mount everything". The pool block, the `mkdir` lines and 3.5's `chown` are safe to run again.
+
 **Empty drive, or one you've copied off first** (ext4 is the most reliable choice on Linux):
 
 ```bash
 sudo wipefs -a /dev/sdX && sudo parted -s /dev/sdX mklabel gpt mkpart data ext4 0% 100%
 sudo mkfs.ext4 -L wd1 -m 0 /dev/sdX1                       # -m 0: no space reserved for root on a data drive
 L=wd1; U=$(sudo blkid -s UUID -o value /dev/sdX1)
-sudo mkdir -p /srv/storage/disks/$L
+sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L   # empty mount point can't be written to
 echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
 ```
 
@@ -109,9 +198,11 @@ echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.devic
 
 ```bash
 L=wd2; U=$(sudo blkid -s UUID -o value /dev/sdY1)
-sudo mkdir -p /srv/storage/disks/$L
+sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
 echo "UUID=$U /srv/storage/disks/$L ntfs-3g uid=0,gid=$(getent group media | cut -d: -f3),umask=002,noatime,nofail,x-systemd.device-timeout=15 0 0" | sudo tee -a /etc/fstab
 ```
+
+`chattr +i` locks the **empty** folder under each mount. If a drive is missing at boot (`nofail` lets the SGIN boot anyway), nothing can write into that folder by mistake and fill the system SSD; PBS and the pool just report the drive as missing. The mounted drive itself is unaffected.
 
 Then mount everything and give each drive its `library` folder. On a drive that already has files, move them into `library` (a move on the same drive is instant):
 
@@ -231,6 +322,10 @@ Every machine, and every share, by the same path:
 | Containers on the SGIN | Bind mounts in 3.8 | `/media/...` |
 | Phones on Wi-Fi | Xfinity Wi-Fi is outside the firewall by design; use WireGuard there too | — |
 
+Map the share on a Windows desktop (wired, or on WireGuard):
+
+- [ ] File Explorer → **This PC** → **⋯** (or the Computer tab) → **Map network drive** → Drive `M:` → Folder `\\cobra-stream\media` → tick **Reconnect at sign-in** and **Connect using different credentials** → Finish → user `cobra-stream\eels`, the Samba password you just set → tick **Remember my credentials**
+- [ ] If `\\cobra-stream` isn't found, use `\\10.6.9.20\media` (the name needs the desktop's DNS to be Pi-hole, part 2.9). If Windows says you're already connected with other credentials (from the old server), Control Panel → **Credential Manager** → Windows Credentials → remove the old `cobra-stream`/`10.6.9.200` entries, then try again
 - [ ] Windows: `\\cobra-stream\media` opens and you can create and delete a test folder
 
 ## 3.7 Firewall (LAN + VPN only)
@@ -251,16 +346,25 @@ table inet filter {
 }
 EOF
 sudo systemctl enable --now nftables
+sudo nft list ruleset | grep dport                  # the port list above
 ```
+
+- [ ] Keep your SSH session open and open a **new** one: `ssh eels@10.6.9.20` still works. If it doesn't, the old session can fix the file (`sudo nano /etc/nftables.conf`, then `sudo systemctl restart nftables`)
+- Part 8 adds the radio's port `8000` to this list; any new app on the SGIN needs its port added here too
 
 ## 3.8 Media pod
 
 Run as podsvc: `sudo machinectl shell podsvc@` (a full login session, needed for `systemctl --user`). `exit` to leave.
 
+**Reinstalling with a backup of `/srv/stream`?** Restore it before anything starts, as eels: `sudo tar -C / -xzpf /srv/storage/disks/wd1/sgin-backup.tgz srv/stream`. Then, as podsvc, either restore the saved Quadlet files into `~/.config/containers/systemd` and skip the `cat` lines below, or run the block as written but set `DBPW`/`SECRET` to the old values instead of new random ones (RomM's database already uses the old password). With the scripts: `ROMM_DB_PASSWORD=<old> ROMM_AUTH_SECRET=<old> ./romm.sh` the first time. If an app then says `Permission denied`, see the last bullet of this section.
+
+**Prefer plain `podman run` scripts?** [`scripts/podman`](../../scripts/podman/README.md) has one script per app (`sgin/up-all.sh` runs them all) that builds the same `stream` pod with the same images, ports and folders. Use either the scripts or the Quadlet files below for an app, not both; the scripts' README explains how to switch.
+
 ```bash
 mkdir -p ~/.config/containers/systemd /srv/stream/{jellyfin/config,jellyfin/cache,ersatztv,abs/config,abs/metadata,kavita,navidrome,romm/resources,romm/assets,romm/config,romm/redis,romm/db}
 cd ~/.config/containers/systemd
-DBPW=$(openssl rand -hex 24); SECRET=$(openssl rand -hex 32)   # store both
+DBPW=$(openssl rand -hex 24); SECRET=$(openssl rand -hex 32)
+echo "RomM DBPW=$DBPW SECRET=$SECRET"   # copy both into your password manager now
 
 cat > stream.pod <<'EOF'
 [Pod]
@@ -299,6 +403,7 @@ AutoUpdate=registry
 AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/ersatztv:/config:Z
+Tmpfs=/transcode:rw,size=2g,mode=1777
 Volume=/srv/storage/pool:/media:ro
 [Install]
 WantedBy=default.target
@@ -378,13 +483,22 @@ podman ps                                     # 7 containers Up
 
 - [ ] App URLs: Jellyfin `http://10.6.9.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
 
-- [ ] Image names checked against the official docs (Oct 2026): ErsatzTV is now published as `ghcr.io/ersatztv/legacy`; RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders
+- [ ] Image names (Oct 2026): ErsatzTV is published as `ghcr.io/ersatztv/legacy` (its GitHub repo ErsatzTV/legacy builds that image; the older `ghcr.io/ersatztv/ersatztv` name still exists but isn't what that repo publishes); RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders. `Tmpfs=/transcode` keeps ErsatzTV's live segments in RAM instead of wearing the SSD
 - [ ] Don't put `:Z` on `/srv/storage/pool` mounts (shared with Samba)
-- [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), **Low-Power H.264/HEVC encoder on**, tone mapping on. Users: hidden, Quick Connect off
+- [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable H.264/HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), hardware encoding on, **Low-Power H.264/HEVC encoder on**, tone mapping on **and VPP tone mapping on**. Leave the transcode path on the internal SSD (the default). Users: hidden, Quick Connect off. If some movies stutter, see 3.8c
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
 - [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
 - `ND_REVERSEPROXYWHITELIST=10.6.9.10/32`: Navidrome trusts the `Remote-User` header from the gate only, so someone the station's sign-in (part 5.4) already let in isn't asked again. Give each person the same username here as in Authelia's `users.yml`.
-- [ ] Each app: create admin user now (first visit = admin)
+- [ ] Each app: create its admin user now. Until you do, the first person to open the page becomes admin. First-run screens, all from the desktop's browser:
+
+| App | First visit | Then |
+|---|---|---|
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/movies`; again for *Shows* → `/media/tv` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/audiobooks`; again `Books` → `/media/books` for e-books. Settings → Users → one user each |
+| Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/comics` → Save → **Scan**. Users → Invite (or add) one per person |
+| Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
+| ErsatzTV `:8409` | No login screen; it stays LAN/VPN-only because the gate never publishes it | 3.8a |
+| RomM `:8080` | Setup wizard → admin user | 3.8b |
 - [ ] If one container keeps restarting with `Permission denied` in `journalctl --user -u <name>`: that image switches to a non-root user inside, so its files must belong to that user. Find it with `podman exec <name> id` (often `1000`), add `UserNS=keep-id:uid=1000,gid=1000` under `[Container]` in its `.container` file, then `systemctl --user daemon-reload && systemctl --user restart <name>`. Your `podsvc` then *is* that user inside the container, so the folders it owns become writable.
 
 ### 3.8a Live TV: ErsatzTV channels inside Jellyfin
@@ -442,11 +556,44 @@ RomM serves the browser arcade at `arcade.songofeo.com`. The game runs in the pl
 - [ ] One user per player (RomM → Administration → Users), so each person's saves and states are their own
 - The browser and the cabinet share ROMs, not saves: RetroArch's saves live on the cabinet, EmulatorJS's in RomM. Browser netplay and RetroArch netplay can't join each other's games.
 
+### 3.8c If some movies stutter
+
+File size is rarely the cause: a 4 GB two-hour movie averages about 4.5 Mbps. The big files are usually **HEVC 10-bit or HDR, often with PGS/ASS subtitles**, and when a client can't play those natively Jellyfin transcodes them. The stutter comes from that transcode.
+
+1. Play the movie, then Jellyfin → **Dashboard → Activity** (or ⚙ → Playback Info in the web player): note the play method and the **reason** for transcoding.
+2. Fix by reason, most common first:
+
+| Reason | Fix |
+|---|---|
+| Subtitle codec not supported | Subtitle burn-in. Pick an SRT track, or set the user's subtitle mode to *Smart* with image subtitles off by default |
+| Video codec not supported | Use a client that plays HEVC 10-bit itself: the Android TV / Fire TV app, Jellyfin Media Player, Swiftfin or Infuse; Chrome or Edge rather than Firefox |
+| Bitrate exceeds limit | Client app → Maximum streaming quality → *Auto*/highest; for VPN viewing, Dashboard → Playback → Streaming → raise the remote limit |
+
+3. If it still transcodes, check the newest `FFmpeg.Transcode-…log` (Dashboard → Logs): the encoder must be `h264_qsv`/`hevc_qsv`. `libx264`/`libx265` means the CPU is doing it; recheck 3.3's `vainfo` and the Transcoding settings above. Inside the container: `podman exec jellyfin /usr/lib/jellyfin-ffmpeg/vainfo | grep -i hevc`. Live view while a movie plays: `sudo intel_gpu_top` on the SGIN shows the **Video** engine busy; if it sits at 0 % while `htop` shows ffmpeg eating the CPU, the transcode is in software.
+4. Smooth but jerky pans: a 24 fps film on a 60 Hz TV. Turn on match frame rate in the TV app.
 
 ## 3.9 Pi-hole #2 (as eels)
 
 ```bash
 curl -sSL https://install.pi-hole.net | sudo bash
+```
+
+The installer asks a few questions in a text window (arrow keys, Space to tick, Enter for OK):
+
+| Screen | Answer |
+|---|---|
+| Welcome / donation | OK |
+| Static IP needed | **Continue**: the address is fixed by the OPNsense mapping from 3.2 |
+| Choose an interface (only if it lists several) | the wired `enp…`/`eno…` |
+| Upstream DNS provider | any; the next commands replace it with OPNsense |
+| Blocklists (StevenBlack) | Yes |
+| Admin web interface / web server (older installers only) | Yes / Yes |
+| Query logging | Yes |
+| Privacy mode | 0, show everything |
+
+It ends with a password and the address `http://10.6.9.20/admin`. Then:
+
+```bash
 sudo pihole setpassword
 sudo pihole-FTL --config dns.upstreams '["10.6.9.1"]'
 sudo pihole-FTL --config dns.listeningMode ALL      # answer WireGuard clients too; nftables limits who can reach :53
@@ -458,7 +605,8 @@ sudo pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-fi
 - [ ] Blocklists: Pi-hole #1 → Settings → Teleporter → Export, then Pi-hole #2 → Teleporter → Import (repeat after you change lists; part 5.7)
 - [ ] From the desktop: `nslookup tv.songofeo.com 10.6.9.20` → `10.6.9.10`, and `nslookup cobra-gate 10.6.9.20` → `10.6.9.10`
 
-- [ ] OPNsense DHCP: DNS servers → `10.6.9.3`, `10.6.9.20`
+- [ ] Web admin: `http://10.6.9.20/admin` → log in with the password you just set
+- [ ] OPNsense DHCP page from part 2.6 (**Services → ISC DHCPv4 → LAN**, or **Services → Dnsmasq DNS & DHCP** → DHCP options) → DNS servers: change the second one from `10.6.9.1` to `10.6.9.20`, so the list is `10.6.9.3`, `10.6.9.20` → Save → **Apply**. Machines pick it up at their next lease renewal (on Windows: `ipconfig /renew`)
 
 ## 3.10 Proxmox Backup Server
 
@@ -473,13 +621,22 @@ Suites: trixie
 Components: pbs-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
-sudo apt update && sudo apt install -y proxmox-backup-server
+sudo apt update && sudo apt install -y proxmox-backup-server     # if a "Postfix Configuration" screen appears: "Local only", mail name `cobra-stream.home.arpa`
 PBSDISK=dock1a        # your label for an ext4 drive (PBS can't use NTFS) with room to spare; part 5.6 adds a second copy on the vault drive
 sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs
+# Reinstall, and that pbs folder already holds backups? Use this instead, which keeps them:
+#   sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs --reuse-datastore true
 sudo proxmox-backup-manager user create pve@pbs --password "$(openssl rand -base64 24 | tee /dev/stderr)"   # store it
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id pve@pbs
-sudo proxmox-backup-manager cert info | grep Fingerprint
+sudo proxmox-backup-manager cert info | grep Fingerprint                                     # store it; part 5.6 needs it
+# Your own login for the web UI (root has no password on this box, so root@pam can't log in)
+sudo proxmox-backup-manager user create eels@pam
+sudo proxmox-backup-manager acl update / Admin --auth-id eels@pam
 ```
+
+- [ ] Browser → `https://10.6.9.20:8007` → accept the certificate warning → user `eels`, realm **Linux PAM standard authentication**, the account password → **Datastore → store1** is listed
+- [ ] Top right **eels@pam → TFA → Add → TOTP**, same as part 1.7
+- [ ] Reinstall: the fingerprint and the `pve@pbs` password are new. If Proxmox already had this PBS (part 5.6), Proxmox UI → **Datacenter → Storage → pbs-stream → Edit** → paste both → OK, and update `/root/pbs.env` on the SGIN when you redo part 5.6's self-backup
 
 - [ ] Keyring URL and checksum match the PBS install docs (checked Oct 2026)
 - [ ] PBS owns `/srv/storage/disks/<drive>/pbs` from here on. It sits outside the pool, so the pool `chown` in 3.5 never touches it. Never `chown -R /srv/storage`.
@@ -492,3 +649,4 @@ sudo proxmox-backup-manager cert info | grep Fingerprint
 - [ ] Jellyfin → Live TV plays an ErsatzTV channel, and the guide fills in (3.8a)
 - [ ] RomM at `:8080` lists your platforms, and one game starts in the browser (3.8b)
 - [ ] `nslookup cobra-stream 10.6.9.20` answers `10.6.9.20` (Pi-hole #2)
+- [ ] Lid closed, the SGIN still answers `ping 10.6.9.20` and a stream keeps playing (3.3a)
