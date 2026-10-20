@@ -83,6 +83,7 @@
 | 10.6.9.1 | cobra-firewall LAN | Default gateway + Unbound DNS for the LAN |
 | 10.6.9.2 | cobra-command | Proxmox web UI `https://10.6.9.2:8006` |
 | 10.6.9.3 | cobra-pihole-1 | DNS #1 |
+| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra` on the switch (part 2.10b). `.5` is reserved for the managed switch (part 9). |
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
