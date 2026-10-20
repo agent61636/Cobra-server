@@ -18,6 +18,8 @@ Start with the overview, then follow the parts in order.
 | 8. Landing site and radio | [docs/manual/08-site-and-radio.md](docs/manual/08-site-and-radio.md) |
 | 9. R620 lab and VLANs | [docs/manual/09-r620-lab-and-vlans.md](docs/manual/09-r620-lab-and-vlans.md) |
 
+Not in a stage yet (distro and desktop choices, Wi-Fi APs, arcade GPU and tower upgrades, container ideas): [docs/future-builds/](docs/future-builds/README.md).
+
 Podman run scripts for every app (instead of the Quadlet files in parts 3, 5, 7 and 8): [scripts/podman/](scripts/podman/README.md).
 
 Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader), [`apps/cobra-breaks`](apps/cobra-breaks) (episode breaks), [`apps/site`](apps/site) (landing page), [`apps/radio`](apps/radio) (radio script).
