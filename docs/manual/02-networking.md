@@ -159,6 +159,7 @@ OPNsense versions differ on which DHCP service is active for LAN. Use whichever 
 
 | IP | Host |
 |---|---|
+| 10.6.9.6 | cobra-ap (Wi-Fi access point, 2.10b) |
 | 10.6.9.20 | cobra-stream (SGIN) |
 | 10.6.9.30 | cobra-arcade (OptiPlex) |
 | 10.6.9.40 / .41 | R620 iDRAC / R620 (later) |
@@ -282,8 +283,70 @@ Xfinity's Wi-Fi sits **outside** OPNsense on `10.0.0.x`, the untrusted side. Tha
 - [ ] **Test the TVs now.** On the Roku and the Apple TV, open the Jellyfin app and use the server address `https://tv.songofeo.com` (not an IP). It should connect once part 3 is done; the bare `songofeo.com` is hosted by Porkbun, so it always loads and proves nothing here; test with an app hostname.
 - [ ] **If it doesn't load on Wi-Fi but does on cellular:** the Xfinity gateway isn't looping traffic for your own public address back in ("NAT loopback"). Two fixes, best first:
   1. **Wire the TVs to the switch.** Streaming is smoother wired anyway, and they then get `10.6.9.x` and Pi-hole sends `tv.songofeo.com` straight to the gate.
-  2. **Add a trusted Wi-Fi access point on the LAN side**: any Wi-Fi router set to "access point" (or "bridge") mode, plugged into the switch. Devices on it are on `10.6.9.x` like wired ones. Use it for the TVs and your own laptops; leave guests and gadgets on Xfinity Wi-Fi.
-- [ ] **Laptops that need the shares** (`\\cobra-stream`): plug in, join the access point from the fix above, or turn on WireGuard (2.8). On Xfinity Wi-Fi alone they can't see the shares, by design.
+  2. **Join the trusted Wi-Fi access point** (2.10b, below). Devices on it are on `10.6.9.x` like wired ones. Use it for the TVs and your own laptops; leave guests and gadgets on Xfinity Wi-Fi.
+- [ ] **Laptops that need the shares** (`\\cobra-stream`): plug in, join `cobra` Wi-Fi (2.10b), or turn on WireGuard (2.8). On Xfinity Wi-Fi alone they can't see the shares, by design.
+
+## 2.10b Trusted Wi-Fi access point (on the switch)
+
+**Result:** a Wi-Fi network of your own, `cobra`, that sits **inside** OPNsense like a wired port. Laptops, phones and TVs on it get `10.6.9.1xx`, use the Pi-holes, see `\\cobra-stream`, and are covered by the IDS/IPS (2.11). Xfinity's Wi-Fi stays on as the untrusted network for guests and smart gadgets.
+
+### What to buy
+
+| | Model | Price (Oct 2026) | Why |
+|---|---|---|---|
+| **Top pick** | **TP-Link Omada EAP772** (Wi-Fi 7, tri-band 2.4/5/6 GHz, 2.5 GbE port) | ~$160–170 | Full local web UI in **standalone mode**: no controller, no cloud account, nothing else to run. One SSID per VLAN when part 9 brings VLANs. 6 GHz gives the newest laptops and phones a clean band the neighbours aren't on. |
+| Budget | TP-Link Omada EAP723 (Wi-Fi 7, dual-band, no 6 GHz) | ~$85–90 | Same standalone web UI and VLAN support; plenty for a house of 1080p/4K streams. |
+| No-TP-Link option | Zyxel NWA110BE (Wi-Fi 7) | ~$140 | Full local web UI and CLI, also takes USB-C power. |
+| **Plus** | a **PoE+ (802.3at, 30 W) gigabit injector**, e.g. TP-Link TL-POE160S | ~$20–25 | These APs ship **without** a power adapter, and a plain Netgear switch doesn't supply PoE. The injector sits between the switch and the AP. |
+
+**Skip** for this build: UniFi APs (in standalone mode they're limited to the phone app; the full features need a UniFi controller running somewhere, one more service to keep alive) and a mesh kit or old router in "AP mode" (works, but most can't put an SSID on a VLAN, which part 9 needs).
+
+### Cable it
+
+```
+switch E port ──► injector "LAN/Data" ──► injector "PoE" ──► AP's ETH/PoE port
+                  injector power cord → wall outlet (or the UPS)
+```
+
+Mount the AP high and central (ceiling or top of a shelf, logo facing down/out), away from the Xfinity gateway so their signals don't sit on top of each other. One run of Cat 6 from the switch can be up to 100 m.
+
+### Set it up (from a desktop wired to the switch)
+
+- [ ] AP powers up and asks OPNsense for an address. Find it on the DHCP page from 2.6 → **Leases** (hostname like `EAP772` or a MAC starting with the TP-Link prefix). Add a **static mapping `10.6.9.6`** for that MAC, Save/Apply, then unplug and replug the AP's cable at the injector so it picks up `.6`.
+  (`.5` is kept for the managed switch in part 9.)
+- [ ] Browser: `https://10.6.9.6` → accept the self-signed certificate → create the admin user with a **generated password** (save it in Vaultwarden once part 5 is up). If it offers **Omada Cloud / app adoption**, decline: you want **standalone**.
+- [ ] **System → Firmware Update** (or Management → Firmware): update before anything else. Reboot.
+- [ ] **System → Time Settings**: time zone, NTP server `10.6.9.1`.
+- [ ] **Network / IP settings:** keep DHCP (OPNsense hands out `.6`). Leave **Management VLAN off** for now.
+- [ ] **Wireless → SSID → Add**, one SSID on all bands:
+  - Name: `cobra` (or anything that doesn't identify the house). Not hidden.
+  - Security: **WPA2/WPA3-Personal** (mixed / transition). 6 GHz forces WPA3 on its own; that's expected.
+  - Password: a long passphrase (20+ characters).
+  - VLAN: **off / none** (so it lands on the untagged LAN, `10.6.9.x`).
+  - **Guest network / client isolation: off** for this SSID (your own devices need to see the shares and each other, e.g. casting).
+- [ ] **Wireless → Radio settings** (names vary): Region **United States**. 2.4 GHz: 20 MHz, channel **1, 6 or 11**, whichever Xfinity's 2.4 GHz isn't on (the Xfinity app shows its channel). 5 GHz: 80 MHz, channel Auto or a fixed one away from Xfinity's. 6 GHz: 160 MHz (EAP772 only).
+- [ ] Turn **off** anything the AP doesn't need: Omada Cloud access, SSH (unless you want it), and "Remote management" if listed. Its LED can go off too.
+- [ ] **Local name** (both Pi-holes' `dns.hosts`, parts 2.9 and 3.9): `"10.6.9.6 cobra-ap.home.arpa cobra-ap"`.
+
+### Move your devices over
+
+| Device | Network |
+|---|---|
+| Your laptops and phones, the Roku and Apple TV (unless wired), tablets | **`cobra`** (trusted) |
+| Guests, smart plugs, bulbs, cameras, voice assistants, anything you didn't build | **Xfinity Wi-Fi** (untrusted, outside OPNsense) |
+
+- [ ] Forget the Xfinity network on each moved device, so it doesn't hop back.
+- [ ] Rename Xfinity's Wi-Fi (Xfinity app → WiFi → Edit) to something like `cobra-guest`, so it's obvious which is which. Optional: if you'll never use it for guests or gadgets, turn it off there instead.
+
+### Check
+
+- [ ] A laptop on `cobra`: `ipconfig` shows `10.6.9.1xx`, gateway `10.6.9.1`, DNS `10.6.9.3`. `\\cobra-stream` opens. `https://10.6.9.2:8006` loads.
+- [ ] A phone on `cobra` loads `https://tv.songofeo.com`, and the Pi-hole dashboard (2.9) lists the phone's `10.6.9.1xx` address as a client.
+- [ ] Once part 5 is done: Uptime Kuma → add a **Ping** monitor for `10.6.9.6` (`cobra-ap`).
+
+### Later, with VLANs (part 9, phase B)
+
+The AP is ready for VLANs as-is. When the managed switch goes in, its port is "Everything else" in 9.5 (untagged 1). If you later want guests and gadgets off Xfinity's Wi-Fi too, add a GUEST/IoT VLAN the same way part 9 adds LAB (OPNsense VLAN + DHCP + "block `PRIVATE`, allow internet" rules), tag it on the AP's switch port, and add a second SSID on that VLAN with client isolation on. Then Xfinity's Wi-Fi can be switched off entirely.
 
 ## 2.11 IDS/IPS and CrowdSec
 
@@ -302,6 +365,7 @@ Xfinity's Wi-Fi sits **outside** OPNsense on `10.0.0.x`, the untrusted side. Tha
 - [ ] `nslookup anything.songofeo.com` on the LAN → `10.6.9.10`; `nslookup songofeo.com` → not `10.6.9.10`
 - [ ] Porkbun A record for `gate.songofeo.com` = your public IP; no AAAA records; the bare `songofeo.com` still shows your Porkbun-hosted homepage
 - [ ] Phone on cellular reaches Proxmox through WireGuard
+- [ ] A laptop on `cobra` Wi-Fi (2.10b) gets `10.6.9.1xx` and opens `\\cobra-stream`
 - [ ] Once part 5 is done: a phone on Xfinity Wi-Fi loads `https://tv.songofeo.com` (if not, see 2.10a before you rely on the TVs)
 - [ ] Back up the OPNsense config: System → Configuration → Backups → **Download configuration**
 
