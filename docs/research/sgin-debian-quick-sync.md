@@ -22,7 +22,7 @@ Keep these as they are:
 
 ### 1. The SGIN is a laptop: stop it suspending when the lid closes ⚠️
 
-Part 3 has no laptop-as-server step, but part 1.8 does for the Latitude. Without it, closing the lid (or a default idle action) suspends the SGIN and every share, stream and backup goes down. Copy part 1.8's block, minus the USB NIC rule (the SGIN uses onboard Ethernet), and prefix with `sudo`:
+Part 3 has no laptop-as-server step, but part 1.8 does for the Latitude. Without it, closing the lid (or a default idle action) suspends the SGIN and every share, stream and backup goes down. Copy part 1.8's block, including the USB NIC rule with the SGIN adapter's IDs (`0b95:1790`, ASIX AX88179; the SGIN has no built-in Ethernet), and prefix with `sudo`:
 
 ```bash
 # Keep running with the lid closed
@@ -87,7 +87,7 @@ Some cheap docks pass nothing through; that's the dock, not the drive.
 
 ### 6. Leave power tuners off: no TLP, no `powertop --auto-tune`
 
-Laptop guides recommend TLP or `powertop --auto-tune`. **Don't use either on this box.** Both turn on USB autosuspend, which makes the hub and USB drives drop out, and that shows up as exactly the "random stutter, then the pool loses a drive" you're trying to avoid. The N5095A idles near 10 W already. (`powertop` on its own, just to look, is fine.)
+Laptop guides recommend TLP or `powertop --auto-tune`. **Don't use either on this box.** Both turn on USB autosuspend, which makes the hub, the USB drives and the USB network adapter (the SGIN's only network link) drop out, and that shows up as exactly the "random stutter, then the pool loses a drive" you're trying to avoid. The N5095A idles near 10 W already. (`powertop` on its own, just to look, is fine.)
 
 Drive spin-down: the WD externals spin down on their own after a few idle minutes; the first play after that waits a few seconds for spin-up. That's normal. Don't add `hd-idle` or `hdparm -S`; more spin cycles wear the drives, and many USB bridges ignore the setting anyway.
 
@@ -96,7 +96,7 @@ Drive spin-down: the WD externals spin down on their own after a few idle minute
 | Package | What it does | Add? |
 |---|---|---|
 | `needrestart` | After an upgrade, says which services or the kernel need a restart | Yes |
-| `firmware-realtek` | Firmware for Realtek Ethernet chips, if `lspci` shows the SGIN's onboard NIC is Realtek (`r8169`). Removes `rtl_nic` warnings and fixes some link drops | If `lspci \| grep -i ethernet` says Realtek |
+| `firmware-realtek` | Firmware for Realtek PCI Ethernet chips (`r8169`) | No: the SGIN has no PCI Ethernet, and its USB adapter (AX88179) needs no firmware |
 | `lm-sensors` | `sensors` shows CPU temperature; a laptop with the lid shut runs warmer | Yes |
 | `htop`, `iotop-c`, `ncdu` | Live CPU/memory, live disk I/O per process, find what filled the SSD | Yes, handy for 3.8c |
 | `mediainfo` | Shows a file's codec, bit depth, HDR and subtitle type, i.e. *why* it transcodes | Yes |
