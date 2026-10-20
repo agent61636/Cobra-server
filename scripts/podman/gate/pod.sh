@@ -2,7 +2,7 @@
 # The gate VM's "gate" pod (cobra-gate, 10.6.9.10). Sourced by the scripts in this folder.
 # Only nginx's 80/443 are published. Every app listens on 127.0.0.1 inside the pod and is reached through nginx:
 #   8222 Vaultwarden   8000 Paperless   8081 MeTube   3000 Homepage   3001 Uptime Kuma
-#   8090 hiscore       9091 Authelia    5432 Postgres 6379 Redis
+#   8090 hiscore       9091 Authelia    5432 Postgres 6379 Redis   8790 eo-art
 GATE_POD=gate
 GATE_PORTS=(80:80 443:443)
 GATE_DATA=${COBRA_DATA:-/srv/gate}

@@ -34,13 +34,13 @@
 | ↳ **cobra-pihole-1** (CT 101) | 1 core / 512 MB | Debian 13 LXC | Primary ad/malware DNS filter + local DNS records | — |
 | ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
 | **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
-| **cobra-arcade** | OptiPlex 7040: i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
+| **cobra-arcade** | OptiPlex 7040 Mini Tower (240 W): i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class), to be replaced by an RTX 3050 6 GB (part 4.7) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
 | **cobra-lab** (R620, later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (standalone; not clustered, part 9) | On-demand security lab | 110–160 W *only while on* |
 | Windows desktops ×2 | — | Windows 11 | Daily use; SMB access to all shares | — |
 
 **Why `cobra-stream` is bare-metal Debian instead of a Proxmox guest:** the iGPU (needed for Quick Sync) and the USB storage drives are simplest and most reliable on bare metal. Running Podman inside an LXC container on Proxmox breaks regularly on AppArmor/runc updates. Real companies run hypervisors next to bare-metal appliances like this all the time. You still manage it from one place: Cockpit plus the Homepage dashboard, and its backups land in the same Proxmox Backup Server.
 
-**What the AMD Oland card does:** it drives the cabinet's display and is moderately faster than the HD 530 for emulation. It has **no HEVC support**, so it can't help Jellyfin.
+**What the AMD Oland card does:** it drives the cabinet's display and is moderately faster than the HD 530 for emulation. The planned **RTX 3050 6 GB** (slot-powered, 70 W) replaces it for modern PC games like MK11 and MK1 (part 4.7). It has **no HEVC support**, so it can't help Jellyfin.
 
 ---
 
@@ -83,6 +83,7 @@
 | 10.6.9.1 | cobra-firewall LAN | Default gateway + Unbound DNS for the LAN |
 | 10.6.9.2 | cobra-command | Proxmox web UI `https://10.6.9.2:8006` |
 | 10.6.9.3 | cobra-pihole-1 | DNS #1 |
+| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra` on the switch (part 2.10b). `.5` is reserved for the managed switch (part 9). |
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
@@ -113,27 +114,34 @@
 ## 4. Your user flowcharts (corrected)
 
 All public traffic follows the same path: **user → Porkbun DNS (plain DNS, no proxy) → your home IP → Xfinity → cobra-firewall (firewall, IDS/IPS, CrowdSec) → cobra-gate (nginx TLS + rate limits [+ Authelia]) → the app.**
-At home, Pi-hole answers `*.songofeo.com` with `10.6.9.10`, so LAN traffic never leaves the house.
+At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LAN traffic never leaves the house. The bare `songofeo.com` and `www` are the exception: they're the station on Porkbun's hosting, at home too.
+
+"Station sign-in" below means Authelia's password screen at `auth.songofeo.com` (part 5.4): one sign-in covers every floor for 6 hours, and it's skipped at home and over WireGuard.
 
 | Want | URL | Path after the gate | Login |
 |---|---|---|---|
-| Watch a movie / Live TV | `tv.songofeo.com` | → stream: Jellyfin (+ ErsatzTV channels) | Jellyfin login: hidden users (nobody's name is shown on the login page), no Quick Connect |
-| Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | In-app |
-| Comics / graphic novels | `comics.songofeo.com` | → stream: Kavita | In-app *(you had typed `books.` for both; Kavita gets its own hostname)* |
-| Eels' music | `eelsmusic.songofeo.com` | → stream: Navidrome (Eels' library) | In-app, 8 h session |
-| Rachel's music | `rupaulradio.songofeo.com` | → stream: same Navidrome (Rachel's library) | In-app, 8 h session |
+| The station (homepage) | `songofeo.com` | Porkbun static hosting, not the gate (Project-Eo repository) | Public page. Its **Sign in** button opens the station sign-in |
+| Sign in | `auth.songofeo.com` | → gate: Authelia | Username + password (+ TOTP for admin apps); 6 h |
+| Watch a movie / Live TV | `tv.songofeo.com` | → stream: Jellyfin (+ ErsatzTV channels) | Station sign-in, then Jellyfin's login once per device: hidden users (nobody's name is shown on the login page), no Quick Connect |
+| Music (the station's Music floor) | `music.songofeo.com` | → stream: Navidrome | Station sign-in; Navidrome trusts it, so no second login |
+| Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | Station sign-in, then in-app once per device |
+| Comics / graphic novels | `comics.songofeo.com` | → stream: Kavita | Station sign-in, then in-app once per device |
+| Eels' music | `eelsmusic.songofeo.com` | → stream: Navidrome (Eels' library) | Same as `music.` |
+| Rachel's music | `rupaulradio.songofeo.com` | → stream: same Navidrome (Rachel's library) | Same as `music.` |
+| Game Cellar / The Ward | `gaming.songofeo.com`, `sessions.songofeo.com` | → gate: holding page until their apps exist | Station sign-in |
+| Landing-page pictures | `art.songofeo.com` | → gate: eo-art (random covers and backdrops from the pool's `art` folder) | Station sign-in; signed-out visitors see the drawn art instead |
 | Save documents | `docs.songofeo.com` | → gate: Paperless-ngx | **Mandatory:** Authelia 2FA, then Paperless |
 | Save a YouTube video | `metube.songofeo.com` | → gate: MeTube | **Mandatory:** Authelia 2FA (MeTube has no login of its own) |
-| Web arcade | `arcade.songofeo.com` | → stream: RomM (EmulatorJS player) | In-app |
+| Web arcade | `arcade.songofeo.com` | → stream: RomM (EmulatorJS player) | Station sign-in, then in-app once per device |
 | Cabinet | (local) | arcade: Big Box → RetroArch; ROMs from `\\cobra-stream\roms` | Windows auto-login |
 | Dashboard | `home.songofeo.com` | → gate: Homepage | Authelia 2FA |
 | Status page | `status.songofeo.com` | → gate: Uptime Kuma | Authelia 2FA |
 | Password vault | `vault.songofeo.com` | → gate: Vaultwarden | **LAN/VPN only.** Never public. |
 | High-score boards | `scores.songofeo.com` | → gate: reserved hiscore slot (§8, built later) | Login for viewers. The cabinet's sync agent uses an API key. |
 | Live radio | `radio.songofeo.com` | → stream: Liquidsoap + Icecast (part 8) | Authelia password; public only with music you have the rights to stream |
-| Landing site with buttons | `songofeo.com` | → gate: static page (part 8) | Public page, buttons to the apps above |
+| Optional buttons page from home | e.g. `links.songofeo.com` | → gate: static page (part 8.1) | Never the bare domain, which is the station |
 
-**Why Jellyfin, Audiobookshelf, Kavita, Navidrome and RomM aren't behind Authelia:** putting a login page in front of them breaks their phone and TV apps, which can't complete a web login. They rely on their own logins plus rate limiting, CrowdSec and strong passwords instead.
+**Why the media apps are behind the station sign-in, and why home skips it:** one sign-in for the whole station keeps the apps' own login pages off the internet. But phone and TV apps (Jellyfin on the Roku, Apple TV and phones, Subsonic music apps, the Audiobookshelf app) can't complete a web sign-in. So the sign-in is skipped on the LAN and over WireGuard: the TVs at home work as before, and away from home those apps work with the WireGuard tunnel on. In a browser, and in the Song of Eo Android app, the station sign-in works from anywhere. The apps keep their own logins too, plus rate limiting, CrowdSec and strong passwords.
 
 **Why plain DNS and no proxy in front:** proxy services like Cloudflare's (the "orange cloud") or Cloudflare Tunnel restrict serving video through them, and a proxy in front of a server that also redirects HTTP to HTTPS is a classic cause of endless redirect loops. Porkbun just answers DNS: the records point straight at your home IP, and only TCP 443 (plus UDP 51820 for WireGuard) is forwarded.
 
@@ -192,6 +200,8 @@ Machine names, IPs, shares and backups don't mention the domain, so a swap touch
 | OPNsense → Dynamic DNS | Hostname (part 2.10) |
 | WireGuard clients | `Endpoint = gate.<new domain>:51820` in each client config (part 2.8) |
 | Both Pi-holes | The `address=/<domain>/10.6.9.10` line (part 2.9, 3.9) |
+| WireGuard clients | `Endpoint =` in each client config (part 2.8) |
+| Both Pi-holes | The `address=/*.<domain>/10.6.9.10` and `server=/www.<domain>/#` lines (part 2.9, 3.9) |
 | Gate: lego | New wildcard cert for the new domain (part 5.3): the domain in the first-run command, the renewal service and the deploy script |
 | Gate: nginx | Every `server_name` and the map keys in `songofeo.conf` (part 5.4) |
 | Gate: Authelia | `totp.issuer`, the session cookie `domain` and `authelia_url`, the access rules (part 5.4) |
@@ -208,7 +218,7 @@ The hiscore app gets designed and built **after the rest of the network is runni
 | Touch-point | Reservation | Set up in |
 |---|---|---|
 | Public hostname | `scores.songofeo.com` (Porkbun CNAME, created when the app goes live) | Part 7 |
-| Local DNS | `scores.songofeo.com → 10.6.9.10` in Pi-hole (already covered by the `address=/songofeo.com/` line) | Part 2 |
+| Local DNS | `scores.songofeo.com → 10.6.9.10` in Pi-hole (already covered by the `address=/*.songofeo.com/` line) | Part 2 |
 | TLS | Already covered by the `*.songofeo.com` wildcard certificate | Part 5 |
 | nginx | `scores.songofeo.com` server block, **commented out** until the app exists | Part 5 |
 | Where it runs | Inside the **`gate` pod** so nginx reaches it over localhost: **API on `127.0.0.1:8090`**; if it needs its own Postgres, **`127.0.0.1:5433`** (5432 is Paperless's) | Part 7 |
