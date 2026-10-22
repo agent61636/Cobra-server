@@ -79,7 +79,7 @@ sudo sysctl --system
 
 ```bash
 sudo smartctl -d sat -H /dev/sdX          # "PASSED"; if -d sat fails, try without it
-sudo systemctl enable --now smartd
+sudo systemctl enable --now smartmontools   # Debian's name for smartd
 journalctl -u smartd | tail               # lists the drives it's monitoring
 ```
 
@@ -120,5 +120,5 @@ Enable `fstrim.timer` with `sudo systemctl enable --now fstrim.timer` if it says
 
 1. Add to the `apt install` line: `intel-gpu-tools unattended-upgrades apt-listchanges needrestart lm-sensors mediainfo htop iotop-c ncdu upower` (and `firmware-realtek` if the NIC is Realtek).
 2. New step "3.3a Laptop-as-server settings": the lid, sleep-mask, `consoleblank`, UPower and battery-threshold block from section 1.
-3. After the packages: `dpkg-reconfigure -plow unattended-upgrades`, the inotify sysctl, `systemctl enable --now smartd fstrim.timer`.
+3. After the packages: `dpkg-reconfigure -plow unattended-upgrades`, the inotify sysctl, `systemctl enable --now smartmontools fstrim.timer`.
 4. A one-line warning: no TLP, no `powertop --auto-tune` (USB autosuspend drops the drives).

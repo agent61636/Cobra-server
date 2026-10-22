@@ -108,7 +108,7 @@ Updates, file watching, disk health:
 sudo dpkg-reconfigure -plow unattended-upgrades     # Yes: security updates install themselves daily
 printf 'fs.inotify.max_user_instances=1024\nfs.inotify.max_user_watches=524288\n' | sudo tee /etc/sysctl.d/90-inotify.conf
 sudo sysctl --system                                # Jellyfin, Kavita, ABS and Navidrome all watch the library as podsvc
-sudo systemctl enable --now smartd fstrim.timer     # drive health warnings; weekly TRIM for the internal SSD
+sudo systemctl enable --now smartmontools fstrim.timer   # drive health warnings (Debian names it smartmontools; "smartd" is an alias systemctl refuses to enable); weekly TRIM for the internal SSD
 ```
 
 - Unattended upgrades never reboot on their own. After an upgrade, `needrestart` lists the services it restarted and says when the kernel needs a reboot.
