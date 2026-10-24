@@ -32,7 +32,7 @@ RetroArch quits → writes galaga.hi
 
 ## 7.1 Put the app on the gate (desktop, then gate as eels)
 
-On the desktop: GitHub → `cobra-server` → **Code → Download ZIP**, unzip it, then:
+On the desktop: the repository ZIP from part 6.2 (or GitHub → `cobra-server` → **Code → Download ZIP** again for the newest version), unzipped, then in PowerShell next to it:
 
 ```powershell
 scp -r .\cobra-server-*\apps\hiscore\hiscore eels@10.6.9.10:/tmp/
@@ -63,6 +63,8 @@ echo 'cabinet <the long hash it printed>' > /srv/gate/hiscore/keys.txt && chmod 
 The server keeps only the key's hash. To replace a key, make a new one and swap the line.
 
 ## 7.3 The container (gate, as podsvc)
+
+Using the Podman scripts instead of Quadlets? Run `gate/hiscore.sh` from [`scripts/podman`](../../scripts/podman/README.md) and skip the file below.
 
 ```bash
 cd ~/.config/containers/systemd

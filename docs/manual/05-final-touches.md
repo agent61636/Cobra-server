@@ -156,6 +156,8 @@ sudo systemctl start lego-renew.service && sudo journalctl -u lego-renew -n 5   
 
 ## 5.4 Gate pod (as podsvc: `sudo machinectl shell podsvc@`)
 
+The same pod as plain `podman run` scripts: [`scripts/podman`](../../scripts/podman/README.md) (`gate/up-all.sh`). Either way, the Authelia and nginx config files below are still needed.
+
 ```bash
 cd ~ && mkdir -p .config/containers/systemd && cd .config/containers/systemd
 PGPW=$(openssl rand -hex 24); PLKEY=$(openssl rand -hex 32)          # store both

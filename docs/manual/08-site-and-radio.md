@@ -10,7 +10,7 @@
 
 The page is `apps/site/index.html` in this repository: one static file, light and dark mode, with no scripts and nothing loaded from other sites. Edit the names and buttons to taste; each button is one `<a class="tile">` line.
 
-From the desktop (repository ZIP, part 7.1):
+From the desktop (repository ZIP, part 6.2):
 
 ```powershell
 scp .\cobra-server-*\apps\site\index.html eels@10.6.9.10:/tmp/
@@ -64,7 +64,7 @@ sudo mkdir -p /srv/stream/radio && sudo cp /tmp/radio.liq /srv/stream/radio/ && 
 sudo sed -i 's/tcp dport { 22, 53, 80, 443, 445,/tcp dport { 22, 53, 80, 443, 445, 8000,/' /etc/nftables.conf && sudo systemctl reload nftables
 ```
 
-As podsvc:
+As podsvc (or, with the Podman scripts, just `sgin/radio.sh` from [`scripts/podman`](../../scripts/podman/README.md)):
 
 ```bash
 cd ~/.config/containers/systemd
