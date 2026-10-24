@@ -19,7 +19,7 @@ Copy this table into KeePassXC as a note, or keep it on paper next to the machin
 |---|---|---|
 | Latitude onboard NIC MAC | Proxmox shell: `ip -br link` (`enp0s31f6`) | |
 | Latitude USB NIC MAC | same (`enx…`) | |
-| SGIN (old server) MAC and current IP | Xfinity app → Connected devices | |
+| SGIN (old server) MAC and current IP | Xfinity app → Connected devices. The SGIN has no built-in Ethernet, so this is its USB adapter's MAC (`enx…` on the SGIN) | |
 | OptiPlex MAC | `ipconfig /all` on it | |
 | Desktop 1 / Desktop 2 MACs | `ipconfig /all` | |
 | Every port forward on Xfinity today | Xfinity app → Advanced → Port forwarding | |
@@ -66,7 +66,7 @@ The domain stays where it is: Porkbun is the registrar **and** the DNS. The buil
 
 | Item | Needed for | When |
 |---|---|---|
-| USB 3 gigabit NIC (RTL8153) | OPNsense WAN on the Latitude | Before part 2 |
+| USB 3 gigabit NIC (RTL8153) | OPNsense WAN on the Latitude. A **separate** adapter from the SGIN's (the SGIN keeps its own AX88179 adapter for its LAN link; it has no built-in Ethernet) | Before part 2 |
 | One more Ethernet cable | USB NIC → Xfinity | Before part 2 |
 | 18–20 TB 3.5" NAS drive | The `vault` backup drive (part 5.6) | Soon; until then the library has no backup |
 | Second dual-bay dock | More pool space | Whenever |

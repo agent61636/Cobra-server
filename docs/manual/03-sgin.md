@@ -2,7 +2,16 @@
 
 **Result:** the SGIN runs Debian 13 bare metal and serves all storage (Samba), the media apps (one rootless Podman pod), Pi-hole #2 and Proxmox Backup Server.
 
-🔌 SGIN onboard Ethernet → your switch (behind OPNsense, from part 2) for the whole part. **Unplug the USB hub from the SGIN until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive. Keep the SGIN's lid **open** until 3.3a; before that, closing it puts the laptop to sleep.
+🔌 The SGIN has **no built-in Ethernet**. Its network is a USB gigabit adapter (a TP-Link with an ASIX AX88179 chip, `0b95:1790`; not the Latitude's RTL8153 WAN adapter from part 1) plugged into the powered hub, with a cable from the adapter to your switch (behind OPNsense, from part 2) for the whole part. **The hub stays plugged into the SGIN the whole time, but unplug every drive from the hub until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive. Keep the SGIN's lid **open** until 3.3a; before that, closing it puts the laptop to sleep.
+
+**The SGIN's ports (SGIN X15, Celeron N5095):**
+
+| Port | Speed (`lsusb -t`) | Used for |
+|---|---|---|
+| USB-C | `10000M` root, the **only** USB 3 port | The powered hub. Everything else (the network adapter and every drive) plugs into the hub |
+| USB-A ×2 | `480M`, USB 2.0 only | The installer stick in 3.2; otherwise spare. Never the network adapter or a pool drive |
+
+The network adapter has to sit on the hub because the USB-A ports would cap it at about 300 Mb/s. A USB-C splitter or dock wouldn't help: it's just another hub on the same port. The cost is one shared point of failure, covered in 3.4 under "The powered hub".
 
 **Where you work from:** the install (3.2) happens at the SGIN's own keyboard and screen. Everything after that is SSH and browser work from a desktop that is **wired to the switch** (or a laptop on `cobra` Wi-Fi, part 2.10b, or on WireGuard, part 2.8). A PC on Xfinity Wi-Fi can't reach `10.6.9.x` at all (part 2.10a), so it can't SSH in, open the web pages or map the shares.
 
@@ -33,20 +42,20 @@
 
 - [ ] Back up anything on the SGIN first (see the list above if part 3 ran before)
 - [ ] On the desktop: debian.org → **Download** → the small **amd64 netinst** ISO (`debian-13.x.x-amd64-netinst.iso`). Rufus → pick the USB stick and the ISO → **Start** → when Rufus asks how to write it, choose **DD Image mode** → OK (this erases the stick)
-- [ ] USB stick into the SGIN, Ethernet cable plugged in, charger plugged in. Power on and tap the boot-menu key (F7, F11, F12 or Esc depending on the model; the first screen sometimes names it) → pick the USB stick, preferably its **UEFI:** entry → **Install** (the text installer)
+- [ ] USB stick into one of the SGIN's USB-A ports; hub on the USB-C port with the network adapter on it and its cable to the switch; charger plugged in. Power on and tap the boot-menu key (F7, F11, F12 or Esc depending on the model; the first screen sometimes names it) → pick the USB stick, preferably its **UEFI:** entry → **Install** (the text installer)
 - [ ] If it won't boot the stick: enter the firmware setup (Del or F2), leave Secure Boot as it is (Debian boots with it on), make sure USB boot is enabled, and try again
 
 | Screen | Value |
 |---|---|
 | Language / location / keyboard | English / yours / American English |
-| Primary network interface (only asked if it finds Wi-Fi too) | the **wired** one (`enp…`/`eno…`), not `wlp…` |
+| Primary network interface (only asked if it finds Wi-Fi too) | the **USB adapter**, `enx…` (named from its MAC, e.g. `enx9c69d3b6174b`), not `wlp…`. Its driver is built into the installer, so no firmware is needed |
 | Network | Auto (DHCP), it gets `10.6.9.1xx` for now |
 | Hostname / Domain | `cobra-stream` / `home.arpa` |
 | Root password | **leave blank** and Continue, then blank again to confirm (root is disabled and `eels` gets sudo) |
 | User | full name `Eels`, username `eels`, generated password (store it) |
 | Clock | your time zone |
 | Partitioning method | **Guided - use entire disk** |
-| Disk | the internal SSD (the only disk listed, since the hub is unplugged; check the size) |
+| Disk | the internal SSD (the only disk listed, since the drives are unplugged; check the size) |
 | Partitioning scheme | **All files in one partition** |
 | Write changes? | **Finish partitioning and write changes** → **Yes** |
 | Scan extra installation media? | No |
@@ -56,7 +65,7 @@
 | GRUB (only asked on older BIOS-mode installs) | Yes, on the internal disk, not the USB stick |
 | Installation complete | pull the USB stick → Continue |
 
-- [ ] After reboot, log in on the SGIN's screen as `eels` and note its MAC: `ip -br link` (the `enp…`/`eno…` line)
+- [ ] After reboot, log in on the SGIN's screen as `eels` and note its MAC: `ip -br link` (the `enx…` line). It's the USB adapter's MAC: replace the adapter and the `.20` mapping below has to be edited to the new MAC
 - [ ] OPNsense → **Firewall → NAT → Port Forward**: delete each rule pointing at `10.6.9.200` (part 2.4) → **Apply**. The old sites stay offline until part 5's gate takes over 443
 - [ ] OPNsense DHCP page from part 2.6 (**Services → ISC DHCPv4 → LAN** or **Services → Dnsmasq DNS & DHCP**) → static mappings / hosts: if a row has the SGIN's MAC (at `.200` or `.20`), edit it to IP `10.6.9.20`, hostname `cobra-stream`; otherwise **+** add one. Save → **Apply**
 - [ ] On the SGIN: `sudo systemctl restart networking` (or `sudo reboot`)
@@ -95,7 +104,7 @@ sudo apt full-upgrade -y
 sudo apt install -y intel-microcode firmware-misc-nonfree firmware-intel-graphics intel-media-va-driver-non-free vainfo \
   podman crun slirp4netns passt uidmap fuse-overlayfs samba nftables cockpit curl rsync smartmontools systemd-container \
   intel-gpu-tools unattended-upgrades apt-listchanges needrestart lm-sensors mediainfo htop iotop-c ncdu upower pciutils git
-lspci | grep -i ethernet && { lspci | grep -qi 'ethernet.*realtek' && sudo apt install -y firmware-realtek; }   # only for a Realtek NIC
+# No firmware-realtek: the SGIN has no PCI Ethernet, and its USB adapter (AX88179) needs no firmware
 # Debian 13 moved the Intel GPU firmware (GuC/HuC) out of firmware-misc-nonfree into
 # firmware-intel-graphics; without it the i915 driver can't load HuC.
 # Jasper Lake can ONLY encode in low-power mode, which needs the HuC firmware loaded.
@@ -119,11 +128,11 @@ Updates, file watching, disk health:
 sudo dpkg-reconfigure -plow unattended-upgrades     # Yes: security updates install themselves daily
 printf 'fs.inotify.max_user_instances=1024\nfs.inotify.max_user_watches=524288\n' | sudo tee /etc/sysctl.d/90-inotify.conf
 sudo sysctl --system                                # Jellyfin, Kavita, ABS and Navidrome all watch the library as podsvc
-sudo systemctl enable --now smartd fstrim.timer     # drive health warnings; weekly TRIM for the internal SSD
+sudo systemctl enable --now smartmontools fstrim.timer   # drive health warnings (Debian names it smartmontools; "smartd" is an alias systemctl refuses to enable); weekly TRIM for the internal SSD
 ```
 
 - Unattended upgrades never reboot on their own. After an upgrade, `needrestart` lists the services it restarted and says when the kernel needs a reboot.
-- ⚠️ **Don't install TLP or run `powertop --auto-tune`** on this laptop, whatever laptop guides say. Both turn on USB autosuspend, which drops the hub and the pool's drives. (`powertop` just to look is fine.)
+- ⚠️ **Don't install TLP or run `powertop --auto-tune`** on this laptop, whatever laptop guides say. Both turn on USB autosuspend, which drops the hub, the pool's drives **and the network adapter, the SGIN's only network link**. (`powertop` just to look is fine.)
 
 SSH keys (the desktop's key is the one made in part 1.7; if `type` says the file doesn't exist, run `ssh-keygen -t ed25519` first):
 
@@ -145,9 +154,15 @@ sudo sshd -t && sudo systemctl reload ssh
 
 ## 3.3a Laptop-as-server settings
 
-The SGIN is a laptop. Without this, closing the lid (or an idle timer) suspends it and every share, stream and backup goes down. Same as part 1.8, minus the USB NIC rule (the SGIN uses onboard Ethernet):
+The SGIN is a laptop. Without this, closing the lid (or an idle timer) suspends it and every share, stream and backup goes down. Same as part 1.8, including its USB network adapter rule, with the SGIN adapter's IDs:
 
 ```bash
+# Stop USB power-saving from dropping the network adapter (ASIX AX88179 = 0b95:1790, from `lsusb`).
+# It's the SGIN's only network link; a hub can't autosuspend while a device on it stays on.
+echo 'ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0b95", ATTR{idProduct}=="1790", TEST=="power/control", ATTR{power/control}="on"' \
+  | sudo tee /etc/udev/rules.d/50-usb-nic-power.rules
+sudo udevadm control --reload && sudo udevadm trigger --action=add
+
 # Keep running with the lid closed
 sudo mkdir -p /etc/systemd/logind.conf.d
 printf '[Login]\nHandleLidSwitch=ignore\nHandleLidSwitchExternalPower=ignore\nHandleLidSwitchDocked=ignore\n' \
@@ -168,6 +183,8 @@ sudo systemctl restart upower
 upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 ```
 
+- [ ] `for d in /sys/bus/usb/devices/*; do [ "$(cat $d/idProduct 2>/dev/null)" = 1790 ] && cat $d/power/control; done` prints `on` (not `auto`)
+- [ ] `lsusb -t`: the adapter (`Driver=cdc_ncm` or `ax88179_178a`) sits under the hub on Bus 002 at `5000M`. `480M` means it's on a USB-A port or the hub fell back to USB 2
 - [ ] Close the lid; `ping 10.6.9.20` from the desktop keeps answering
 - [ ] If your UPower ignores `UPower.conf.d`, put the same lines in `/etc/UPower/UPower.conf`
 - [ ] Battery wear: a laptop held at 100 % for years can swell. If `ls /sys/class/power_supply/BAT*/charge_control_end_threshold` finds a file, `echo 80 | sudo tee` that file (it resets at boot; a one-line systemd unit or `@reboot` cron makes it stick). If it doesn't exist, check the battery for bulging every few months
@@ -175,7 +192,7 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 
 ## 3.4 Storage
 
-🔌 Plug the storage drives into the SGIN now: both WD external drives, and the dual-bay dock with its disks. The second dock gets added the same way later (see "Adding a drive later").
+🔌 Plug the storage drives into the hub now (the SGIN's own USB-A ports are USB 2.0, see the port table at the top of this part): both WD external drives, and the dual-bay dock with its disks. The second dock gets added the same way later (see "Adding a drive later").
 
 **Before anything else, about the docks' clone button:** on most dual-bay docks, clone mode **erases one bay and overwrites it with the other**. Put tape over the button. Nothing in this manual uses it.
 
@@ -267,17 +284,18 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
 ### USB drives on Linux: two things to check
 
 - **Link resets.** Some USB-to-SATA chips misbehave with the fast UAS driver. If `sudo dmesg | grep -i -E 'uas|reset'` shows repeated resets for a drive, note its ID from `lsusb` (e.g. `152d:0578`), add `usb-storage.quirks=152d:0578:u` to `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`, `sudo update-grub`, reboot.
-- **The powered hub** (9-port USB 3.2 hub, 65 W adapter). Which ports to use:
+- **The powered hub** (9-port USB 3.2 hub, 65 W adapter), on the SGIN's USB-C port, its only USB 3 port. Which hub ports to use:
   - **Bus-powered WD externals → the two 10 Gb/s USB-A 3.2 ports.** These ports draw their power from the hub's 65 W brick.
-  - **Docks (they have their own power bricks) → any of the 5 Gb/s USB 3.0 ports**, or straight onto the SGIN.
+  - **Network adapter and docks (they have their own power bricks) → the 5 Gb/s USB 3.0 ports.** The adapter only needs 1 Gb/s.
   - **Leave both 45 W PD charging ports empty.** They share the same 65 W budget, and a phone or laptop charging there can starve the drives and make them drop.
-  - Speed is fine: one spinning disk moves about 1.5–2 Gb/s, and mergerfs reads each file from a single drive. The hub only gets busy when several drives copy at full speed at once.
-  - One point of failure: if the hub loses power or resets, every drive drops at the same moment. Plug its brick into the same outlet or UPS as the SGIN, never a switched strip. If `dmesg` shows whole-hub dropouts, move the docks to the SGIN's own USB 3 ports.
-  - [ ] `lsusb -t` shows each drive at `5000M` or `10000M`. `480M` means it fell back to USB 2: reseat the cable or try another port.
+  - Speed is fine: the hub links to the SGIN at 5 Gb/s (`5000M`), shared by every drive and the network adapter. One spinning disk moves about 1.5–2 Gb/s, mergerfs reads each file from a single drive, and the network adds at most 1 Gb/s. It only gets busy when several drives copy at full speed at once.
+  - One point of failure: if the hub loses power or resets, every drive **and the network** drop at the same moment. The SGIN's USB-A ports are USB 2.0, so there's no second USB 3 port to move anything to. Plug the hub's brick and the SGIN's charger into the UPS's **battery-backed** outlets (many UPS units also have surge-only outlets that go dark in an outage), never a switched strip. A USB reset usually recovers by itself within seconds: the adapter comes back with the same `enx…` name and its `.20` address. If the SGIN stops answering and doesn't come back, use its own keyboard and screen: `sudo reboot`, or unplug the hub's brick for 10 s.
+  - [ ] `lsusb -t` shows each drive and the network adapter at `5000M` or `10000M`. `480M` means it fell back to USB 2: reseat the cable at both ends, check it's a USB 3 cable (blue inside the plug, or a wide Micro-B 3.0 plug on WD drives), or try another hub port. To find which disk is slow: `for d in /sys/block/sd?; do echo "${d##*/}: $(readlink -f $d | grep -o 'usb[0-9]')"; done` (`usb1` is the USB 2 side).
+  - Bare SATA-to-USB adapter cables (even the ones with their own AC brick) are fine for testing or copying a drive off, but use a dock or enclosure for anything that joins the pool. They often fall back to USB 2 and drop under load.
 
 ### Adding a drive later (the second dock)
 
-1. Label and mount it exactly as above (`dock2a`, `dock2b`), and `mkdir` its `library` folder.
+1. Plug it into a 5 Gb/s port on the hub (there's no free USB 3 port on the SGIN itself) and check `lsusb -t` shows `5000M`. Label and mount it exactly as above (`dock2a`, `dock2b`), and `mkdir` its `library` folder.
 2. Re-run the pool block above (the `OPTS=...` lines through `mount`), after `sudo umount /srv/storage/pool`. The `*` picks up the new drive, and the rewritten line makes boot wait for it too.
 3. Optional, once there are four or more drives: **SnapRAID** turns one drive into parity for the rest, so a dead drive can be rebuilt. The parity drive must be at least as big as the biggest data drive. ⚠️ Decide when you know the sizes; it's a separate short setup.
 
@@ -604,7 +622,7 @@ The installer asks a few questions in a text window (arrow keys, Space to tick, 
 |---|---|
 | Welcome / donation | OK |
 | Static IP needed | **Continue**: the address is fixed by the OPNsense mapping from 3.2 |
-| Choose an interface (only if it lists several) | the wired `enp…`/`eno…` |
+| Choose an interface (only if it lists several) | the USB adapter, `enx…` |
 | Upstream DNS provider | any; the next commands replace it with OPNsense |
 | Blocklists (StevenBlack) | Yes |
 | Admin web interface / web server (older installers only) | Yes / Yes |
@@ -670,3 +688,4 @@ sudo proxmox-backup-manager acl update / Admin --auth-id eels@pam
 - [ ] RomM at `:8080` lists your platforms, and one game starts in the browser (3.8b)
 - [ ] `nslookup cobra-stream 10.6.9.20` answers `10.6.9.20` (Pi-hole #2)
 - [ ] Lid closed, the SGIN still answers `ping 10.6.9.20` and a stream keeps playing (3.3a)
+- [ ] `lsusb -t`: the network adapter and every drive at `5000M` or faster, and the adapter's `power/control` is `on` (3.3a, 3.4)
