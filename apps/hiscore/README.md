@@ -1,6 +1,6 @@
 # cobra-hiscore
 
-The server behind `scores.songofeo.com`. It accepts arcade `.hi` files from the cabinet agent, keeps every version, and shows an arcade-style board of every game, **newest score first**.
+The server behind `scores.songofeo.com`. It accepts arcade `.hi` files from the cabinet agent, keeps every version, and shows an arcade-style board of every game, **newest score first**. The LaunchBox plugin adds titles and score tables; `/screen` is the big arcade screen for `songofeo.com/arcade` (manual 7.7).
 
 - Python standard library only; no packages to install
 - Runs in the `gate` pod on `127.0.0.1:8090` (manual part 7)

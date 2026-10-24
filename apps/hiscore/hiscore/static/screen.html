@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Cobra Arcade Screen</title>
+<!--
+  The big screen above the arcade: attract mode that cycles through every game's
+  score table, newest first. Served at scores.songofeo.com/screen and made to sit
+  in an <iframe> on songofeo.com/arcade (the server allows that site to frame it).
+
+  Query options:
+    ?embed=1     no page background or margin, the screen fills the frame
+    ?seconds=8   how long each game stays up (4 to 60)
+    ?game=galaga pin one game (its ROM name)
+    ?demo=1      made-up games and scores, for trying a layout without a server
+
+  Data: public/v1/board (no login, when the public board is on), otherwise
+  api/v1/games (works once signed in), otherwise demo data marked DEMO.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --red: #ff3b30; --blue: #2e7dff; --green: #37e26b; --yellow: #ffd23f; --brown: #c07a3a;
+    --ink: #f4f1ff; --dim: #8f8aa8; --glass: #05040b; --bezel: #17121f;
+    --pixel: "Press Start 2P", ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--ink); font-family: var(--pixel); }
+  body { display: grid; place-items: center; padding: 16px; }
+  body.embed { background: transparent; padding: 0; }
+
+  /* The bezel and the glass. Aspect stays 16:9 and everything inside scales with it. */
+  .cabinet {
+    width: min(100%, calc((100vh - 32px) * 16 / 9)); aspect-ratio: 16 / 9; position: relative;
+    border-radius: 2.2% / 4%; padding: 1.4%;
+    background: linear-gradient(160deg, #2a2233, var(--bezel) 40%, #0a0710);
+    box-shadow: inset 0 0 0 2px #3a3046, inset 0 2px 0 #4a3e58, 0 1.5vmin 4vmin rgba(0,0,0,.7);
+  }
+  body.embed .cabinet { width: min(100vw, calc(100vh * 16 / 9)); }
+  .glass {
+    position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 3% / 5.5%;
+    container-type: size;
+    background:
+      radial-gradient(120% 90% at 50% 40%, #120d22 0%, #07050f 60%, var(--glass) 100%);
+    box-shadow: inset 0 0 6cqmin rgba(0,0,0,.95), inset 0 0 1.5cqmin rgba(46,125,255,.25);
+  }
+  .glass::before { /* scanlines */
+    content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,.035) 0 1px, transparent 1px 3px);
+    mix-blend-mode: screen;
+  }
+  .glass::after { /* glare on the curved tube */
+    content: ""; position: absolute; inset: 0; z-index: 6; pointer-events: none;
+    background: radial-gradient(70% 45% at 30% 12%, rgba(255,255,255,.07), transparent 60%),
+                radial-gradient(140% 100% at 50% 50%, transparent 62%, rgba(0,0,0,.55) 100%);
+  }
+  .flicker { position: absolute; inset: 0; z-index: 4; pointer-events: none; background: rgba(255,255,255,.012);
+             animation: flicker 4.5s infinite steps(1); }
+  @keyframes flicker { 0%, 100% { opacity: 1; } 47% { opacity: .4; } 48% { opacity: 1; } 83% { opacity: .7; } }
+
+  .screen { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto; padding: 4cqh 5cqw 3cqh; gap: 2cqh; }
+
+  /* Marquee */
+  .marquee { text-align: center; }
+  .hs { margin: 0; font-size: 7.2cqh; letter-spacing: .08em; line-height: 1; white-space: nowrap; }
+  .hs span { display: inline-block; text-shadow: 0 0 .25em currentColor, 0 .08em 0 rgba(0,0,0,.8); }
+  .hs span:nth-child(5n+1) { color: var(--red); }
+  .hs span:nth-child(5n+2) { color: var(--blue); }
+  .hs span:nth-child(5n+3) { color: var(--green); }
+  .hs span:nth-child(5n+4) { color: var(--yellow); }
+  .hs span:nth-child(5n+5) { color: var(--brown); }
+  .hs.chase span { animation: chase 2.5s infinite; }
+  @keyframes chase { 0%, 70%, 100% { transform: translateY(0); filter: none; } 80% { transform: translateY(-.12em); filter: brightness(1.5); } }
+  .sub { margin-top: 1.6cqh; font-size: 2.2cqh; color: var(--dim); letter-spacing: .35em; }
+  .sub b { color: var(--yellow); font-weight: 400; }
+
+  /* One game's table */
+  .stage { display: grid; grid-template-rows: auto 1fr; min-height: 0; transition: opacity .35s, transform .35s; }
+  .stage.out { opacity: 0; transform: scale(.985); }
+  .game { display: flex; align-items: center; justify-content: space-between; gap: 2cqw;
+          border-bottom: .5cqh solid; border-image: linear-gradient(90deg, var(--red), var(--blue), var(--green), var(--yellow), var(--brown)) 1;
+          padding-bottom: 1.4cqh; margin-bottom: 1.6cqh; }
+  .title { font-size: 4cqh; color: var(--yellow); text-shadow: 0 0 .3em rgba(255,210,63,.55);
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .tags { display: flex; gap: 1.2cqw; flex: none; }
+  .tag { font-size: 1.7cqh; padding: .7cqh 1cqw; border: .3cqh solid currentColor; color: var(--blue);
+         box-shadow: 0 0 .8cqh rgba(46,125,255,.4), inset 0 0 .8cqh rgba(46,125,255,.25); }
+  .tag.new { color: var(--red); box-shadow: 0 0 .8cqh rgba(255,59,48,.5), inset 0 0 .8cqh rgba(255,59,48,.3); }
+  .tag.demo { color: var(--brown); box-shadow: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 3.4cqh; align-self: start; }
+  td { padding: 1.5cqh 0; white-space: nowrap; }
+  td.rank { width: 18%; }
+  td.score { text-align: right; width: 44%; letter-spacing: .06em; }
+  td.name { padding-left: 8%; letter-spacing: .2em; }
+  tr { text-shadow: 0 0 .3em currentColor; }
+  tr:nth-child(5n+1) { color: var(--red); }
+  tr:nth-child(5n+2) { color: var(--blue); }
+  tr:nth-child(5n+3) { color: var(--green); }
+  tr:nth-child(5n+4) { color: var(--yellow); }
+  tr:nth-child(5n+5) { color: var(--brown); }
+  tr.top td { font-size: 1.15em; }
+  tr.top td.name::after { content: " \2605"; color: var(--yellow); }
+  .saved { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2cqh;
+           text-align: center; font-size: 2.6cqh; line-height: 1.6; color: var(--green); text-shadow: 0 0 .3em currentColor; }
+  .saved small { color: var(--dim); font-size: .7em; text-shadow: none; }
+
+  /* Footer: progress pips and the ticker of newest scores */
+  .foot { display: grid; gap: 1.4cqh; }
+  .pips { display: flex; justify-content: center; gap: 1cqw; height: 1.2cqh; }
+  .pips i { width: 1.2cqh; height: 1.2cqh; background: #2a2440; }
+  .pips i.on { background: var(--yellow); box-shadow: 0 0 1cqh var(--yellow); }
+  .ticker { overflow: hidden; white-space: nowrap; font-size: 1.9cqh; color: var(--dim);
+            border-top: .25cqh solid #2a2440; padding-top: 1.2cqh;
+            mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+  .ticker span { display: inline-block; padding-left: 100%; animation: tick 40s linear infinite; }
+  .ticker b { color: var(--ink); font-weight: 400; }
+  .ticker em { font-style: normal; color: var(--green); }
+  @keyframes tick { to { transform: translateX(-100%); } }
+
+  .attract { display: grid; place-items: center; text-align: center; gap: 3cqh; }
+  .coin { font-size: 4cqh; color: var(--yellow); animation: blink 1.1s steps(1) infinite; text-shadow: 0 0 .3em rgba(255,210,63,.6); }
+  .attract p { margin: 0; font-size: 2cqh; line-height: 2; color: var(--dim); }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flicker, .hs.chase span, .coin { animation: none; }
+    .stage { transition: none; }
+    .ticker span { animation: none; padding-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="cabinet">
+  <div class="glass">
+    <div class="flicker"></div>
+    <div class="screen">
+      <header class="marquee">
+        <h1 class="hs chase" id="hs" aria-label="High scores"></h1>
+        <div class="sub" id="sub">COBRA ARCADE</div>
+      </header>
+      <section class="stage" id="stage" aria-live="polite"></section>
+      <footer class="foot">
+        <div class="pips" id="pips" aria-hidden="true"></div>
+        <div class="ticker" id="ticker"><span></span></div>
+      </footer>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+  const params = new URLSearchParams(location.search);
+  if (params.get("embed") === "1") document.body.classList.add("embed");
+  const seconds = Math.min(60, Math.max(4, Number(params.get("seconds")) || 8));
+  const pinned = params.get("game");
+  const stage = document.getElementById("stage"), pips = document.getElementById("pips");
+  const ticker = document.querySelector("#ticker span"), sub = document.getElementById("sub");
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const word = "HIGH SCORES";
+  document.getElementById("hs").innerHTML = [...word].map((c, i) =>
+    `<span style="animation-delay:${(i * 0.09).toFixed(2)}s">${c === " " ? "&nbsp;" : esc(c)}</span>`).join("");
+
+  // Made-up games from the station, so the layout can be seen with no server at all.
+  const DEMO = [
+    { game: "belt-miner", title: "Belt Miner", system: "demo", scores: [["EEL", 98250], ["SEV", 74120], ["MUS", 61300], ["ORN", 50210], ["TAC", 42000]] },
+    { game: "howler-run", title: "Howler Run", system: "demo", scores: [["RAG", 312900], ["EEL", 280400], ["QNN", 199950], ["PAX", 150000], ["VIC", 99990]] },
+    { game: "lunar-drop", title: "Lunar Drop", system: "demo", scores: [["SEV", 45550], ["EEL", 39010], ["DAN", 30200], ["HOL", 22080], ["KAV", 12000]] },
+  ].map((g, n) => ({ ...g, platform: "Station", updated_at: new Date(Date.now() - n * 7200000).toISOString(),
+                     scores: g.scores.map(([name, score], i) => ({ rank: String(i + 1), score: score.toLocaleString("en-US"), name })) }));
+
+  let games = [], index = 0, demo = false, timer = null;
+  const pretty = g => g.title || String(g.game).replace(/[_-]+/g, " ");
+  const fresh = g => Date.now() - Date.parse(g.updated_at) < 86400000;
+  function ordinal(rank) {
+    const t = String(rank).trim();
+    if (!/^\d+$/.test(t)) return t.toUpperCase();
+    const n = Number(t), teen = n % 100 >= 11 && n % 100 <= 13;
+    return t + (teen ? "TH" : ({ 1: "ST", 2: "ND", 3: "RD" }[n % 10] || "TH"));
+  }
+  function ago(iso) {
+    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    for (const [u, n] of [["Y", 31536000], ["MO", 2592000], ["D", 86400], ["H", 3600], ["M", 60]])
+      if (s >= n) return `${Math.floor(s / n)}${u} AGO`;
+    return "JUST NOW";
+  }
+
+  async function fetchJson(url) {
+    const r = await fetch(url, { cache: "no-store", credentials: "same-origin", redirect: "error" });
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }
+  async function load() {
+    if (params.get("demo") === "1") return { list: DEMO, demo: true };
+    try { return { list: await fetchJson("public/v1/board"), demo: false }; } catch (e) {}
+    try {
+      const list = await fetchJson("api/v1/games?limit=100");
+      return { list: list.map(g => ({ ...g, scores: g.decoded || [] })), demo: false };
+    } catch (e) {}
+    return { list: DEMO, demo: true };
+  }
+
+  function show() {
+    if (!games.length) {
+      stage.innerHTML = `<div class="attract"><div class="coin">INSERT COIN</div>
+        <p>NO SCORES YET<br>PLAY A GAME ON THE CABINET</p></div>`;
+      pips.innerHTML = "";
+      return;
+    }
+    const g = games[index % games.length];
+    const rows = (g.scores || []).slice(0, 8).map((r, i) =>
+      `<tr class="${i === 0 ? "top" : ""}"><td class="rank">${esc(ordinal(r.rank || i + 1))}</td>
+       <td class="score">${esc(r.score)}</td><td class="name">${esc(r.name || "---")}</td></tr>`).join("");
+    const tags = [
+      demo ? '<span class="tag demo">DEMO</span>' : "",
+      !demo && fresh(g) ? '<span class="tag new">NEW</span>' : "",
+      `<span class="tag">${esc(String(g.platform || g.system).toUpperCase())}</span>`,
+    ].join("");
+    const html = `<div class="game"><div class="title">${esc(pretty(g).toUpperCase())}</div><div class="tags">${tags}</div></div>
+      ${rows ? `<table>${rows}</table>` : `<div class="saved">&#9733; SCORE TABLE SAVED<small>UPDATED ${esc(ago(g.updated_at))}</small></div>`}`;
+    stage.classList.add("out");
+    setTimeout(() => { stage.innerHTML = html; stage.classList.remove("out"); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 350);
+    const n = Math.min(games.length, 12);
+    pips.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i === index % n ? "on" : ""}"></i>`).join("");
+  }
+
+  function setTicker() {
+    const bits = games.slice(0, 10).map(g => {
+      const top = (g.scores || [])[0];
+      return `<b>${esc(pretty(g).toUpperCase())}</b> ${top ? `<em>${esc(top.name || "---")} ${esc(top.score)}</em>` : "SAVED"} &middot; ${esc(ago(g.updated_at))}`;
+    });
+    ticker.innerHTML = bits.length ? `NEWEST &#9654; ${bits.join(" &nbsp;&#9670;&nbsp; ")}` : "INSERT COIN";
+  }
+
+  async function refresh() {
+    const r = await load();
+    demo = r.demo;
+    games = Array.isArray(r.list) ? r.list : [];
+    if (pinned) games = games.filter(g => g.game === pinned);
+    sub.innerHTML = demo ? "COBRA ARCADE &middot; <b>DEMO</b>" : "COBRA ARCADE &middot; NEWEST FIRST";
+    setTicker();
+    show();
+  }
+
+  refresh().then(() => {
+    timer = setInterval(() => { index++; show(); }, seconds * 1000);
+    setInterval(refresh, 60000);
+  });
+})();
+</script>
+</body>
+</html>

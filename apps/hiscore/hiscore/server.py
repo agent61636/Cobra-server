@@ -5,12 +5,17 @@ Runs inside the gate pod on 127.0.0.1:8090; nginx in front does TLS, Authelia
 
   PUT  /upload/<system>/<file>                  upload (Authorization: Bearer <key>); nginx
                                                 lets this path through without Authelia
-  PUT  /api/v1/files/<system>/<file>            same, for use on the LAN
+  PUT  /upload/<system>/<file>/meta             game title, platform and score table, as JSON
+                                                (the LaunchBox plugin sends these after a game)
+  PUT  /api/v1/files/<system>/<file>[/meta]     same two, for use on the LAN
   GET  /api/v1/games[?system=&q=&limit=]        newest first
   GET  /api/v1/systems
   GET  /api/v1/files/<system>/<file>            latest raw file
   GET  /api/v1/files/<system>/<file>/history    every version
   GET  /api/v1/files/<system>/<file>/versions/<id>
+  GET  /public/v1/board                         titles and score tables only; 404 unless
+                                                HISCORE_PUBLIC=1 (nginx serves it without a login)
+  GET  /screen                                  the big arcade screen (attract mode), embeddable
   GET  /healthz
   GET  /                                        the board
 
@@ -22,6 +27,9 @@ Settings (environment):
   HISCORE_EXTENSIONS   accepted file endings (default .hi)
   HISCORE_DECODER      optional command that turns a .hi file into JSON rows
   HISCORE_TITLES       optional romname<TAB>title file (default $HISCORE_DATA/titles.tsv)
+  HISCORE_PUBLIC       1 to serve /public/v1/board (default off)
+  HISCORE_ORIGINS      sites allowed to read the public board and frame /screen
+                       (default "https://songofeo.com https://www.songofeo.com")
 """
 
 import hashlib
@@ -38,6 +46,8 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from .store import BadRequest, Store, load_titles
 
 STATIC = Path(__file__).parent / "static"
+DEFAULT_ORIGINS = "https://songofeo.com https://www.songofeo.com"
+MAX_META_BYTES = 65536
 
 
 def hash_key(key):
@@ -56,8 +66,10 @@ def load_keys(path):
 
 
 class App:
-    def __init__(self, store, keys, max_bytes=262144):
+    def __init__(self, store, keys, max_bytes=262144, public=False, origins=DEFAULT_ORIGINS):
         self.store, self.keys, self.max_bytes = store, keys, max_bytes
+        self.public = public
+        self.origins = origins.split() if isinstance(origins, str) else list(origins)
 
     def key_label(self, header):
         if not header or not header.startswith("Bearer "):
@@ -110,6 +122,20 @@ def make_handler(app):
                     return self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
                 if parts == ["healthz"]:
                     return self._send(200, {"ok": True})
+                if parts == ["screen"]:
+                    ancestors = " ".join(["'self'", *app.origins])
+                    return self._send(200, (STATIC / "screen.html").read_bytes(), "text/html; charset=utf-8",
+                                      {"Content-Security-Policy": f"frame-ancestors {ancestors}"})
+                if parts == ["public", "v1", "board"]:
+                    if not app.public:
+                        return self._error(404, "the public board is turned off")
+                    extra = {"Vary": "Origin"}
+                    origin = self.headers.get("Origin")
+                    if origin in app.origins:
+                        extra["Access-Control-Allow-Origin"] = origin
+                    one = lambda k: (q.get(k) or [None])[0]
+                    return self._send(200, app.store.board(max(1, min(int(one("limit") or 100), 500))),
+                                      extra=extra)
                 if parts[:2] != ["api", "v1"]:
                     return self._error(404, "not found")
                 rest = parts[2:]
@@ -143,9 +169,10 @@ def make_handler(app):
             label = app.key_label(self.headers.get("Authorization"))
             if label is None:
                 return self._error(401, "missing or wrong API key")
-            if len(parts) == 3 and parts[0] == "upload":
-                parts = ["api", "v1", "files", parts[1], parts[2]]
-            if len(parts) != 5 or parts[:3] != ["api", "v1", "files"]:
+            if parts[:1] == ["upload"] and len(parts) in (3, 4):
+                parts = ["api", "v1", "files", *parts[1:]]
+            is_meta = len(parts) == 6 and parts[5] == "meta"
+            if parts[:3] != ["api", "v1", "files"] or not (len(parts) == 5 or is_meta):
                 return self._error(404, "not found")
             try:
                 length = int(self.headers.get("Content-Length", "-1"))
@@ -153,9 +180,20 @@ def make_handler(app):
                 length = -1
             if length < 0:
                 return self._error(411, "Content-Length required")
-            if length > app.max_bytes:
-                return self._error(413, f"file larger than {app.max_bytes} bytes")
+            limit = MAX_META_BYTES if is_meta else app.max_bytes
+            if length > limit:
+                return self._error(413, f"larger than {limit} bytes")
             body = self.rfile.read(length)
+            if is_meta:
+                try:
+                    stored = app.store.set_meta(parts[3], parts[4], json.loads(body or b"null"))
+                except BadRequest as e:
+                    return self._error(400, str(e))
+                except ValueError:
+                    return self._error(400, "send JSON")
+                if stored is None:
+                    return self._error(404, "upload the file first")
+                return self._send(200, {"ok": True, "rows": stored})
             source = (self.headers.get("X-Source") or label)[:64]
             mtime = (self.headers.get("X-File-Mtime") or "")[:40] or None
             try:
@@ -179,7 +217,9 @@ def build_from_env(env=os.environ):
     exts = tuple(env.get("HISCORE_EXTENSIONS", ".hi").split(","))
     store = Store(data, exts, decoder, load_titles(env.get("HISCORE_TITLES", data / "titles.tsv")))
     keys = load_keys(env.get("HISCORE_KEYS", data / "keys.txt"))
-    return App(store, keys, int(env.get("HISCORE_MAX_BYTES", "262144")))
+    return App(store, keys, int(env.get("HISCORE_MAX_BYTES", "262144")),
+               public=env.get("HISCORE_PUBLIC", "") == "1",
+               origins=env.get("HISCORE_ORIGINS", DEFAULT_ORIGINS))
 
 
 def main(argv=None):

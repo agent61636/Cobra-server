@@ -1,0 +1,17 @@
+{
+  // Where the hiscore agent lives. The plugin reads the server, the watched
+  // folders and the API key (key.dat) from there, so set those up first (manual 7.5).
+  "agentFolder": "C:\\Cobra\\hiscore-agent",
+
+  // Optional: readable score tables. Leave "hi2txt" empty to send titles only.
+  "hi2txt": "C:\\Cobra\\hi2txt\\hi2txt.exe",
+
+  // Each core's hiscore.dat, by system (the core folder name the agent uses).
+  "hiscoreDat": {
+    "fbneo": "C:\\RetroArch-Win64\\system\\fbneo\\hiscore.dat",
+    "mame2003-plus": "C:\\RetroArch-Win64\\system\\mame2003-plus\\hiscore.dat"
+  },
+
+  // Seconds to wait after the game closes before looking for its .hi file.
+  "settleSeconds": 3
+}
