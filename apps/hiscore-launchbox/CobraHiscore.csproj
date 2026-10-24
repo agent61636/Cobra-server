@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cobra hiscore plugin for LaunchBox and Big Box.
+
+    Build on the cabinet (or any PC with LaunchBox installed):
+      dotnet build -c Release -p:LaunchBoxDir=D:\LaunchBox
+    It compiles against LaunchBox's own Core\Unbroken.LaunchBox.Plugins.dll.
+    Without LaunchBox it falls back to the small stand-ins in stubs\ so CI can
+    check the code; that build prints a warning and is for testing only.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>CobraHiscore</AssemblyName>
+    <RootNamespace>CobraHiscore</RootNamespace>
+    <LangVersion>10</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Version>1.0.0</Version>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <LaunchBoxDir Condition="'$(LaunchBoxDir)' == ''">C:\LaunchBox</LaunchBoxDir>
+    <LaunchBoxPluginsDll>$(LaunchBoxDir)\Core\Unbroken.LaunchBox.Plugins.dll</LaunchBoxPluginsDll>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="stubs/**;tests/**" />
+    <None Remove="stubs/**;tests/**" />
+    <None Include="config.example.json" CopyToOutputDirectory="PreserveNewest" />
+    <InternalsVisibleTo Include="CobraHiscore.Tests" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(LaunchBoxPluginsDll)')">
+    <Reference Include="Unbroken.LaunchBox.Plugins">
+      <HintPath>$(LaunchBoxPluginsDll)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="!Exists('$(LaunchBoxPluginsDll)')">
+    <ProjectReference Include="stubs/LaunchBoxStubs.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <Target Name="WarnStubs" BeforeTargets="Build" Condition="!Exists('$(LaunchBoxPluginsDll)')">
+    <Warning Text="LaunchBox not found at $(LaunchBoxDir); built against test stand-ins. Don't install this build. Pass -p:LaunchBoxDir=&lt;your LaunchBox folder&gt;." />
+  </Target>
+
+</Project>

@@ -224,7 +224,6 @@ DNS = 10.6.9.3, home.arpa      # the name after the IP is a search domain, so sh
 
 [Peer]
 PublicKey = <wg0 public key from OPNsense>
-Endpoint = gate.songofeo.com:51820   # the DDNS name (2.10); the bare songofeo.com is Porkbun's homepage, not your house
 Endpoint = gate.songofeo.com:51820     # the DDNS name (2.10); the bare songofeo.com is the station on Porkbun's hosting
 AllowedIPs = 10.6.9.0/24, 10.6.99.0/24
 PersistentKeepalive = 25

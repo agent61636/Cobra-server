@@ -16,6 +16,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from hiscore.server import App, hash_key, load_keys, make_handler  # noqa: E402
 from hiscore.store import BadRequest, Store  # noqa: E402
+from hiscore.tables import clean_rows, parse_hi2txt  # noqa: E402
+
+HI2TXT = """RANK|SCORE|NAME
+1|52310|EEL
+2|40000|ABC
+3|20000|
+"""
 
 KEY = "test-key-123"
 
@@ -141,6 +148,88 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self.req("GET", "/nope", key=None)[0], 404)
         self.assertEqual(self.req("GET", "/api/v1/files/fbneo/missing.hi", key=None)[0], 404)
 
+    def meta(self, system, name, obj, **kw):
+        body = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
+        return self.req("PUT", f"/upload/{system}/{name}/meta", body,
+                        headers={"Content-Type": "application/json"}, **kw)
+
+    def test_meta_sets_title_platform_and_table(self):
+        self.put("fbneo", "galaga.hi", b"v1")
+        s, b, _ = self.meta("fbneo", "galaga.hi", {"title": "Galaga", "platform": "Arcade", "hi2txt": HI2TXT})
+        self.assertEqual((s, json.loads(b)), (200, {"ok": True, "rows": 3}))
+        g = self.games()[0]
+        self.assertEqual((g["title"], g["platform"]), ("Galaga", "Arcade"))
+        self.assertEqual(g["decoded"][0], {"rank": "1", "score": "52310", "name": "EEL"})
+        # A new version starts without a table until the cabinet sends one; the title stays.
+        self.put("fbneo", "galaga.hi", b"v2")
+        g = self.games()[0]
+        self.assertEqual((g["title"], g["decoded"]), ("Galaga", None))
+        # Search finds the title as well as the ROM name.
+        s, b, _ = self.req("GET", "/api/v1/games?q=gala", key=None)
+        self.assertEqual(len(json.loads(b)), 1)
+
+    def test_meta_rows_and_lan_path(self):
+        self.put("fbneo", "dkong.hi", b"x")
+        s, b, _ = self.req("PUT", "/api/v1/files/fbneo/dkong.hi/meta",
+                           json.dumps({"rows": [{"rank": 1, "score": 100, "name": "AAA"}, {"name": "no score"}]}).encode())
+        self.assertEqual(json.loads(b)["rows"], 1)
+        self.assertEqual(self.games()[0]["decoded"], [{"rank": "1", "score": "100", "name": "AAA"}])
+
+    def test_meta_needs_key_file_and_json(self):
+        self.assertEqual(self.meta("fbneo", "galaga.hi", {"title": "x"})[0], 404)   # no file yet
+        self.put("fbneo", "galaga.hi", b"x")
+        self.assertEqual(self.meta("fbneo", "galaga.hi", {"title": "x"}, key=None)[0], 401)
+        self.assertEqual(self.meta("fbneo", "galaga.hi", {"title": "x"}, key="wrong")[0], 401)
+        self.assertEqual(self.meta("fbneo", "galaga.hi", b"not json")[0], 400)
+        self.assertEqual(self.meta("fbneo", "galaga.hi", [1, 2])[0], 400)
+        self.assertEqual(self.meta("fbneo", "galaga.hi", {"title": "bad\nline"})[0], 400)
+        self.assertEqual(self.meta("fbneo", "galaga.hi", {"title": 5})[0], 400)
+        self.assertEqual(self.meta("fbneo", "galaga.hi", {"title": "x" * 70000})[0], 413)
+        self.assertEqual(self.games()[0]["title"], "")
+
+    def test_public_board_off_by_default(self):
+        self.put("fbneo", "galaga.hi", b"x")
+        self.assertEqual(self.req("GET", "/public/v1/board", key=None)[0], 404)
+
+    def test_public_board_shows_only_scores(self):
+        self.app.public = True
+        self.put("fbneo", "galaga.hi", b"x")
+        self.meta("fbneo", "galaga.hi", {"title": "Galaga", "hi2txt": HI2TXT})
+        s, b, h = self.req("GET", "/public/v1/board", key=None, headers={"Origin": "https://songofeo.com"})
+        self.assertEqual(s, 200)
+        self.assertEqual(h["Access-Control-Allow-Origin"], "https://songofeo.com")
+        board = json.loads(b)
+        self.assertEqual(set(board[0]), {"game", "title", "system", "platform", "updated_at", "scores"})
+        self.assertEqual(board[0]["scores"][0]["name"], "EEL")
+        s, b, h = self.req("GET", "/public/v1/board", key=None, headers={"Origin": "https://evil.example"})
+        self.assertNotIn("Access-Control-Allow-Origin", h)
+
+    def test_screen_can_be_framed_by_the_site_only(self):
+        s, b, h = self.req("GET", "/screen", key=None)
+        self.assertEqual(s, 200)
+        self.assertIn(b"public/v1/board", b)
+        self.assertEqual(h["Content-Security-Policy"],
+                         "frame-ancestors 'self' https://songofeo.com https://www.songofeo.com")
+
+
+class TablesTest(unittest.TestCase):
+    def test_hi2txt_text(self):
+        rows = parse_hi2txt(HI2TXT)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[2], {"rank": "3", "score": "20000", "name": ""})
+
+    def test_columns_in_any_order_and_first_scored_table(self):
+        text = "LEVEL|STAGE\n1|5\n\nNAME|SCORE|ROUND\nAAA|900|3\nBBB|800|2\n"
+        self.assertEqual(parse_hi2txt(text), [{"rank": "1", "score": "900", "name": "AAA"},
+                                              {"rank": "2", "score": "800", "name": "BBB"}])
+
+    def test_tabs_and_junk(self):
+        self.assertEqual(parse_hi2txt("POS\tPOINTS\tINITIALS\n1\t10\tZZ\n")[0]["name"], "ZZ")
+        self.assertEqual(parse_hi2txt("unknown game"), [])
+        self.assertEqual(parse_hi2txt(None), [])
+        self.assertEqual(clean_rows("x"), [])
+        self.assertEqual(len(parse_hi2txt("SCORE\n" + "1\n" * 50)), 20)
+
 
 class StoreTest(unittest.TestCase):
     def test_decoder_hook_and_titles(self):
@@ -159,6 +248,35 @@ class StoreTest(unittest.TestCase):
             st = Store(Path(d), decoder=[sys.executable, "-c", "import sys; sys.exit(3)"])
             self.assertTrue(st.put("fbneo", "galaga.hi", b"x")[0])
             self.assertIsNone(st.games()[0]["decoded"])
+            st.close()
+
+    def test_server_decoder_wins_over_cabinet_rows(self):
+        with tempfile.TemporaryDirectory() as d:
+            script = Path(d) / "dec.py"
+            script.write_text("import json\nprint(json.dumps([{'rank':1,'score':'7','name':'SRV'}]))\n")
+            st = Store(Path(d) / "data", decoder=[sys.executable, str(script)])
+            st.put("fbneo", "galaga.hi", b"x")
+            st.set_meta("fbneo", "galaga.hi", {"title": "Galaga", "rows": [{"score": "1", "name": "CAB"}]})
+            g = st.games()[0]
+            self.assertEqual((g["title"], g["decoded"][0]["name"]), ("Galaga", "SRV"))
+            st.close()
+
+    def test_titles_file_wins_and_old_database_is_upgraded(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as d:
+            db = sqlite3.connect(Path(d) / "hiscore.db")   # a database from before meta existed
+            db.executescript(
+                "CREATE TABLE files (id INTEGER PRIMARY KEY, system TEXT NOT NULL, name TEXT NOT NULL,"
+                " game TEXT NOT NULL, latest_id INTEGER, first_seen TEXT NOT NULL, updated_at TEXT NOT NULL,"
+                " UNIQUE (system, name));"
+                "CREATE TABLE versions (id INTEGER PRIMARY KEY, file_id INTEGER NOT NULL, sha256 TEXT NOT NULL,"
+                " size INTEGER NOT NULL, received_at TEXT NOT NULL, file_mtime TEXT, source TEXT NOT NULL DEFAULT '',"
+                " path TEXT NOT NULL, decoded TEXT);")
+            db.close()
+            st = Store(Path(d), titles={"galaga": "Galaga (tsv)"})
+            st.put("fbneo", "galaga.hi", b"x")
+            st.set_meta("fbneo", "galaga.hi", {"title": "Galaga (LaunchBox)"})
+            self.assertEqual(st.games()[0]["title"], "Galaga (tsv)")
             st.close()
 
     def test_segment_validation(self):

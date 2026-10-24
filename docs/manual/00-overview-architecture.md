@@ -33,7 +33,7 @@
 | ↳ **cobra-firewall** (VM 100) | 2 vCPU / 4 GB | OPNsense | Firewall, DHCP, Unbound DNS-over-TLS, WireGuard VPN, Suricata IDS/IPS, CrowdSec, DDNS | — |
 | ↳ **cobra-pihole-1** (CT 101) | 1 core / 512 MB | Debian 13 LXC | Primary ad/malware DNS filter + local DNS records | — |
 | ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
-| **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
+| **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless. **No built-in Ethernet**: a USB gigabit adapter (AX88179) on the powered hub, which uses the only USB 3 port (USB-C); the two USB-A ports are USB 2.0 | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
 | **cobra-arcade** | OptiPlex 7040 Mini Tower (240 W): i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class), to be replaced by an RTX 3050 6 GB (part 4.7) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
 | **cobra-lab** (R620, later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (standalone; not clustered, part 9) | On-demand security lab | 110–160 W *only while on* |
 | Windows desktops ×2 | — | Windows 11 | Daily use; SMB access to all shares | — |
@@ -198,8 +198,6 @@ Machine names, IPs, shares and backups don't mention the domain, so a swap touch
 |---|---|
 | Porkbun | Turn on API Access for the new domain; recreate the app CNAMEs (part 5.5); new API keys (or widen the old ones to the new domain) |
 | OPNsense → Dynamic DNS | Hostname (part 2.10) |
-| WireGuard clients | `Endpoint = gate.<new domain>:51820` in each client config (part 2.8) |
-| Both Pi-holes | The `address=/<domain>/10.6.9.10` line (part 2.9, 3.9) |
 | WireGuard clients | `Endpoint =` in each client config (part 2.8) |
 | Both Pi-holes | The `address=/*.<domain>/10.6.9.10` and `server=/www.<domain>/#` lines (part 2.9, 3.9) |
 | Gate: lego | New wildcard cert for the new domain (part 5.3): the domain in the first-run command, the renewal service and the deploy script |
@@ -236,5 +234,5 @@ The hiscore app gets designed and built **after the rest of the network is runni
 | Priority | Project | Notes |
 |---|---|---|
 | **1** | **Breaks between episodes.** A random video from a chosen folder between episodes, on demand, not only on Live TV. | **Built** as `apps/cobra-breaks` (part 6). Roku and Apple TV apps never ask Jellyfin for intros before episodes, so instead of a plugin it builds per-show "with breaks" playlists that every app plays. Movie pre-rolls stay with Local Intros; Live TV breaks come from ErsatzTV filler (part 3.8a). |
-| 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.songofeo.com`. | **Built**: `apps/hiscore` and `apps/hiscore-agent`, install steps in [part 7](07-hiscore-platform.md). Optional later: a decoder for readable score tables, and browser-arcade scores. |
+| 2 | **Hiscore platform.** Windows sync agent + `hiscore` slot in the gate pod + scoreboard at `scores.songofeo.com`. | **Built**: `apps/hiscore`, `apps/hiscore-agent` and the LaunchBox plugin `apps/hiscore-launchbox` (titles, hi2txt score tables), plus the public arcade screen at `scores.songofeo.com/screen`; install steps in [part 7](07-hiscore-platform.md). Optional later: browser-arcade scores. |
 | 3 | Custom CSS + X-Arcade Tankstick code from earlier this month | Landing site, Jellyfin theme, cabinet controls |
