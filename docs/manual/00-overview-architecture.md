@@ -35,6 +35,7 @@
 | ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
 | **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless. **No built-in Ethernet**: a USB gigabit adapter (AX88179) on the powered hub, which uses the only USB 3 port (USB-C); the two USB-A ports are USB 2.0 | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
 | **cobra-arcade** | OptiPlex 7040 Mini Tower (240 W): i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class), to be replaced by an RTX 3050 6 GB (part 4.7) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
+| **cobra-switch** | TP-Link Omada ES210X-M2: 8× 2.5GBASE-T, 2× 10G SFP+, easy managed (802.1Q VLANs, loop prevention, IGMP snooping), fanless, no PoE. Replaced the Netgear 5-port switch E, which is now a spare | Omada standalone firmware (own web UI, no controller) | Links every wired machine on the LAN to the gate (the Latitude); carries part 9's VLANs | ~10 W |
 | **cobra-lab** (R620, later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (standalone; not clustered, part 9) | On-demand security lab | 110–160 W *only while on* |
 | Windows desktops ×2 | — | Windows 11 | Daily use; SMB access to all shares | — |
 
@@ -44,7 +45,7 @@
 
 ---
 
-## 3. Network diagram (Phase A: flat LAN, no new switch needed)
+## 3. Network diagram (Phase A: flat LAN on the Omada switch)
 
 ```
                        INTERNET
@@ -63,13 +64,18 @@
    │   └─ VM 110  cobra-gate       10.6.9.10  :443 ◄──────┼── only public TCP port
    │  host mgmt 10.6.9.2:8006                             │
    └───────────────────────┬──────────────────────────────┘
-          onboard I219-LM  │ (vmbr0, LAN 10.6.9.0/24)
-                ┌──────────┴──────────┐
-                │ your switch ("hub") │
-                └─┬──────┬──────┬─────┬┘
-                  │      │      │     │
-   cobra-stream  cobra-arcade  desktop desktop   (R620 later: .40 iDRAC / .41)
-     10.6.9.20       .30         .50     .51
+          onboard I219-LM  │ (vmbr0, LAN 10.6.9.0/24)  1 GbE
+   ┌───────────────────────┴──────────────────────────────┐
+   │  cobra-switch  TP-Link Omada ES210X-M2   10.6.9.5    │
+   │  8× 2.5GBASE-T + 2× 10G SFP+, easy managed, fanless  │
+   │  (replaced the Netgear 5-port "switch E", now spare) │
+   └─┬──────────┬──────────┬────────┬────────┬────────┬───┘
+     │          │          │        │        │        │
+  cobra-     cobra-     desktop  desktop  cobra-ap  R620 (later)
+  stream     arcade
+  .20        .30        .50      .51      .6        .40 iDRAC / .41
+  1 GbE      1 GbE      1 GbE    1 GbE    2.5 GbE   1 GbE
+  (USB NIC)                                         SFP+ 1–2: free, for 10G later
 
    WireGuard VPN clients: 10.6.99.0/24 (UDP 51820)
 ```
@@ -83,7 +89,8 @@
 | 10.6.9.1 | cobra-firewall LAN | Default gateway + Unbound DNS for the LAN |
 | 10.6.9.2 | cobra-command | Proxmox web UI `https://10.6.9.2:8006` |
 | 10.6.9.3 | cobra-pihole-1 | DNS #1 |
-| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra` on the switch (part 2.10b). `.5` is reserved for the managed switch (part 9). |
+| 10.6.9.5 | cobra-switch | TP-Link Omada ES210X-M2, the LAN switch: web UI `http://10.6.9.5` (part 2.12). Same switch carries the VLANs in part 9. |
+| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra` on the switch (part 2.10b) |
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
@@ -92,7 +99,7 @@
 | 10.6.9.100–199 | DHCP pool | Everything else |
 | 10.6.9.200 | old server (SGIN, until it's rebuilt) | Static mapping in OPNsense, so its port forwards keep working through the cutover (part 2.4) |
 | 10.6.99.0/24 | WireGuard clients | Admin access from outside |
-| 10.6.20.0/24 · 10.6.21.0/24 · 10.6.30.0/24 | LAB · DETONATE · MGMT VLANs | Part 9, phase B (managed switch) |
+| 10.6.20.0/24 · 10.6.21.0/24 · 10.6.30.0/24 | LAB · DETONATE · MGMT VLANs | Part 9, phase B (on cobra-switch's 802.1Q VLANs) |
 
 ### Port map
 

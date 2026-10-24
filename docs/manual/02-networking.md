@@ -4,6 +4,8 @@
 
 **Needs:** part 1 done. `songofeo.com` on Porkbun with **API Access turned on** for the domain, and the `cobra-ddns` Porkbun API key + secret key (part 0.4). A 2–3 h window: **wired internet is down from 2.4 until 2.5 is finished.** Xfinity Wi-Fi keeps working except for a minute while the gateway restarts.
 
+**"The switch"** in this part is the LAN switch every wired machine plugs into: the TP-Link Omada ES210X-M2, `cobra-switch` (set up in 2.12). It replaced the Netgear 5-port switch E, and every step here works the same on either, so the swap can happen before, during or after this part. Doing the cutover (2.4) on switch E and swapping afterwards is the simplest order: one change at a time.
+
 ---
 
 ## 2.1 OPNsense in one table
@@ -262,7 +264,7 @@ pihole-FTL --config dns.listeningMode ALL
 pihole-FTL --config misc.dnsmasq_lines '["address=/*.songofeo.com/10.6.9.10","server=/www.songofeo.com/#"]'
 # local names, full and short. The short ones matter over WireGuard: a VPN client doesn't
 # get the home.arpa search suffix, so \\cobra-stream would otherwise not resolve.
-pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
+pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.5 cobra-switch.home.arpa cobra-switch","10.6.9.6 cobra-ap.home.arpa cobra-ap","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
 exit
 ```
 
@@ -320,15 +322,15 @@ Full comparison of the models considered: [Future builds: Wi-Fi access points](.
 | **Top pick** | **TP-Link Omada EAP772** (Wi-Fi 7, tri-band 2.4/5/6 GHz, 2.5 GbE port) | ~$160–170 | Full local web UI in **standalone mode**: no controller, no cloud account, nothing else to run. One SSID per VLAN when part 9 brings VLANs. 6 GHz gives the newest laptops and phones a clean band the neighbours aren't on. |
 | Budget | TP-Link Omada EAP723 (Wi-Fi 7, dual-band, no 6 GHz) | ~$85–90 | Same standalone web UI and VLAN support; plenty for a house of 1080p/4K streams. |
 | No-TP-Link option | Zyxel NWA110BE (Wi-Fi 7) | ~$140 | Full local web UI and CLI, also takes USB-C power. |
-| **Plus** | a **PoE+ (802.3at, 30 W) gigabit injector**, e.g. TP-Link TL-POE160S | ~$20–25 | These APs ship **without** a power adapter, and a plain Netgear switch doesn't supply PoE. The injector sits between the switch and the AP. |
+| **Plus** | a **PoE+ (802.3at, 30 W) injector**: gigabit (e.g. TP-Link TL-POE160S, ~$20–25), or the 2.5 GbE **TL-POE260S**, so the AP's 2.5 GbE port gets the full speed of cobra-switch's 2.5G ports | ~$20–40 | These APs ship **without** a power adapter, and cobra-switch (the ES210X-M2, 2.12) has no PoE. The injector sits between the switch and the AP. |
 
 **Skip** for this build: UniFi APs (in standalone mode they're limited to the phone app; the full features need a UniFi controller running somewhere, one more service to keep alive) and a mesh kit or old router in "AP mode" (works, but most can't put an SSID on a VLAN, which part 9 needs).
 
 ### Cable it
 
 ```
-switch E port ──► injector "LAN/Data" ──► injector "PoE" ──► AP's ETH/PoE port
-                  injector power cord → wall outlet (or the UPS)
+cobra-switch port 6 ──► injector "LAN/Data" ──► injector "PoE" ──► AP's ETH/PoE port
+                        injector power cord → wall outlet (or the UPS)
 ```
 
 Mount the AP high and central (ceiling or top of a shelf, logo facing down/out), away from the Xfinity gateway so their signals don't sit on top of each other. One run of Cat 6 from the switch can be up to 100 m.
@@ -336,7 +338,7 @@ Mount the AP high and central (ceiling or top of a shelf, logo facing down/out),
 ### Set it up (from a desktop wired to the switch)
 
 - [ ] AP powers up and asks OPNsense for an address. Find it on the DHCP page from 2.6 → **Leases** (hostname like `EAP772` or a MAC starting with the TP-Link prefix). Add a **static mapping `10.6.9.6`** for that MAC, Save/Apply, then unplug and replug the AP's cable at the injector so it picks up `.6`.
-  (`.5` is kept for the managed switch in part 9.)
+  (`.5` is cobra-switch, 2.12.)
 - [ ] Browser: `https://10.6.9.6` → accept the self-signed certificate → create the admin user with a **generated password** (save it in Vaultwarden once part 5 is up). If it offers **Omada Cloud / app adoption**, decline: you want **standalone**.
 - [ ] **System → Firmware Update** (or Management → Firmware): update before anything else. Reboot.
 - [ ] **System → Time Settings**: time zone, NTP server `10.6.9.1`.
@@ -369,7 +371,7 @@ Mount the AP high and central (ceiling or top of a shelf, logo facing down/out),
 
 ### Later, with VLANs (part 9, phase B)
 
-The AP is ready for VLANs as-is. When the managed switch goes in, its port is "Everything else" in 9.5 (untagged 1). If you later want guests and gadgets off Xfinity's Wi-Fi too, add a GUEST/IoT VLAN the same way part 9 adds LAB (OPNsense VLAN + DHCP + "block `PRIVATE`, allow internet" rules), tag it on the AP's switch port, and add a second SSID on that VLAN with client isolation on. Then Xfinity's Wi-Fi can be switched off entirely.
+The AP is ready for VLANs as-is. When part 9 turns on VLANs on cobra-switch, its port (6) is "Everything else" in 9.5 (untagged 1). If you later want guests and gadgets off Xfinity's Wi-Fi too, add a GUEST/IoT VLAN the same way part 9 adds LAB (OPNsense VLAN + DHCP + "block `PRIVATE`, allow internet" rules), tag it on the AP's switch port, and add a second SSID on that VLAN with client isolation on. Then Xfinity's Wi-Fi can be switched off entirely.
 
 ## 2.11 IDS/IPS and CrowdSec
 
@@ -381,6 +383,109 @@ The AP is ready for VLANs as-is. When the managed switch goes in, its port is "E
 - [ ] **Services → CrowdSec → Settings**: Enable log processor, LAPI and firewall bouncer (on by default after install on most versions). Apply.
 - [ ] Check: Services → Intrusion Detection → Alerts fills over the next day; CrowdSec → Overview shows decisions.
 
+## 2.12 The LAN switch: TP-Link Omada ES210X-M2 (`cobra-switch`)
+
+**Result:** every wired machine on the LAN, the Latitude (the gate) included, plugs into the **TP-Link Omada ES210X-M2** at `10.6.9.5`, with its own login, current firmware and loop prevention on. It replaces the Netgear 5-port **switch E**, which becomes a spare.
+
+**What it is:** 8× 2.5GBASE-T ports, 2× 10G SFP+ slots, fanless, *easy managed* (its own web UI, 802.1Q VLANs, loop prevention, port statistics and cable test). **No PoE**, so the Wi-Fi AP keeps its injector (2.10b). In standalone mode it needs no Omada controller, cloud account or app. Being managed is what part 9's VLANs need, so phase B needs no further purchase.
+
+**Port plan.** Stick to it: part 9's VLAN table goes by port number, and a label on each cable end saves guessing later.
+
+| Port | Goes to | Link you should see |
+|---|---|---|
+| 1 | Latitude onboard port (`nic0`, OPNsense LAN and the gate) | 1000M (the I219-LM is 1 GbE) |
+| 2 | SGIN's USB network adapter (AX88179) | 1000M |
+| 3 | OptiPlex (cobra-arcade) | 1000M |
+| 4 | Desktop 1 | 1000M (2500M if it has a 2.5 GbE port) |
+| 5 | Desktop 2 | 1000M (or 2500M) |
+| 6 | Wi-Fi AP, through its PoE injector (2.10b) | 2500M with a 2.5G-rated injector; 1000M through a gigabit one |
+| 7 | R620 iDRAC (part 9) | 1000M |
+| 8 | R620 NIC 1 (part 9); spare until then | 1000M |
+| SFP+ 9–10 | Free: 10G later (needs an SFP+ module or a DAC cable) | — |
+
+⚠️ **Never connect two cables between the same two switches** (this one and the spare Netgear, say). That makes a loop that floods the whole LAN. Loop prevention (below) shuts a looped port down, but don't rely on it.
+
+### Before you start
+
+- [ ] Take a photo of switch E with its cables in, and put a piece of tape on each cable near the plug with what it goes to (`latitude`, `sgin`, `arcade`, `desk1`, `desk2`, `ap`)
+- [ ] A desktop wired to switch E, with this manual open on it
+- [ ] Stop anything long-running on the SGIN that you'd mind pausing (a copy, an image in 3.4): moving its cable drops its network for a few seconds. `ddrescue` itself doesn't care (it reads and writes local USB drives), but SSH sessions outside `tmux` will drop
+- [ ] The switch's power brick goes on a UPS **battery-backed** outlet, like the Latitude's and the SGIN's: if the switch loses power, the whole LAN does
+
+### 1. First power-up, on one cable (everything else keeps working)
+
+- [ ] Plug in the new switch's power. Then **one** cable: a free port on switch E → **port 8** on the new switch. If switch E has no free port, move Desktop 2's cable from switch E to new port 5, and use the freed switch E port for the link. Nothing else goes on the new switch yet.
+- [ ] The switch asks for an address by DHCP (its default), so OPNsense gives it one. Find it on the DHCP page from 2.6 → **Leases**: the MAC printed on the switch's label (also the hostname, e.g. `ES210X-M2`). Write down the address.
+- [ ] If it never appears in the leases after 2 minutes, it's at its fallback `192.168.0.1`: unplug the desktop from switch E, cable it straight into port 1 of the new switch, and give the desktop `192.168.0.100`, mask `255.255.255.0` for the setup (Windows: Settings → Network → Ethernet → IP assignment → Edit → Manual; set it back to Automatic (DHCP) when done).
+
+### 2. Log in and secure it (browser on the desktop)
+
+- [ ] `http://<address from step 1>` → the setup wizard opens. Create the admin account it asks for: a username that **isn't** `admin`, and a **generated password** (store it in KeePassXC now, Vaultwarden once part 5 is up). Older firmware shows a login instead: `admin` / `admin`, and it then forces a new password.
+- [ ] If the wizard offers **Omada controller / cloud** management, skip it: this switch runs **standalone**.
+- [ ] **Firmware first:** System → **Firmware Upgrade** shows the version. On the desktop, `support.omadanetworks.com` → ES210X-M2 → **Firmware**, pick the hardware version on the switch's label (e.g. V1), download, unzip, upload the `.bin`. Don't unplug it while it upgrades (a few minutes; it reboots and comes back on the same address).
+- [ ] **System → System Info / Device Description:** name `cobra-switch`, location where it sits.
+- [ ] **System → System Time:** your time zone, NTP server `10.6.9.1` (OPNsense).
+- [ ] **System → IP Setting:** DHCP **off**, static: IP `10.6.9.5`, mask `255.255.255.0`, gateway `10.6.9.1`, DNS `10.6.9.3` (and `10.6.9.20` if it takes a second one). Management VLAN stays **1**. Apply. The page stops answering; after 30 seconds browse to **`http://10.6.9.5`** and log in again. (Did you use the `192.168.0.100` fallback? Set the desktop back to Automatic (DHCP) first, move its cable back to switch E, and then browse to `10.6.9.5`.) Static rather than a DHCP mapping on purpose: the switch then comes up on a known address even when the OPNsense VM is down, which is exactly when you need to reach it.
+- [ ] **Security / Access:** if it has an HTTPS option, turn it on and use `https://10.6.9.5` from now on (self-signed warning, as on Proxmox). Turn off **Telnet** if it's listed. The UI is only reachable from the LAN and over WireGuard, because OPNsense forwards nothing to it.
+- [ ] **Loop Prevention** (under L2 Features or Monitoring): **on**, globally and on every port. It usually ships on; check it.
+- [ ] **VLAN → 802.1Q VLAN:** leave the default: VLAN 1, every port **untagged**, every PVID **1**. Part 9 changes this; until then a tag in the wrong place cuts machines off.
+- [ ] Leave **IGMP snooping off** for now. With no IGMP querier on the LAN (OPNsense isn't one by default), snooping can stop casting and device discovery from working.
+- [ ] **Save** if the UI has a Save Config button (some firmware keeps changes only until a reboot otherwise). Then System Tools → **Backup Config** → save the file next to the OPNsense config backup.
+
+### 3. Move the cables over (each device blips for a few seconds)
+
+Both switches are linked through port 8 during this, so every machine can still reach every other one while you move them one at a time. Move each cable from switch E to its port from the table above, and wait for that port's light before the next:
+
+1. [ ] Desktop 1 → port 4, Desktop 2 → port 5 (if not moved already)
+2. [ ] OptiPlex → port 3
+3. [ ] Wi-Fi AP's injector "LAN/Data" cable → port 6 (if the AP is in yet)
+4. [ ] SGIN's adapter cable → port 2. Streams and shares pause for a few seconds.
+5. [ ] Latitude's **onboard** port → port 1. That's the cable to the gate, so the whole house drops for a few seconds. **Not** the TP-Link USB NIC's cable: that one goes to Xfinity and stays there.
+6. [ ] Now switch E has only the link cable left. Unplug it from **both** ends, then unplug switch E's power.
+
+Nothing on the LAN changes address: DHCP reservations go by MAC, not by switch port.
+
+### 4. Check
+
+```bash
+# On the Latitude (cobra-command shell): the gate's link to the switch
+ethtool nic0 | grep -E 'Speed|Duplex|Link detected'      # 1000Mb/s, Full, yes
+ip -s link show nic0 | grep -A1 -E 'RX|TX'                # errors / dropped stay 0 (run again after an hour)
+ping -c3 10.6.9.5                                         # the switch answers
+
+# On the SGIN (ssh eels@10.6.9.20): its USB adapter's link
+IF=$(ls /sys/class/net | grep -m1 '^enx'); echo $IF       # the adapter's name, e.g. enx9c69d3b6174b
+sudo ethtool $IF | grep -E 'Speed|Duplex|Link detected'   # 1000Mb/s, Full, yes
+ping -c3 10.6.9.1 && ping -c3 10.6.9.5
+```
+
+```powershell
+# On each desktop (PowerShell)
+Get-NetAdapter | Where-Object Status -eq Up | Format-Table Name, LinkSpeed   # 1 Gbps (or 2.5 Gbps)
+ping 10.6.9.1; ping 10.6.9.5; ping 10.6.9.20
+Test-NetConnection 10.6.9.20 -Port 445                                         # TcpTestSucceeded : True (the shares)
+```
+
+- [ ] Switch UI → **Port Status / Statistics:** every used port shows Link Up, **Full** duplex, at the speed in the table. An hour later, the error counters are still 0
+- [ ] A port at **100M**, or one that keeps dropping: bad or old cable (gigabit and faster need all 8 wires; use Cat 5e or better). The switch's **Cable Test** page tests it in place
+- [ ] OPNsense → **Interfaces → Overview → LAN**: In/Out errors 0
+- [ ] Internet from a desktop, `\\cobra-stream` opens, and a stream plays
+- [ ] **Local name** on both Pi-holes. The `dns.hosts` setting is the whole list, so set it all at once. Pi-hole #1 from the cobra-command shell (Pi-hole #2, once part 3.9 is done: the same command on the SGIN with `sudo` in place of `pct exec 101 --`):
+
+```bash
+pct exec 101 -- pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.5 cobra-switch.home.arpa cobra-switch","10.6.9.6 cobra-ap.home.arpa cobra-ap","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
+nslookup cobra-switch 10.6.9.3        # answers 10.6.9.5
+```
+
+- [ ] Once part 5 is done: Uptime Kuma → a **Ping** monitor for `10.6.9.5` (`cobra-switch`)
+
+### The spare Netgear (switch E)
+
+Unplugged, labelled *spare, unmanaged*, and kept with its power brick. Two good uses:
+
+- **Emergency replacement.** If cobra-switch dies, switch E carries the flat LAN exactly as before (move the cables back, nothing else changes). After part 9 it can't carry the VLANs, so the lab stays off until the Omada is back.
+- **A few more ports in one room** (a TV corner, say): one cable from a cobra-switch port to switch E, and the devices there land on the LAN as usual. Only ever on a port that's "untagged 1" in part 9, never on the R620's or the iDRAC's ports, and never with a second cable back to cobra-switch.
+
 ## Done when
 
 - [ ] Wired devices get `10.6.9.1xx` (or their reservation), DNS `10.6.9.3`, and browse normally
@@ -389,6 +494,7 @@ The AP is ready for VLANs as-is. When the managed switch goes in, its port is "E
 - [ ] Porkbun A record for `gate.songofeo.com` = your public IP; no AAAA records; the bare `songofeo.com` still shows your Porkbun-hosted homepage
 - [ ] Phone on cellular reaches Proxmox through WireGuard
 - [ ] A laptop on `cobra` Wi-Fi (2.10b) gets `10.6.9.1xx` and opens `\\cobra-stream`
+- [ ] Every wired machine is on cobra-switch (2.12) at its expected link speed, and `http://10.6.9.5` (or `https://`) opens its UI
 - [ ] Once part 5 is done: a phone on Xfinity Wi-Fi loads `https://tv.songofeo.com` (if not, see 2.10a before you rely on the TVs)
 - [ ] Back up the OPNsense config: System → Configuration → Backups → **Download configuration**
 

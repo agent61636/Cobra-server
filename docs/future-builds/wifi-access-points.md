@@ -1,6 +1,6 @@
 # Wi-Fi access points
 
-The access point you plug into the LAN switch (switch E) gives your own devices Wi-Fi **inside** OPNsense, on `10.6.9.x`. Setup steps are in the manual, **[part 2.10b](../manual/02-networking.md)**. This page compares the models that were considered for it.
+The access point you plug into the LAN switch (cobra-switch, the TP-Link Omada ES210X-M2, port 6) gives your own devices Wi-Fi **inside** OPNsense, on `10.6.9.x`. Setup steps are in the manual, **[part 2.10b](../manual/02-networking.md)**. This page compares the models that were considered for it.
 
 **What matters for this build**
 
@@ -23,23 +23,23 @@ Prices were checked in October 2026 and are approximate.
 
 ## Power: PoE+ injector
 
-Switch E is a plain Netgear switch, so it can't power an access point. Buy a **PoE+ (802.3at, 30 W) injector**, such as the **TP-Link TL-POE160S** (~$20–25, gigabit). If the switch is ever upgraded to 2.5 GbE, the TL-POE260S is the 2.5 GbE version.
+cobra-switch (the ES210X-M2) has 2.5 GbE ports but **no PoE**, so it can't power an access point. Buy a **PoE+ (802.3at, 30 W) injector**. The **TP-Link TL-POE260S** is the 2.5 GbE version and matches the switch's ports, so the AP links at 2.5 Gbps; the gigabit **TL-POE160S** (~$20–25) works too, but caps the AP's link at 1 Gbps.
 
 ```
-switch E port ──► injector "LAN/Data" ──► injector "PoE" ──► AP
-                  injector power cord → wall outlet (or the UPS)
+cobra-switch port 6 ──► injector "LAN/Data" ──► injector "PoE" ──► AP
+                        injector power cord → wall outlet (or the UPS)
 ```
 
-The managed switch for part 9 can be a PoE+ model instead, which replaces the injector.
+cobra-switch also carries part 9's VLANs, so no PoE switch is planned; the injector stays.
 
 ## Shopping list
 
 | Item | ~Price |
 |---|---|
 | TP-Link Omada EAP772 (or EAP723 to save ~$80) | $165 |
-| TP-Link TL-POE160S PoE+ injector | $22 |
+| TP-Link TL-POE260S (2.5 GbE) or TL-POE160S (gigabit, ~$22) PoE+ injector | $22–40 |
 | Cat 6 patch cable, long enough to reach the mounting spot | $10 |
-| **Total** | **~$200** (~$120 with the EAP723) |
+| **Total** | **~$200–215** (~$120–135 with the EAP723) |
 
 ## Sources
 
