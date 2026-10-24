@@ -2,7 +2,7 @@
 
 **Result:** the R620 is a second Proxmox server you power on from your desk for lab sessions and off afterwards. Lab machines (Active Directory, Wazuh, Security Onion, CAPEv2 malware sandbox, IncusOS) live on their own networks, so nothing in the lab can reach the family's machines.
 
-**Needs:** parts 1–5. Phase B needs a **managed switch** (802.1Q VLANs), such as an 8- or 16-port "smart" switch. A plain unmanaged switch passes tagged traffic but can't separate it.
+**Needs:** parts 1–5. Phase B needs a **managed switch** (802.1Q VLANs): that's **cobra-switch**, the TP-Link Omada ES210X-M2 from part 2.12, so there's nothing more to buy. The spare Netgear (switch E) is unmanaged: it passes tagged traffic but can't separate it, so it never goes on a lab port.
 
 ## The decisions, and why
 
@@ -14,11 +14,11 @@
 | **CAPEv2's detonation network has no internet at all** | A sandboxed sample that can reach the internet can spread, phone home, or get your IP blocklisted. |
 | **The PERC RAID controller builds one RAID 10 from the 4 SSDs; Proxmox uses LVM-thin on top** | The R620's PERC does hardware RAID well, and that's the supported path. ZFS wants the disks passed through raw, which the PERC H710 can't do. (If yours is a PERC H310, it can: set the disks to non-RAID and pick ZFS RAID 10 in the installer instead.) |
 
-## Phase A: the R620 on the main LAN (no new switch)
+## Phase A: the R620 on the main LAN (no VLANs yet)
 
 ### 9.1 iDRAC first
 
-- [ ] Cable the iDRAC port → switch. At boot press **F2 → iDRAC Settings → Network**: static IP `10.6.9.40/24`, gateway `10.6.9.1`. **User Configuration**: change the default `root` / `calvin` password to a generated one.
+- [ ] Cable the iDRAC port → cobra-switch **port 7**, and the R620's NIC 1 → **port 8** (the port plan in part 2.12). At boot press **F2 → iDRAC Settings → Network**: static IP `10.6.9.40/24`, gateway `10.6.9.1`. **User Configuration**: change the default `root` / `calvin` password to a generated one.
 - [ ] Browser: `https://10.6.9.40` → log in → update the iDRAC firmware and BIOS (Maintenance → System Update) before installing anything
 - [ ] Settings → Network → **IPMI over LAN: Enabled** (used for power-on below)
 - iDRAC is **never** port-forwarded. Reach it from the LAN or over WireGuard only.
@@ -62,7 +62,7 @@ lab status
 
 Phase A is fine for the Active Directory lab and Wazuh. **Don't run CAPEv2 or live malware until phase B** gives the lab its own network.
 
-## Phase B: VLANs (managed switch)
+## Phase B: VLANs (on cobra-switch)
 
 ### Network plan
 
@@ -77,14 +77,27 @@ The LAN keeps its numbers, so nothing from parts 1–8 changes.
 
 ### 9.5 The switch
 
-Set the switch's own management IP on the LAN (e.g. `10.6.9.5`), change its admin password, then set up its ports (names vary by brand: "802.1Q VLAN", "tagged/untagged", "PVID"):
+cobra-switch already has its management IP (`10.6.9.5`, on VLAN 1) and its own admin password from part 2.12. Work from a desktop wired to it (not over the Wi-Fi AP, whose port changes nothing here but is one more thing to rule out), and **save a config backup first** (System Tools → Backup Config), so a mistake is one restore away.
 
-| Port goes to | Untagged | Tagged | PVID |
-|---|---|---|---|
-| Latitude onboard NIC (OPNsense LAN) | 1 | 20, 21, 30 | 1 |
-| R620 NIC 1 (Proxmox) | 1 | 20, 21 | 1 |
-| R620 iDRAC | 30 | — | 30 |
-| Everything else (desktops, SGIN, OptiPlex, Wi-Fi AP) | 1 | — | 1 |
+Its ports, by the port plan in part 2.12:
+
+| Port | Goes to | Untagged | Tagged | PVID |
+|---|---|---|---|---|
+| 1 | Latitude onboard NIC (OPNsense LAN) | 1 | 20, 21, 30 | 1 |
+| 8 | R620 NIC 1 (Proxmox) | 1 | 20, 21 | 1 |
+| 7 | R620 iDRAC | 30 (from the end of 9.7; 1 until then) | — | 30 (1 until then) |
+| 2–6, SFP+ 9–10 | Everything else (SGIN, OptiPlex, desktops, Wi-Fi AP) | 1 | — | 1 |
+
+On the ES210X-M2 (standalone web UI; names can differ slightly between firmware versions):
+
+- [ ] **VLAN → 802.1Q VLAN**: enable 802.1Q VLAN if it has an on/off switch. VLAN 1 stays as it is, with every port untagged.
+- [ ] **Add VLAN 20** (name `LAB`): port 1 and port 8 **tagged**; every other port **not a member**. Apply.
+- [ ] **Add VLAN 21** (name `DETONATE`): port 1 and port 8 **tagged**; every other port not a member. Apply.
+- [ ] **Add VLAN 30** (name `MGMT`): port 1 **tagged**; every other port not a member for now. Apply. Port 7 (the iDRAC) moves to it at the end of 9.7, after the iDRAC has its new address; moving it now would leave the iDRAC unreachable on its old one.
+- [ ] Every PVID stays **1** for now.
+- [ ] Leave the **management VLAN at 1**. Moving it would cut the switch's own UI off from the LAN.
+- [ ] **Save** (if the UI has a Save Config button), then **Backup Config** again and keep both files.
+- [ ] Check before going on: the desktop still opens `https://10.6.9.5` and the internet. If not, restore the backup from the start of this section.
 
 ### 9.6 Pass VLANs through to OPNsense (cobra-command)
 
@@ -119,7 +132,7 @@ Firewall (**Firewall → Aliases**: create `PRIVATE` = `10.0.0.0/8, 172.16.0.0/1
 | **LAN** (add above the default allow) | Pass LAN net → MGMT net ports 443, 5900 (iDRAC web and console), 623/udp (IPMI) · Pass LAN net → LAB net (you can reach the lab; it can't reach you, because replies are allowed but new connections from LAB are blocked above) |
 | **WG** | Same two passes as LAN, so you can run the lab from outside over WireGuard |
 
-- [ ] Move the iDRAC: in its settings, IP `10.6.30.40/24`, gateway `10.6.30.1`, then move its cable to the MGMT switch port. Update the `lab` script to `-H 10.6.30.40`, and the Pi-hole name.
+- [ ] Move the iDRAC: in its settings, IP `10.6.30.40/24`, gateway `10.6.30.1`, Apply (its web page stops answering; expected). Then on cobra-switch (`https://10.6.9.5`): VLAN 30 → port 7 **untagged**; VLAN 1 → port 7 **not a member**; 802.1Q PVID → port 7 **30**; Save, Backup Config. The cable stays in port 7. Check `https://10.6.30.40` opens from a desktop. Update the `lab` script to `-H 10.6.30.40`, and the Pi-hole name.
 
 ### 9.8 The R620's bridges (cobra-lab)
 
