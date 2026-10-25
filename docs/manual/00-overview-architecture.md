@@ -74,8 +74,9 @@
   cobra-     cobra-     desktop  desktop  cobra-ap  R620 (later)
   stream     arcade
   .20        .30        .50      .51      .6        .40 iDRAC / .41
-  1 GbE      1 GbE      1 GbE    1 GbE    2.5 GbE   1 GbE
-  (USB NIC)                                         SFP+ 1–2: free, for 10G later
+  1 GbE      1 GbE      1 GbE    1 GbE    1 GbE     1 GbE
+  (USB NIC)                              (RE700X,  SFP+ 1–2: free, for 10G later
+                                           AP mode)
 
    WireGuard VPN clients: 10.6.99.0/24 (UDP 51820)
 ```
@@ -90,7 +91,7 @@
 | 10.6.9.2 | cobra-command | Proxmox web UI `https://10.6.9.2:8006` |
 | 10.6.9.3 | cobra-pihole-1 | DNS #1 |
 | 10.6.9.5 | cobra-switch | TP-Link Omada ES210X-M2, the LAN switch: web UI `http://10.6.9.5` (part 2.12). Same switch carries the VLANs in part 9. |
-| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra` on the switch (part 2.10b) |
+| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra`: the TP-Link RE700X in Access Point mode on cobra-switch port 6 (part 2.10b) |
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |

@@ -69,7 +69,8 @@ The domain stays where it is: Porkbun is the registrar **and** the DNS. The buil
 | USB 3 gigabit NIC (RTL8153) | OPNsense WAN on the Latitude. A **separate** adapter from the SGIN's (the SGIN keeps its own AX88179 adapter for its LAN link; it has no built-in Ethernet) | Before part 2 |
 | One more Ethernet cable | USB NIC → Xfinity | Before part 2 |
 | ✅ TP-Link Omada ES210X-M2 (8× 2.5GBASE-T, 2× 10G SFP+, easy managed) | `cobra-switch`, the LAN switch, replacing the Netgear 5-port switch E (now a spare); also carries part 9's VLANs | Have it; set up in part 2.12 |
-| ✅ Seagate Expansion Desktop 24 TB | The rescue drive: whole-disk image of wd1 before anything touches it (part 3.4, "Safe option first"), then the recovered files | Have it; part 3.4 |
+| ✅ TP-Link RE700X (AX3000 range extender, gigabit port) | The trusted `cobra` Wi-Fi AP in **Access Point mode**, cabled to cobra-switch port 6 (part 2.10b). No injector needed | Have it; part 2.10b |
+| ✅ Seagate Expansion Desktop 24 TB | The rescue drive: whole-disk image of wd1 before anything touches it, then the recovered files (part 3.4r) | Have it; part 3.4r |
 | 18–20 TB 3.5" NAS drive | The `vault` backup drive (part 5.6). Once the recovered files are back in the pool and have been fine for a few weeks, the Seagate 24 TB can take this job | Soon; until then the library has no backup |
 | Second dual-bay dock | More pool space | Whenever |
 

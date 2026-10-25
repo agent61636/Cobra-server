@@ -2,7 +2,7 @@
 
 **Result:** the cabinet boots straight into Big Box, ROMs come from the SGIN's `roms` share, and it's patched and activated.
 
-🔌 OptiPlex Ethernet → your switch the whole time. Unplug it only if you want Windows setup to skip network sign-in (Rufus's option already handles that).
+🔌 OptiPlex Ethernet → your switch (cobra-switch **port 3**, part 2.12) the whole time. Unplug it only if you want Windows setup to skip network sign-in (Rufus's option already handles that).
 
 ## 4.1 Prep
 
