@@ -326,6 +326,14 @@ Full comparison of the models considered: [Future builds: Wi-Fi access points](.
 
 **Skip** for this build: UniFi APs (in standalone mode they're limited to the phone app; the full features need a UniFi controller running somewhere, one more service to keep alive) and a mesh kit or old router in "AP mode" (works, but most can't put an SSID on a VLAN, which part 9 needs).
 
+> **Use what you have first: TP-Link RE700X in Access Point mode.** The RE700X range extender (Wi-Fi 6, AX3000, gigabit port) has a real **Access Point** mode, so it can be the `cobra` AP today for $0. It differs from the steps below in four ways:
+> - **No injector.** It plugs into a wall outlet. Cable its gigabit port straight to **cobra-switch port 6**, so pick an outlet you can run a cable to.
+> - **Setup:** factory reset it (hold Reset ~2 s while it's on), join its default `TP-Link_Extender` Wi-Fi or use the Tether app, open `http://tplinkrepeater.net`, then **Operation Mode → Access Point**. It reboots and takes its address from OPNsense.
+> - **Wi-Fi settings:** SSID `cobra`, WPA2/WPA3 if offered (otherwise WPA2-AES), long passphrase. Turn **OneMesh off** so it never pairs with the Xfinity network.
+> - **No VLAN per SSID**, so it can't host the guest/IoT network in "Later, with VLANs" below. For that, swap in the EAP772.
+>
+> Everything else is the same: static mapping `10.6.9.6`, the `cobra-ap` local name, the device split, and the checks.
+
 ### Cable it
 
 ```
