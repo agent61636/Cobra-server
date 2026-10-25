@@ -38,7 +38,7 @@
 | **cobra-switch** | TP-Link Omada ES210X-M2: 8× 2.5GBASE-T, 2× 10G SFP+, easy managed (802.1Q VLANs, loop prevention, IGMP snooping), fanless, no PoE. Replaced the Netgear 5-port switch E, which is now a spare | Omada standalone firmware (own web UI, no controller) | Links every wired machine on the LAN to the gate (the Latitude); carries part 9's VLANs | ~10 W |
 | **cobra-lab** (R620, later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (standalone; not clustered, part 9) | On-demand security lab | 110–160 W *only while on* |
 | **the-box** (desktop) | Powerhouse PC, RTX 3070 | Windows 11 | Daily use and heavy work; SMB access to all shares. Wired, `10.6.9.50` | — |
-| **the-spire** (desktop) | — | Windows 11 | Daily use; SMB access to all shares. Wired, `10.6.9.51` | — |
+| **the-spire** (desktop) | RTX 2070, no TPM 2.0 | Windows 11 (installed with Rufus's TPM/Secure Boot bypass, so it's an unsupported install: monthly updates arrive, but each yearly feature update, e.g. 25H2 → 26H2, may need a fresh Rufus-made USB to upgrade in place) | Daily use; SMB access to all shares. Wired, `10.6.9.51` | — |
 | **Cobra1** (laptop) | Wi-Fi only | Windows 10 | Portable; joins `cobra` Wi-Fi at home (`10.6.9.52`), WireGuard away (`10.6.99.3`) | — |
 
 **Why `cobra-stream` is bare-metal Debian instead of a Proxmox guest:** the iGPU (needed for Quick Sync) and the USB storage drives are simplest and most reliable on bare metal. Running Podman inside an LXC container on Proxmox breaks regularly on AppArmor/runc updates. Real companies run hypervisors next to bare-metal appliances like this all the time. You still manage it from one place: Cockpit plus the Homepage dashboard, and its backups land in the same Proxmox Backup Server.
