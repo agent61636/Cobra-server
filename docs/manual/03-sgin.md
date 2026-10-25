@@ -494,7 +494,7 @@ This works as written with Debian 13's e2fsprogs defaults: mke2fs drops the `orp
 **B4. Let e2fsck rebuild the rest, still on the overlay.** Thousands of `Fix? yes` and `Connect to /lost+found? yes` lines are normal. The log is kept on the Seagate:
 
 ```bash
-sudo e2fsck -fy -C0 $T 2>&1 | tee /mnt/rescue/wd1-fsck.log | tail -5
+sudo e2fsck -fy -C0 $T 2>&1 | sudo tee /mnt/rescue/wd1-fsck.log | tail -5   # sudo tee: /mnt/rescue is root-owned, a plain tee gets "Permission denied"
 sudo e2fsck -fn $T >/dev/null 2>&1 && echo "clean" || echo "run the e2fsck -fy line once more"
 ```
 
