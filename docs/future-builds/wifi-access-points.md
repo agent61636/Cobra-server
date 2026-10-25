@@ -19,6 +19,7 @@ Prices were checked in October 2026 and are approximate.
 | Zyxel NWA110BE | 7 | 2.4 / 5 / 6 GHz | 2.5 GbE | PoE+ (21.5 W), **or USB-C** | **Yes**, full web UI and CLI | ~$140 | **Good alternative.** It can run from a USB-C charger instead of an injector. |
 | Grandstream GWN7672 | 7 | 2.4 / 5 / 6 GHz | 2.5 GbE | PoE+ (25 W) | Yes, with a controller built into the AP | ~$155–165 | Solid, but its menus are less friendly than Omada's for a single AP. |
 | Ubiquiti UniFi U7 Pro XG / U7 Pro | 7 | 2.4 / 5 / 6 GHz | 2.5 GbE (XG: 10 GbE) | PoE+ (22 W) | **Limited** (phone app only) | ~$190–260 | **Skip.** The full feature set needs a UniFi controller running somewhere, which is one more service to keep alive. |
+| **TP-Link RE700X** (already owned) in Access Point mode | 6 | 2.4 / 5 GHz | 1 GbE | wall plug | Yes, web UI or Tether app | $0 | **Use it now.** It's fine as the trusted `cobra` AP, but it has no VLAN per SSID, so the EAP772 is still the upgrade for part 9. |
 | Old router or mesh kit in "AP mode" | varies | varies | usually 1 GbE | its own adapter | varies | $0 (reuse) | **Stopgap only.** Most can't put an SSID on a VLAN, so it can't grow into part 9. |
 
 ## Power: PoE+ injector
