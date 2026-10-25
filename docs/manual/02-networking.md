@@ -186,7 +186,8 @@ OPNsense versions differ on which DHCP service is active for LAN. Use whichever 
 | 10.6.9.20 | cobra-stream (SGIN) |
 | 10.6.9.30 | cobra-arcade (OptiPlex) |
 | 10.6.9.40 / .41 | R620 iDRAC / R620 (later) |
-| 10.6.9.50 / .51 | Desktops |
+| 10.6.9.50 / .51 | the-box / the-spire (desktops) |
+| 10.6.9.52 | Cobra1 (laptop; its **Wi-Fi** adapter's MAC, from `ipconfig /all` → "Wireless LAN adapter Wi-Fi") |
 
 `.2`, `.3`, `.10` are static on the hosts themselves; don't add them here.
 
@@ -209,7 +210,7 @@ OPNsense versions differ on which DHCP service is active for LAN. Use whichever 
 
 - [ ] **Instances** → Add: name `wg0`, click the gear to **generate keys**, Listen port `51820`, Tunnel address `10.6.99.1/24`. Save. Copy the **public key**.
 - [ ] On the phone/laptop: WireGuard app → **+** → create from scratch → it generates the client key pair. Copy the client's **public key**.
-- [ ] **Peers** → Add: name `phone`, Public key = client's, Allowed IPs `10.6.99.2/32`, Instances `wg0`. Save. (Next device: `.3`, `.4`, …)
+- [ ] **Peers** → Add: name `phone`, Public key = client's, Allowed IPs `10.6.99.2/32`, Instances `wg0`. Save. Next device: **`cobra1`** (the laptop) on `10.6.99.3/32`, then `.4`, `.5`, …
 - [ ] **Settings**: Enable WireGuard. Apply.
 - [ ] **Interfaces → Assignments**: add `wg0` → description `WG` → Save → open `WG`, tick Enable, Save, Apply.
 - [ ] **Firewall → Rules → WAN** → Add: Pass, Protocol **UDP**, Destination **WAN address**, Port **51820**. Save, Apply.
@@ -404,8 +405,8 @@ The AP is ready for VLANs as-is. When part 9 turns on VLANs on cobra-switch, its
 | 1 | Latitude onboard port (`nic0`, OPNsense LAN and the gate) | 1000M (the I219-LM is 1 GbE) |
 | 2 | SGIN's USB network adapter (AX88179) | 1000M |
 | 3 | OptiPlex (cobra-arcade) | 1000M |
-| 4 | Desktop 1 | 1000M (2500M if it has a 2.5 GbE port) |
-| 5 | Desktop 2 | 1000M (or 2500M) |
+| 4 | the-box (desktop, `.50`) | 1000M (2500M if it has a 2.5 GbE port) |
+| 5 | the-spire (desktop, `.51`) | 1000M (or 2500M) |
 | 6 | Wi-Fi AP `cobra-ap`: the TP-Link RE700X in Access Point mode, cabled straight in (2.10b). Later an EAP772 through its PoE injector | 1000M (the RE700X's port is gigabit) |
 | 7 | R620 iDRAC (part 9) | 1000M |
 | 8 | R620 NIC 1 (part 9); spare until then | 1000M |
@@ -444,7 +445,7 @@ The AP is ready for VLANs as-is. When part 9 turns on VLANs on cobra-switch, its
 
 Both switches are linked through port 8 during this, so every machine can still reach every other one while you move them one at a time. Move each cable from switch E to its port from the table above, and wait for that port's light before the next:
 
-1. [ ] Desktop 1 → port 4, Desktop 2 → port 5 (if not moved already)
+1. [ ] the-box → port 4, the-spire → port 5 (if not moved already)
 2. [ ] OptiPlex → port 3
 3. [ ] Wi-Fi AP → port 6: the RE700X's Ethernet cable straight in (if it's set up yet; 2.10b sets it up and works the same before or after this swap)
 4. [ ] SGIN's adapter cable → port 2. Streams and shares pause for a few seconds.
