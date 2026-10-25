@@ -37,7 +37,9 @@
 | **cobra-arcade** | OptiPlex 7040 Mini Tower (240 W): i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class), to be replaced by an RTX 3050 6 GB (part 4.7) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
 | **cobra-switch** | TP-Link Omada ES210X-M2: 8× 2.5GBASE-T, 2× 10G SFP+, easy managed (802.1Q VLANs, loop prevention, IGMP snooping), fanless, no PoE. Replaced the Netgear 5-port switch E, which is now a spare | Omada standalone firmware (own web UI, no controller) | Links every wired machine on the LAN to the gate (the Latitude); carries part 9's VLANs | ~10 W |
 | **cobra-lab** (R620, later) | 2× Xeon, DDR3, 4× 480 GB SSD | Proxmox VE 9 (standalone; not clustered, part 9) | On-demand security lab | 110–160 W *only while on* |
-| Windows desktops ×2 | — | Windows 11 | Daily use; SMB access to all shares | — |
+| **the-box** (desktop) | Powerhouse PC, RTX 3070 | Windows 11 | Daily use and heavy work; SMB access to all shares. Wired, `10.6.9.50` | — |
+| **the-spire** (desktop) | RTX 2070, no TPM 2.0 | Windows 11 (installed with Rufus's TPM/Secure Boot bypass, so it's an unsupported install: monthly updates arrive, but each yearly feature update, e.g. 25H2 → 26H2, may need a fresh Rufus-made USB to upgrade in place) | Daily use; SMB access to all shares. Wired, `10.6.9.51` | — |
+| **Cobra1** (laptop) | Wi-Fi only | Windows 10 | Portable; joins `cobra` Wi-Fi at home (`10.6.9.52`), WireGuard away (`10.6.99.3`) | — |
 
 **Why `cobra-stream` is bare-metal Debian instead of a Proxmox guest:** the iGPU (needed for Quick Sync) and the USB storage drives are simplest and most reliable on bare metal. Running Podman inside an LXC container on Proxmox breaks regularly on AppArmor/runc updates. Real companies run hypervisors next to bare-metal appliances like this all the time. You still manage it from one place: Cockpit plus the Homepage dashboard, and its backups land in the same Proxmox Backup Server.
 
@@ -71,14 +73,16 @@
    │  (replaced the Netgear 5-port "switch E", now spare) │
    └─┬──────────┬──────────┬────────┬────────┬────────┬───┘
      │          │          │        │        │        │
-  cobra-     cobra-     desktop  desktop  cobra-ap  R620 (later)
-  stream     arcade
+  cobra-     cobra-     the-box  the-     cobra-ap  R620 (later)
+  stream     arcade              spire
   .20        .30        .50      .51      .6        .40 iDRAC / .41
   1 GbE      1 GbE      1 GbE    1 GbE    1 GbE     1 GbE
   (USB NIC)                              (RE700X,  SFP+ 1–2: free, for 10G later
                                            AP mode)
+                                            ┆ Wi-Fi "cobra"
+                                          Cobra1 laptop .52
 
-   WireGuard VPN clients: 10.6.99.0/24 (UDP 51820)
+   WireGuard VPN clients: 10.6.99.0/24 (UDP 51820): phone .2, Cobra1 .3
 ```
 
 ### IP plan
@@ -96,7 +100,8 @@
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
 | 10.6.9.40 / .41 | cobra-lab iDRAC / cobra-lab Proxmox (R620) | Part 9. The iDRAC moves to `10.6.30.40` on the MGMT VLAN in phase B. |
-| 10.6.9.50 / .51 | Windows desktops | DHCP reservations |
+| 10.6.9.50 / .51 | the-box / the-spire (Windows 11 desktops) | DHCP reservations, wired |
+| 10.6.9.52 | Cobra1 (Windows 10 laptop) | DHCP reservation for its **Wi-Fi** MAC, on `cobra` Wi-Fi (2.10b). Away from home it uses WireGuard `10.6.99.3` (2.8) |
 | 10.6.9.100–199 | DHCP pool | Everything else |
 | 10.6.9.200 | old server (SGIN, until it's rebuilt) | Static mapping in OPNsense, so its port forwards keep working through the cutover (part 2.4) |
 | 10.6.99.0/24 | WireGuard clients | Admin access from outside |

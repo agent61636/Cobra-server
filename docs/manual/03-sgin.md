@@ -665,7 +665,8 @@ Every machine, and every share, by the same path:
 
 | From | How | Path |
 |---|---|---|
-| Windows desktops | File Explorer → Map network drive (log in as `eels`) | `\\cobra-stream\media`, `\scans`, `\roms` |
+| Windows desktops (the-box, the-spire) | File Explorer → Map network drive (log in as `eels`) | `\\cobra-stream\media`, `\scans`, `\roms` |
+| Cobra1 laptop on `cobra` Wi-Fi (2.10b) | Same as the desktops | `\\cobra-stream\media` |
 | Cabinet | `R:` mapped in part 4 (log in as `arcade`) | `\\cobra-stream\roms` |
 | Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\cobra-stream\media` |
 | Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/pool` |

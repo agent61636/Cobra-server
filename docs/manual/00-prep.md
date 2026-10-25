@@ -21,7 +21,8 @@ Copy this table into KeePassXC as a note, or keep it on paper next to the machin
 | Latitude USB NIC name and MAC | same (`enx…` followed by its MAC) | |
 | SGIN (old server) MAC and current IP | Xfinity app → Connected devices. The SGIN has no built-in Ethernet, so this is its USB adapter's MAC (`enx…` on the SGIN) | |
 | OptiPlex MAC | `ipconfig /all` on it | |
-| Desktop 1 / Desktop 2 MACs | `ipconfig /all` | |
+| the-box / the-spire MACs (Ethernet) | `ipconfig /all` | |
+| Cobra1 laptop MAC (**Wi-Fi** adapter) | `ipconfig /all` → "Wireless LAN adapter Wi-Fi" | |
 | Every port forward on Xfinity today | Xfinity app → Advanced → Port forwarding | |
 | What the old server runs, and on which ports | `podman ps` / `docker ps` on the SGIN | |
 | Current public IPv4 | `curl -4 https://ifconfig.me` | |
