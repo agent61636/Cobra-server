@@ -395,7 +395,7 @@ The AP is ready for VLANs as-is. When part 9 turns on VLANs on cobra-switch, its
 
 **Result:** every wired machine on the LAN, the Latitude (the gate) included, plugs into the **TP-Link Omada ES210X-M2** at `10.6.9.5`, with its own login, current firmware and loop prevention on. It replaces the Netgear 5-port **switch E**, which becomes a spare.
 
-**What it is:** 8× 2.5GBASE-T ports, 2× 10G SFP+ slots, fanless, *easy managed* (its own web UI, 802.1Q VLANs, loop prevention, port statistics and cable test). **No PoE**, so the Wi-Fi AP keeps its injector (2.10b). In standalone mode it needs no Omada controller, cloud account or app. Being managed is what part 9's VLANs need, so phase B needs no further purchase.
+**What it is:** 8× 2.5GBASE-T ports, 2× 10G SFP+ slots, fanless, *easy managed* (its own web UI, 802.1Q VLANs, loop prevention, port statistics and cable test). **No PoE**: the TP-Link RE700X you're using as the `cobra` AP powers itself from a wall outlet, so it needs nothing from the switch (an EAP772 later would need an injector, 2.10b). In standalone mode it needs no Omada controller, cloud account or app. Being managed is what part 9's VLANs need, so phase B needs no further purchase.
 
 **Port plan.** Stick to it: part 9's VLAN table goes by port number, and a label on each cable end saves guessing later.
 
@@ -406,7 +406,7 @@ The AP is ready for VLANs as-is. When part 9 turns on VLANs on cobra-switch, its
 | 3 | OptiPlex (cobra-arcade) | 1000M |
 | 4 | Desktop 1 | 1000M (2500M if it has a 2.5 GbE port) |
 | 5 | Desktop 2 | 1000M (or 2500M) |
-| 6 | Wi-Fi AP, through its PoE injector (2.10b) | 2500M with a 2.5G-rated injector; 1000M through a gigabit one |
+| 6 | Wi-Fi AP `cobra-ap`: the TP-Link RE700X in Access Point mode, cabled straight in (2.10b). Later an EAP772 through its PoE injector | 1000M (the RE700X's port is gigabit) |
 | 7 | R620 iDRAC (part 9) | 1000M |
 | 8 | R620 NIC 1 (part 9); spare until then | 1000M |
 | SFP+ 9–10 | Free: 10G later (needs an SFP+ module or a DAC cable) | — |
@@ -446,7 +446,7 @@ Both switches are linked through port 8 during this, so every machine can still 
 
 1. [ ] Desktop 1 → port 4, Desktop 2 → port 5 (if not moved already)
 2. [ ] OptiPlex → port 3
-3. [ ] Wi-Fi AP's injector "LAN/Data" cable → port 6 (if the AP is in yet)
+3. [ ] Wi-Fi AP → port 6: the RE700X's Ethernet cable straight in (if it's set up yet; 2.10b sets it up and works the same before or after this swap)
 4. [ ] SGIN's adapter cable → port 2. Streams and shares pause for a few seconds.
 5. [ ] Latitude's **onboard** port → port 1. That's the cable to the gate, so the whole house drops for a few seconds. **Not** the TP-Link USB NIC's cable: that one goes to Xfinity and stays there.
 6. [ ] Now switch E has only the link cable left. Unplug it from **both** ends, then unplug switch E's power.

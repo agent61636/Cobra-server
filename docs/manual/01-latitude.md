@@ -15,7 +15,7 @@
 | Steps | Onboard port | TP-Link USB NIC |
 |---|---|---|
 | 1.2–1.3 (BIOS) | empty | not plugged into the laptop |
-| 1.4 to end of part 1 | cable → **your switch** (still connected to Xfinity, like today) | plugged into a USB port, **no cable** |
+| 1.4 to end of part 1 | cable → **your switch**: cobra-switch **port 1** (part 2.12), or switch E until you've swapped it (still connected to Xfinity, like today) | plugged into a USB port, **no cable** |
 | Part 2, 2.2–2.3 | → switch (unchanged) | no cable (unchanged) |
 | Part 2, 2.4 onward (final) | → switch | cable → **Xfinity gateway** directly; the switch's own cable to Xfinity is unplugged |
 
@@ -83,7 +83,7 @@ Finish 1.7 (2FA, SSH keys) the same day: until part 2, the host sits on the Xfin
 
 ## 1.4 Install
 
-🔌 Onboard → your switch · TP-Link: not plugged in
+🔌 Onboard → your switch (cobra-switch port 1) · TP-Link: not plugged in
 
 | # | Screen | Choose / type |
 |---|---|---|

@@ -2,7 +2,7 @@
 
 **Result:** the SGIN runs Debian 13 bare metal and serves all storage (Samba), the media apps (one rootless Podman pod), Pi-hole #2 and Proxmox Backup Server.
 
-🔌 The SGIN has **no built-in Ethernet**. Its network is a USB gigabit adapter (a TP-Link with an ASIX AX88179 chip, `0b95:1790`; not the Latitude's RTL8153 WAN adapter from part 1) plugged into the powered hub, with a cable from the adapter to your switch (behind OPNsense, from part 2) for the whole part. **The hub stays plugged into the SGIN the whole time, but unplug every drive from the hub until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive. Keep the SGIN's lid **open** until 3.3a; before that, closing it puts the laptop to sleep.
+🔌 The SGIN has **no built-in Ethernet**. Its network is a USB gigabit adapter (a TP-Link with an ASIX AX88179 chip, `0b95:1790`; not the Latitude's RTL8153 WAN adapter from part 1) plugged into the powered hub, with a cable from the adapter to your switch, cobra-switch **port 2** (behind OPNsense, part 2.12), for the whole part. **The hub stays plugged into the SGIN the whole time, but unplug every drive from the hub until "Storage" (3.4)**, so the Debian installer can only see the internal SSD and can't touch a data drive. Keep the SGIN's lid **open** until 3.3a; before that, closing it puts the laptop to sleep.
 
 **The SGIN's ports (SGIN X15, Celeron N5095):**
 
@@ -24,7 +24,7 @@ The network adapter has to sit on the hub because the USB-A ports would cap it a
 
 - [ ] Save to the desktop or a pool drive: `/srv/stream` (every app's settings and database), `/home/podsvc/.config/containers/systemd` (the Quadlet files, which hold the RomM passwords), `/etc/fstab` (the drive labels and UUIDs), `/etc/samba/smb.conf`, and the RomM `DBPW`/`SECRET` if you kept them. If you ran the apps with the `scripts/podman` scripts, their passwords are podman secrets that the reinstall deletes: copy them out first with `sudo machinectl shell podsvc@ /usr/bin/podman secret inspect --showsecret --format '{{.Name}} {{.SecretData}}' romm-db-password romm-auth-secret icecast-source-password icecast-admin-password icecast-relay-password`. Stop the pod first so the databases are closed: `sudo machinectl shell podsvc@ /usr/bin/systemctl --user stop stream-pod`, then e.g. `sudo tar -C / -czf /srv/storage/disks/wd1/sgin-backup.tgz srv/stream home/podsvc/.config/containers etc/fstab etc/samba/smb.conf`
 - [ ] Pi-hole #2 → Settings → Teleporter → **Export** (or just re-import from Pi-hole #1 in 3.9)
-- [ ] The data drives keep their files. In 3.4 **don't** run the `wipefs`/`mkfs` lines on them; only add their mount lines back. If one might be damaged, or you're not sure which drive is which, image it first (3.4, "Safe option first")
+- [ ] The data drives keep their files. In 3.4 **don't** run the `wipefs`/`mkfs` lines on them; only add their mount lines back. If one might be damaged, or you're not sure which drive is which, image it first (3.4r)
 - [ ] On the desktop, forget the old SSH host key, or SSH refuses with "REMOTE HOST IDENTIFICATION HAS CHANGED": `ssh-keygen -R 10.6.9.20; ssh-keygen -R cobra-stream`
 
 ## 3.1 Terms
@@ -192,7 +192,7 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 
 ## 3.4 Storage
 
-🔌 Plug the storage drives into the hub now (the SGIN's own USB-A ports are USB 2.0, see the port table at the top of this part): both WD external drives, and the dual-bay dock with its disks. The second dock gets added the same way later (see "Adding a drive later"). **Drives that hold files you want to keep, or that might be damaged (wd1): do "Safe option first: image wd1" below before anything else**, with only that drive and the rescue drive plugged in.
+🔌 Plug the storage drives into the hub now (the SGIN's own USB-A ports are USB 2.0, see the port table at the top of this part): both WD external drives, and the dual-bay dock with its disks. The second dock gets added the same way later (see "Adding a drive later"). **Drives that hold files you want to keep, or that might be damaged (wd1): do 3.4r ("Recover wd1 onto the Seagate 24 TB") before anything else**, with only that drive and the Seagate plugged in.
 
 **Before anything else, about the docks' clone button:** on most dual-bay docks, clone mode **erases one bay and overwrites it with the other**. Put tape over the button. Nothing in this manual uses it.
 
@@ -219,114 +219,9 @@ lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every dr
 
 For each drive, pick a short label: `wd1`, `wd2` for the externals, `dock1a`, `dock1b` for the dock's bays.
 
-### Safe option first: image wd1 before anything writes to it
+### Safe option first: a drive that holds files (wd1)
 
-**Do this before any format line below touches a drive that holds files you want, and before any `fsck` or `mount -a` on one that may be damaged.** wd1 (the WD 6 TB Elements Desktop) is the drive this is written for. An image is a byte-for-byte copy of the **whole disk**: partition table, filesystem and every block outside them. Every repair is then tried on the image, where a mistake costs minutes, and the original stays untouched until the recovered files are checked.
-
-It also covers the bad case. If the format block below ever ran on wd1 by mistake (a wrong `/dev/sdX` letter is the usual way), the file contents are almost always still on the platters. Don't mount it, `fsck` it or format it again: do the steps below, then follow the recovery plan, [Ext4 drive recovery plan + backup drive pick](https://claude.ai/artifact/V8Zmd8TybMABKAGyTvMwex), from Phase 3. It was tested on a practice disk with this exact accident and got 190 of 192 files back with their names.
-
-**Needs:** the **Seagate Expansion Desktop 24 TB** as the rescue drive (about 21.8 TB usable: wd1's 6 TB image, dock1a's 1 TB image and the recovered files all fit), and about 11–14 hours for wd1.
-
-**Rules until the files are verified:**
-
-- **Never write to wd1.** No `mount -a`, `fsck`, `mkfs` or testdisk "Write" on the original. The drive is set read-only in the kernel below.
-- **Address drives by `/dev/disk/by-id/…`, never `/dev/sdX`.** The letters move whenever drives or the hub get replugged.
-- **Image the whole disk (`$D`), never just the partition (`$D-part1`).**
-- **Every `mkfs`/`mke2fs` gets `-E nodiscard`.** Without it, the format tells the drive to throw blocks away, and anything in them is gone for good.
-- **Only wd1 and the Seagate are plugged in.** Every other data drive comes off the hub, so there's nothing to mix up.
-- Long commands run inside `tmux`, so a dropped SSH session doesn't stop them.
-
-**1. Tools, and a tmux session to work in** (from the desktop, `ssh eels@10.6.9.20`):
-
-```bash
-# tmux keeps long jobs running if SSH drops; gddrescue = GNU ddrescue (the imager);
-# testdisk is only needed if the partition table is gone (recovery plan, Phase 2)
-sudo apt install -y tmux smartmontools gddrescue testdisk e2fsprogs dmsetup
-tmux new -s rescue        # if SSH drops later: ssh back in, then  tmux attach -t rescue
-```
-
-**2. Freeze: stop everything that could write to a data drive, and keep boot from mounting them.** On a first install nothing is mounted yet, and these lines do nothing harmful:
-
-```bash
-sudo machinectl shell podsvc@ /usr/bin/systemctl --user stop stream-pod 2>/dev/null   # media apps (3.8), if they exist yet
-sudo systemctl stop smbd 2>/dev/null                                                   # Samba shares (3.6), if set up yet
-sudo umount /srv/storage/pool 2>/dev/null; sudo umount /srv/storage/disks/* 2>/dev/null
-sudo cp /etc/fstab /etc/fstab.before-rescue                                  # the file to restore from later
-sudo sed -i -E 's@^([^#].*/srv/storage/)@# RESCUE \1@' /etc/fstab           # comments out every drive line and the pool line
-sudo systemctl daemon-reload
-findmnt | grep /srv/storage        # must print nothing
-```
-
-**3. Plug in only wd1 and the Seagate.** 🔌 Unplug every other data drive from the hub. The network adapter stays where it is. wd1 and the Seagate both have their own power bricks: plug each brick into the UPS's battery-backed outlets, and each USB cable into one of the hub's **5 or 10 Gb/s data ports**, never a 45 W PD charging port. **Not** the SGIN's own USB-A ports: they're USB 2.0 (the port table at the top of this part), and at about 40 MB/s the 6 TB image would take two days instead of about 11 hours.
-
-```bash
-lsusb -t        # wd1 and the Seagate (Driver=uas or usb-storage) under the hub at 5000M or 10000M; 480M = reseat or another hub port
-```
-
-**4. Give wd1 a name that can't move, and make it read-only:**
-
-```bash
-lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL                 # wd1 = ~5.5T, WD Elements; the Seagate = ~21.8T
-ls -l /dev/disk/by-id/ | grep -v part | grep usb             # the whole-disk entries (no -part1 on the end)
-D=/dev/disk/by-id/usb-WD_Elements_XXXX_XXXXXXXXXXXX-0:0      # paste wd1's whole-disk entry here
-sudo smartctl -i -d sat $D | grep -E 'Model|Serial|Capacity' # must be the WD 6 TB (a WD60… model), not the Seagate
-sudo blockdev --setro $D $D-part1                            # kernel-level read-only, until a replug or reboot
-sudo blockdev --getro $D                                     # must print 1
-```
-
-- [ ] If wd1 drops off USB or gets replugged, run the `--setro` line again before anything else: read-only doesn't survive a replug.
-
-**5. Health and the filesystem's details** (read-only). Screenshot both outputs: the recovery plan needs the `Inode count` and `Block count`, and `Last mount time` / `Mount count` say how much of the old index is likely still there:
-
-```bash
-sudo smartctl -H -A -d sat $D | grep -E 'result|Realloc|Pending|Uncorrect'   # non-zero Realloc/Pending/Uncorrect = failing: image now, nothing else
-sudo dumpe2fs -h $D-part1 2>/dev/null | grep -E 'volume name|UUID|created|Last mount time|Mount count|Inode count|Block count|Block size|Filesystem features'
-```
-
-**6. Prepare the Seagate.** This is the **only** format in this section, and it erases the Seagate. It's new, so that's fine, but if it already holds anything you want, stop here. The checks refuse anything that isn't a different drive of more than 23 TB, so they can't hit wd1:
-
-```bash
-N=/dev/disk/by-id/usb-Seagate_Expansion_HDD_XXXXXXXXXXXX-0:0   # paste the Seagate's whole-disk entry here
-lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL $N                # must say ~21.8T and Seagate
-[ "$(readlink -f $N)" != "$(readlink -f $D)" ] && [ $(sudo blockdev --getsize64 $N) -gt 23000000000000 ] && echo OK || echo STOP
-```
-
-Only if it printed `OK`:
-
-```bash
-sudo wipefs -a $N && sudo parted -s $N mklabel gpt mkpart rescue ext4 0% 100%   # new partition table on the Seagate only
-sleep 3                                                                          # let udev create $N-part1
-sudo mkfs.ext4 -L rescue -m 0 -E nodiscard $N-part1                              # -m 0: no root reserve; nodiscard: see the rules
-sudo mkdir -p /mnt/rescue && sudo mount $N-part1 /mnt/rescue && df -h /mnt/rescue   # ~22T free
-```
-
-**7. Image the whole of wd1** (`$D`, not `$D-part1`). A fast first pass copies everything that reads cleanly; the second goes back three times over any spot that didn't:
-
-```bash
-sudo ddrescue -n  $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 1: no scraping, the bulk of the drive (~11 h)
-sudo ddrescue -r3 $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 2: retry bad areas up to 3 times (minutes on a healthy drive)
-```
-
-Detach tmux with Ctrl+B then D and check back later (`tmux attach -t rescue`). It's done when it reports `pct rescued: 100%` (or as close as the drive allows) and `bad areas: 0`. If wd1 drops off USB mid-copy: replug it, rerun the `--setro` line from step 4, and rerun the **same** `ddrescue` command. The `.map` file makes it carry on where it stopped instead of starting over.
-
-**8. Check the image and lock it:**
-
-```bash
-sudo ddrescuelog -t /mnt/rescue/wd1.map                        # summary: "rescued" ~6.0 TB, "bad areas" 0 (or very few)
-sudo blockdev --getsize64 $D; stat -c %s /mnt/rescue/wd1.img   # the same number twice: the image is the whole disk
-L=$(sudo losetup -r -fP --show /mnt/rescue/wd1.img); P=${L}p1  # attach the image READ-ONLY; its partition = $P (e.g. /dev/loop0p1)
-sudo dumpe2fs -h $P 2>/dev/null | grep -E 'UUID|created|Inode count|Block count'   # matches step 5's screenshot
-sudo losetup -d $L                                             # detach again; the recovery plan re-attaches it
-sudo chattr +i /mnt/rescue/wd1.img /mnt/rescue/wd1.map         # nothing (not even root, by mistake) can change or delete them now
-```
-
-The recovery plan's repairs only **read** the image (they write to a throwaway overlay), so it can stay locked. If its Phase 2 (testdisk on the image) is ever needed, run `sudo chattr -i /mnt/rescue/wd1.img` just before that, and lock it again after.
-
-**9. Set wd1 aside, untouched.** Unplug it, and stick a label on it: *ORIGINAL, do not format*. From here everything happens on the image. wd1 is your second copy until **every folder you care about has been copied off and checked**, and only then (recovery plan, Phase 4) does it get the format block below, with `-E nodiscard`, and its files copied back. Its fstab line stays commented (`# RESCUE`) until then.
-
-- [ ] **Recover the files:** [Ext4 drive recovery plan + backup drive pick](https://claude.ai/artifact/V8Zmd8TybMABKAGyTvMwex), Phase 3 (rebuild the index on an overlay over `/mnt/rescue/wd1.img`), Phase 4 (copy off irreplaceable folders first, with checksum checks), Phase 5 (photorec for anything still missing)
-- [ ] **dock1a too**, if it was formatted the same way: the same steps with `dock1a` in place of `wd1` in the file names, in dock bay A with bay B empty. Its 1 TB image takes about 2 hours, so the plan does it **first**, as a rehearsal
-- [ ] Only once both drives' files are recovered and checked: restore `/etc/fstab.before-rescue` (or uncomment the `# RESCUE` lines), plug the drives back in and carry on with the rest of 3.4
+⚠️ **Before any format line below touches a drive that holds files you want, and before any `fsck` or `mount -a` on one that may be damaged, image it first.** For wd1 (the WD 6 TB Elements Desktop), that and the full recovery are in **3.4r, "Recover wd1 onto the Seagate 24 TB"**, right after this section. Do 3.4r first, with only wd1 and the Seagate plugged in, and come back here once its files are recovered and checked.
 
 **Reinstalling, and the drives were set up here before?** Skip the `wipefs`/`parted`/`mkfs` lines: those erase the drive. `lsblk` shows each one's old label (`wd1`, `dock1a`…); for each, run only the `L=…; U=…`, `mkdir`/`chattr` and `echo … | sudo tee -a /etc/fstab` lines with its partition, then carry on at "Then mount everything". The pool block, the `mkdir` lines and 3.5's `chown` are safe to run again.
 
@@ -335,7 +230,7 @@ The recovery plan's repairs only **read** the image (they write to a throwaway o
 ```bash
 D=/dev/disk/by-id/usb-XXXXXXXX-0:0                          # whole-disk entry from: ls -l /dev/disk/by-id/ | grep -v part
 sudo smartctl -i -d sat $D | grep -E 'Model|Serial'         # the model and serial of the drive you mean to erase
-lsblk -o NAME,SIZE,FSTYPE,LABEL $D                          # an FSTYPE or LABEL here means it holds a filesystem: if it has files you want, image it first (above)
+lsblk -o NAME,SIZE,FSTYPE,LABEL $D                          # an FSTYPE or LABEL here means it holds a filesystem: if it has files you want, image it first (3.4r)
 sudo wipefs -a $D && sudo parted -s $D mklabel gpt mkpart data ext4 0% 100%
 sleep 3                                                     # let udev create $D-part1
 sudo mkfs.ext4 -L wd1 -m 0 -E nodiscard $D-part1            # -m 0: no root reserve on a data drive; nodiscard: a mistake stays recoverable
@@ -411,6 +306,310 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
 1. Plug it into a 5 Gb/s port on the hub (there's no free USB 3 port on the SGIN itself) and check `lsusb -t` shows `5000M`. Label and mount it exactly as above (`dock2a`, `dock2b`), and `mkdir` its `library` folder.
 2. Re-run the pool block above (the `OPTS=...` lines through `mount`), after `sudo umount /srv/storage/pool`. The `*` picks up the new drive, and the rewritten line makes boot wait for it too.
 3. Optional, once there are four or more drives: **SnapRAID** turns one drive into parity for the rest, so a dead drive can be rebuilt. The parity drive must be at least as big as the biggest data drive. ⚠️ Decide when you know the sizes; it's a separate short setup.
+
+## 3.4r Recover wd1 onto the Seagate 24 TB (maximum safety)
+
+**Result:** every file that can be saved from wd1 (the WD 6 TB Elements Desktop) sits on the Seagate Expansion Desktop 24 TB, checked against checksums. wd1 itself is never written to until you decide, at the very end, that it can be wiped and refilled.
+
+**Why it can work.** The format block in 3.4 (`wipefs`, `parted`, `mkfs.ext4`) writes a new, empty filesystem index over the old one, but it doesn't erase the file contents. The method below rebuilds the old index from what's still on the disk. It was tested on a practice disk with exactly this accident, and again with stage B's exact command lines on Debian's e2fsprogs: 57 of 60 files came back byte-for-byte, with their names, in `lost+found`. The files lost were the ones under the new filesystem's own metadata. The full background, with the reasons behind each flag, is in [Ext4 drive recovery plan + backup drive pick](https://claude.ai/artifact/V8Zmd8TybMABKAGyTvMwex).
+
+**What you need:** the Seagate (new, about 21.8 TB usable: wd1's 6 TB image, dock1a's 1 TB image and every recovered file all fit), and about a day: roughly 11 h of imaging, 1–3 h of repair, then copying.
+
+### The rules (read them twice)
+
+1. **Never write to wd1.** No `mount`, `mount -a`, `fsck`, `mkfs`, testdisk "Write" or Windows "Initialize/Format" prompt on the original. It is set read-only in the kernel (stage A), and every repair happens on a **throwaway overlay over an image of it** (stage B).
+2. **Address drives by `/dev/disk/by-id/…`, never `/dev/sdX`.** The `sdX` letters change whenever a drive or the hub replugs. A wrong letter is the most likely way this accident happened.
+3. **Image the whole disk (`$D`), never just the partition (`$D-part1`)**, so nothing outside the partition table can be lost.
+4. **Every `mkfs`/`mke2fs` gets `-E nodiscard`.** Without it, the format tells the drive to throw blocks away, and on a drive that honours that, anything in them is gone for good. The repair in stage B fails without it.
+5. **Only the drive being rescued and the Seagate are plugged in**, both on the **hub's USB 3 ports** (5 or 10 Gb/s), never the SGIN's own USB-A ports (USB 2.0: the 6 TB image would take two days). Every other data drive comes off the hub. The network adapter stays.
+6. **Every long command runs inside `tmux`**, so a dropped SSH session doesn't stop it.
+7. **Each "Only if it printed `OK`" means exactly that.** On `STOP`, stop and work out which drive is which before typing anything else.
+8. **Keep the original and the image until the files are checked**, both drives' files, and a second copy of the irreplaceable folders exists (stage C). Stage E is the only step that erases wd1, and it starts with a decision only you make.
+
+**dock1a** (the WD Blue 1 TB in dock bay A), if 3.4 formatted it too: the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
+
+### Stage A: freeze, identify, image
+
+**A1. Tools, and a tmux session.** From the desktop: `ssh eels@10.6.9.20`, then:
+
+```bash
+# gddrescue = GNU ddrescue (the imager); dmsetup builds the throwaway overlay in stage B;
+# testdisk is only for a lost partition table (B0); e2fsprogs has mke2fs, e2fsck, dumpe2fs
+sudo apt install -y tmux smartmontools gddrescue testdisk e2fsprogs dmsetup rsync
+tmux new -s rescue        # if SSH drops: ssh back in, then  tmux attach -t rescue
+```
+
+**A2. Freeze.** Stop everything that could write to a data drive, and keep boot from mounting them. On a first install nothing is mounted yet, and these lines do nothing harmful:
+
+```bash
+sudo machinectl shell podsvc@ /usr/bin/systemctl --user stop stream-pod 2>/dev/null   # media apps (3.8), if they exist yet
+sudo systemctl stop smbd 2>/dev/null                                                   # Samba shares (3.6), if set up yet
+sudo umount /srv/storage/pool 2>/dev/null; sudo umount /srv/storage/disks/* 2>/dev/null
+sudo cp /etc/fstab /etc/fstab.before-rescue                                  # the file to restore from later
+sudo sed -i -E 's@^([^#].*/srv/storage/)@# RESCUE \1@' /etc/fstab           # comments out every drive line and the pool line
+sudo systemctl daemon-reload
+findmnt | grep /srv/storage        # must print nothing
+```
+
+**A3. Plug in only wd1 and the Seagate.** 🔌 Unplug every other data drive from the hub. wd1 and the Seagate both have their own power bricks: plug each into the UPS's battery-backed outlets, and each USB cable into one of the hub's **5 or 10 Gb/s data ports** (not a 45 W PD charging port).
+
+```bash
+lsusb -t     # wd1 and the Seagate (Driver=uas or usb-storage) under the hub at 5000M or 10000M; 480M = reseat or another hub port
+```
+
+**A4. Give wd1 a name that can't move, make it read-only, check its health:**
+
+```bash
+lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL                 # wd1 = ~5.5T, WD Elements; the Seagate = ~21.8T
+ls -l /dev/disk/by-id/ | grep -v part | grep usb             # the whole-disk entries (no -part1 on the end)
+D=/dev/disk/by-id/usb-WD_Elements_XXXX_XXXXXXXXXXXX-0:0      # paste wd1's whole-disk entry here
+sudo smartctl -i -d sat $D | grep -E 'Model|Serial|Capacity' # must be the WD 6 TB (a WD60… model), not the Seagate. Write the serial down
+sudo blockdev --setro $D $D-part1                            # kernel-level read-only, until a replug or reboot
+sudo blockdev --getro $D                                     # must print 1
+sudo smartctl -H -A -d sat $D | grep -E 'result|Realloc|Pending|Uncorrect'   # non-zero Realloc/Pending/Uncorrect = failing: image now, nothing else
+```
+
+- [ ] If wd1 drops off USB, or after any replug or reboot: set `D=` again and rerun the `--setro` line **before anything else**. Read-only doesn't survive a replug.
+- [ ] `$D-part1` doesn't exist? The partition table is gone too. Image anyway (it's the whole disk), and do B0 before B1.
+
+**A5. Record the filesystem's details** (read-only). **Screenshot this output** and keep it: B2 needs `Inode count` and `Block count`, and `Last mount time` / `Mount count` say how much of the old index is likely still there:
+
+```bash
+sudo dumpe2fs -h $D-part1 2>/dev/null | grep -E 'volume name|UUID|created|Last mount time|Mount count|Inode count|Block count|Block size|Filesystem features'
+```
+
+| `Last mount time` / `Mount count` | What it means | What to expect |
+|---|---|---|
+| `n/a` / `0` | The new filesystem was never mounted, so the old index is intact | Most files back with names and folders |
+| A time, mounted briefly | Mounting starts a background job that zeroes the old index | Many files back with names; photorec (stage D) for the rest |
+| Mounted for hours or days | Most of the old index is zeroed | Mostly stage D: contents back, names lost |
+
+**A6. Check the Seagate and prepare it.** This is the **only** format in stages A–D, and it erases the **Seagate**. New Seagates come with a few factory files (Seagate's installer and a "Start Here" page). Look before erasing:
+
+```bash
+N=/dev/disk/by-id/usb-Seagate_Expansion_HDD_XXXXXXXXXXXX-0:0   # paste the Seagate's whole-disk entry here
+lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL $N                # must say ~21.8T and Seagate
+sudo mkdir -p /mnt/look && sudo mount -o ro $N-part2 /mnt/look 2>/dev/null || sudo mount -o ro $N-part1 /mnt/look
+ls -la /mnt/look; sudo du -sh /mnt/look; sudo umount /mnt/look # only Seagate's own files, a few MB? Then it's safe to erase
+# (if neither partition mounts, lsblk's FSTYPE column above shows what's there; blank = nothing to lose)
+[ "$(readlink -f $N)" != "$(readlink -f $D)" ] && [ $(sudo blockdev --getsize64 $N) -gt 23000000000000 ] && echo OK || echo STOP
+```
+
+⚠️ If `ls` shows **anything of yours** on the Seagate, stop: copy it off first. Only if the check printed `OK`:
+
+```bash
+sudo wipefs -a $N && sudo parted -s $N mklabel gpt mkpart rescue ext4 0% 100%   # new partition table, on the Seagate only
+sleep 3                                                                          # let udev create $N-part1
+sudo mkfs.ext4 -L rescue -m 0 -E nodiscard $N-part1                              # -m 0: no root reserve; nodiscard: rule 4
+sudo mkdir -p /mnt/rescue && sudo mount $N-part1 /mnt/rescue && df -h /mnt/rescue   # ~22T free
+```
+
+The Seagate stays mounted at `/mnt/rescue` by hand. Don't add it to fstab, so it never joins the pool by mistake.
+
+**A7. Image the whole of wd1** (`$D`, not `$D-part1`). A fast first pass copies everything that reads cleanly; the second goes back three times over any spot that didn't:
+
+```bash
+sudo ddrescue -n  $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 1: no scraping, the bulk of the drive (~11 h)
+sudo ddrescue -r3 $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 2: retry bad areas up to 3 times (minutes on a healthy drive)
+```
+
+Detach with **Ctrl+B, then D**, and check back later (`tmux attach -t rescue`). It's done when it reports `pct rescued: 100%` (or as close as the drive allows) and `bad areas: 0`. If wd1 drops off USB mid-copy: replug it, set `D=` and rerun `--setro` (A4), then rerun the **same** `ddrescue` line. The `.map` file makes it continue where it stopped. Never delete the `.map`.
+
+**A8. Check the image and lock it:**
+
+```bash
+sudo ddrescuelog -t /mnt/rescue/wd1.map                        # "rescued" ~6.0 TB, "bad areas" 0 (or very few)
+sudo blockdev --getsize64 $D; stat -c %s /mnt/rescue/wd1.img   # the same number twice: the image is the whole disk
+L=$(sudo losetup -r -fP --show /mnt/rescue/wd1.img); P=${L}p1; ls -l $P   # attach the image READ-ONLY; its partition = $P
+sudo dumpe2fs -h $P 2>/dev/null | grep -E 'UUID|created|Inode count|Block count'   # matches A5's screenshot
+sudo chattr +i /mnt/rescue/wd1.img /mnt/rescue/wd1.map         # nothing (not even root, by mistake) can change or delete them now
+```
+
+- [ ] `${L}p1` doesn't appear: the partition starts at the usual 1 MiB, so attach it by offset instead: `sudo losetup -d $L; P=$(sudo losetup -r -f --show -o 1048576 /mnt/rescue/wd1.img)`
+
+**A9. Set wd1 aside, untouched.** Leave the image attached (stage B uses `$P`). Unplug **wd1** (not the Seagate), stick a label on it, *ORIGINAL, do not format*, and put it somewhere safe. From here everything works on the image. Unplugging it also makes it impossible to point a command at it by mistake.
+
+### Stage B: rebuild the old index, on a throwaway overlay
+
+The overlay is a thin layer on top of the image partition. Every write lands in a small `try.cow` file and the image is only read, so a wrong attempt costs a minute (run `mkov` again) instead of another 11-hour image.
+
+**B0. Only if `$D-part1` was missing in A4** (otherwise skip to B1). testdisk finds the old partition inside the image file; its "Write" changes only the image, so unlock it first and lock it again after:
+
+```bash
+sudo losetup -d $L; sudo chattr -i /mnt/rescue/wd1.img
+sudo testdisk /mnt/rescue/wd1.img    # Proceed → EFI GPT → Analyse → Quick Search (then Deeper Search if empty) →
+                                     # the "Linux filesys. data" entry the size of the drive → Enter → Write → Y → Quit
+sudo chattr +i /mnt/rescue/wd1.img
+L=$(sudo losetup -r -fP --show /mnt/rescue/wd1.img); P=${L}p1; ls -l $P
+sudo dumpe2fs -h $P 2>/dev/null | grep -E 'Inode count|Block count'   # use these in B2 if A5 had none
+```
+
+**B1. Build the overlay:**
+
+```bash
+# mkov: (re)builds a fresh overlay. Writes go to /mnt/rescue/try.cow; the image partition $P is only read.
+mkov() { sudo umount /mnt/old 2>/dev/null; sudo dmsetup remove try 2>/dev/null; sudo losetup -j /mnt/rescue/try.cow -O NAME -n | xargs -r sudo losetup -d
+  sudo rm -f /mnt/rescue/try.cow; sudo truncate -s 50G /mnt/rescue/try.cow    # sparse: uses only what's written
+  local c=$(sudo losetup -f --show /mnt/rescue/try.cow)
+  echo "0 $(sudo blockdev --getsz $P) snapshot $P $c P 8" | sudo dmsetup create try; }
+mkov; T=/dev/mapper/try; ls -l $T          # run mkov again any time to throw everything away and start fresh
+sudo mkdir -p /mnt/old && sudo mount -o ro,noload $T /mnt/old && ls /mnt/old; sudo umount /mnt/old   # just an empty lost+found: as expected
+```
+
+- [ ] `dmsetup create` fails (no device-mapper)? Don't work on the image itself. Make a working copy instead, about 10 hours: `sudo cp --sparse=always /mnt/rescue/wd1.img /mnt/rescue/wd1-work.img`, attach it **without** `-r` (`W=$(sudo losetup -fP --show /mnt/rescue/wd1-work.img); T=${W}p1`), and use that `$T` below. To start over, delete the copy and make a new one. The locked `wd1.img` stays pristine either way.
+
+**B2. Dry run.** `mke2fs -n` only prints, it writes nothing. Put in the two numbers from A5's screenshot:
+
+```bash
+IC=<Inode count from A5>; BC=<Block count from A5>        # YOUR two numbers from the screenshot, digits only
+sudo mke2fs -n -t ext4 -b 4096 -N $IC $T $BC              # "Creating filesystem with $BC 4k blocks and $IC inodes": same numbers
+```
+
+**B3. Rebuild the superblocks onto the overlay.** `-S` rewrites only the superblocks and group descriptors and leaves the old inode tables (the old index) in place. Type it exactly; it asks "Proceed anyway?": answer `y`:
+
+```bash
+sudo mke2fs -S -t ext4 -L wd1 -m 0 -b 4096 -N $IC -E nodiscard -O ^has_journal,^metadata_csum $T $BC
+```
+
+| Flag | Why it's there (from the tests) |
+|---|---|
+| `-S` | Without it, the old index is wiped instead of reused. A plain `e2fsck` alone found nothing: 0 files |
+| `-E nodiscard` | Without it, mke2fs discards the blocks. In the test that destroyed 83 % of the data |
+| `-O ^has_journal` | With the journal left on, e2fsck refuses to start (the old journal's checksums don't match) |
+| `-O ^metadata_csum` | With checksums left on, e2fsck deletes the old files as "corrupt": 7 of 192 came back instead of 190 |
+| `-N $IC … $BC` | The same inode and block counts as the old filesystem, so the rebuilt layout lines up with the old index |
+
+**B4. Let e2fsck rebuild the rest, still on the overlay.** Thousands of `Fix? yes` and `Connect to /lost+found? yes` lines are normal. The log is kept on the Seagate:
+
+```bash
+sudo e2fsck -fy -C0 $T 2>&1 | tee /mnt/rescue/wd1-fsck.log | tail -5
+sudo e2fsck -fn $T >/dev/null 2>&1 && echo "clean" || echo "run the e2fsck -fy line once more"
+```
+
+**B5. Look, read-only:**
+
+```bash
+sudo mount -o ro $T /mnt/old && sudo du -sh /mnt/old                  # close to what wd1 used to hold?
+sudo ls /mnt/old/lost+found | head -50                                # #12345-style names: your old folders
+sudo find /mnt/old/lost+found -maxdepth 2 | head -100                 # inside each one, the real names are back
+```
+
+The new format replaced the root folder, so your old folders show up in `lost+found` as `#12345` names. Everything **inside** them keeps its real names. Open each one, work out what it is (Movies, Music, Photos…), and write a list: `#12345 = Music`. The names get fixed when you copy them off, in stage C.
+
+- [ ] It looks wrong (`du` far below what wd1 held, or folders full of garbage): `mkov` and redo B2–B5. Check you typed A5's numbers, or try the counts from `sudo dumpe2fs -h $P` (the image's own superblock). Still nothing? Go to stage D.
+- [ ] **Never put this rebuilt filesystem back into service.** It has no journal and no checksums. It's for copying files off, once.
+
+### Stage C: copy off and check, irreplaceable folders first
+
+Copy one folder per run, so each run is small enough to check before the next. Order by what you can't get again:
+
+1. Photos, scans, backups, personal documents
+2. `music/eels`, `music/rachel`, audiobooks, books, comics
+3. ROMs and game saves
+4. Movies and TV last (they can be re-ripped or re-downloaded)
+
+For each folder (the `#12345` and `Music` here are examples from your B5 list):
+
+```bash
+sudo mkdir -p /mnt/rescue/files/wd1
+# -a keeps dates and permissions, -H hard links, -A ACLs, -X extended attributes
+sudo rsync -aHAX --info=progress2 "/mnt/old/lost+found/#12345/" /mnt/rescue/files/wd1/Music/
+# Check: re-read both sides and compare the CONTENTS byte for byte (-c). Must list nothing.
+sudo rsync -aHAXcn --itemize-changes "/mnt/old/lost+found/#12345/" /mnt/rescue/files/wd1/Music/
+# Keep a checksum list next to the copy; stage E checks against it again
+(cd /mnt/rescue/files/wd1/Music && sudo find . -type f -print0 | sudo xargs -0 sha256sum) | sudo tee /mnt/rescue/files/wd1/Music.sha256 >/dev/null
+```
+
+- [ ] After each folder, spot-check it from a desktop: open a few photos, play a few songs. (Read-only share for this, if you want one: Samba isn't running during the rescue, so use `scp eels@10.6.9.20:/mnt/rescue/files/wd1/Photos/… .`)
+- [ ] Every folder from your B5 list is copied, its `rsync -c` check listed nothing, and it has a `.sha256` list
+
+**Second copy of the irreplaceable folders (items 1 and 2).** Before any original gets erased, those folders should sit on two drives. The recovery plan uses the empty OptiPlex 4 TB in dock bay B, once both damaged drives are through stage C and unplugged. The size check refuses anything that isn't about 4 TB, so it can't hit the Seagate:
+
+```bash
+C=/dev/disk/by-id/usb-XXXXXXXX-0:1      # the 4 TB's whole-disk entry (bay B)
+N=/dev/disk/by-id/usb-Seagate_Expansion_HDD_XXXXXXXXXXXX-0:0   # the Seagate's, set again in case this is a new session
+sudo smartctl -i -d sat $C | grep -E 'Model|Serial'
+S=$(sudo blockdev --getsize64 $C); [ $S -gt 3900000000000 ] && [ $S -lt 4100000000000 ] && [ -e "$N" ] && [ "$(readlink -f $C)" != "$(readlink -f $N)" ] && echo OK || echo STOP
+```
+
+Only if it printed `OK` (and it holds nothing you want; check with `lsblk -o NAME,FSTYPE,LABEL $C`):
+
+```bash
+sudo wipefs -a $C && sudo parted -s $C mklabel gpt mkpart copy2 ext4 0% 100%
+sleep 3; sudo mkfs.ext4 -L copy2 -m 0 -E nodiscard $C-part1
+sudo mkdir -p /mnt/copy2 && sudo mount $C-part1 /mnt/copy2
+sudo rsync -aHAX --info=progress2 /mnt/rescue/files/wd1/Photos/ /mnt/copy2/wd1/Photos/          # one folder per run
+sudo rsync -aHAXcn --itemize-changes /mnt/rescue/files/wd1/Photos/ /mnt/copy2/wd1/Photos/       # must list nothing
+```
+
+### Stage D: photorec, only for what stage C didn't bring back
+
+photorec ignores the filesystem and finds files by their contents. It gets the contents back, but most files come back without names or folders (`f123456.jpg`), and large fragmented videos may be damaged. It works on the image, never the original, and writes to its own folder on the Seagate:
+
+```bash
+sudo mkdir -p /mnt/rescue/photorec/wd1
+sudo photorec /log /d /mnt/rescue/photorec/wd1/ /mnt/rescue/wd1.img
+#   pick the partition → File Opt (untick types you don't need) → Search → [ ext2/ext3/ext4 ] → Free
+#   (Free = only the space the rebuilt filesystem doesn't account for; choose Whole if stage B found nothing)
+```
+
+Sorting what it finds: photos by date with `exiftool '-Directory<DateTimeOriginal' -d /mnt/rescue/sorted/photos/%Y/%m -r /mnt/rescue/photorec/wd1/`; music by its tags with MusicBrainz Picard or `beet import`; video with FileBot, or Jellyfin's Identify once it's back in the library.
+
+### Stage E: put wd1 back into service (the only step that erases it)
+
+⚠️ **Decision point: yours alone.** Go on only when **all** of these are true. Until then, wd1 stays unplugged and untouched, and that costs nothing:
+
+- [ ] Stage C is finished for wd1 (and dock1a, if it was formatted too): every folder copied, every `rsync -c` check empty, every `.sha256` list made
+- [ ] The irreplaceable folders also sit on the second drive (`/mnt/copy2`)
+- [ ] You've looked at the copies yourself and you're happy nothing else is missing
+
+**E1. Identify wd1 the long way** (plug it in alone with the Seagate, on the hub):
+
+```bash
+D=/dev/disk/by-id/usb-WD_Elements_XXXX_XXXXXXXXXXXX-0:0      # wd1's whole-disk entry again (ls -l /dev/disk/by-id/ | grep -v part)
+N=/dev/disk/by-id/usb-Seagate_Expansion_HDD_XXXXXXXXXXXX-0:0   # the Seagate's, so the check below can tell them apart
+sudo smartctl -i -d sat $D | grep -E 'Model|Serial'          # the serial you wrote down in A4
+S=$(sudo blockdev --getsize64 $D); echo $S                   # about 6001175126016 (6.0 TB)
+[ -e "$N" ] && [ "$(readlink -f $D)" != "$(readlink -f $N)" ] && [ $S -gt 5900000000000 ] && [ $S -lt 6100000000000 ] && echo OK || echo STOP
+```
+
+For dock1a, the size range in that check is `950000000000` to `1050000000000` (1.0 TB) instead.
+
+**E2. Erase and reformat it** (only if E1 printed `OK` and the serial matches):
+
+```bash
+sudo blockdev --setrw $D                                     # undo stage A's read-only (only if it's still set)
+sudo wipefs -a $D && sudo parted -s $D mklabel gpt mkpart data ext4 0% 100%
+sleep 3; sudo mkfs.ext4 -L wd1 -m 0 -E nodiscard $D-part1
+# fstab: the new filesystem has a NEW UUID, so remove the old wd1 line and add a new one
+sudo sed -i '\#[[:space:]]/srv/storage/disks/wd1[[:space:]]#d' /etc/fstab
+L=wd1; U=$(sudo blkid -s UUID -o value $D-part1)
+sudo chattr -i /srv/storage/disks/$L 2>/dev/null; sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
+echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/disks/$L && df -h /srv/storage/disks/$L
+```
+
+**E3. Copy the files back and check them against stage C's lists:**
+
+```bash
+sudo mkdir -p /srv/storage/disks/wd1/library
+sudo rsync -aHAX --info=progress2 /mnt/rescue/files/wd1/Music/ /srv/storage/disks/wd1/library/music/   # per folder, to its library name
+(cd /srv/storage/disks/wd1/library/music && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Music.sha256)   # prints nothing = every file matches
+```
+
+**E4. Back to normal:**
+
+```bash
+sudo sed -i -E 's@^# RESCUE @@' /etc/fstab               # un-comment the other drives and the pool line from A2
+grep -E 'srv/storage' /etc/fstab                          # wd1: only the NEW line from E2; one pool line
+sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/* /srv/storage/pool
+sudo chown -R podsvc:media /srv/storage/disks/wd1/library && sudo chmod -R g+rwX /srv/storage/disks/wd1/library   # 3.5's permissions
+```
+
+Then plug the other drives back in, and carry on with 3.4 where you left it (or 3.5 onward).
+
+- [ ] Only now, once **both** drives are back and checked: `sudo umount /mnt/old; sudo dmsetup remove try; sudo losetup -D`. Keep the images on the Seagate for now; there's room
+- [ ] **Keep the Seagate's copy for a few weeks** of the pool working normally. After that, `sudo chattr -i` the images, delete them, and the Seagate becomes the `vault` backup drive (part 5.6)
 
 ## 3.5 Users and permissions
 
