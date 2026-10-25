@@ -225,12 +225,22 @@ For each drive, pick a short label: `wd1`, `wd2` for the externals, `dock1a`, `d
 
 **Reinstalling, and the drives were set up here before?** Skip the `wipefs`/`parted`/`mkfs` lines: those erase the drive. `lsblk` shows each one's old label (`wd1`, `dock1a`…); for each, run only the `L=…; U=…`, `mkdir`/`chattr` and `echo … | sudo tee -a /etc/fstab` lines with its partition, then carry on at "Then mount everything". The pool block, the `mkdir` lines and 3.5's `chown` are safe to run again.
 
-**Empty drive, or one you've copied off first** (ext4 is the most reliable choice on Linux). ⚠️ This **erases** the drive. Name it by its by-id path, never `/dev/sdX`, and check it's the one you mean before the `wipefs` line:
+**Empty drive, or one you've copied off first** (ext4 is the most reliable choice on Linux). ⚠️ This **erases** the drive. Name it by its by-id path, never `/dev/sdX`, and check it's the one you mean before the `wipefs` line.
+
+Pick the drive by its `ata-` name: it carries the drive's own model and serial. The `usb-` names come from the enclosure, and a dual-bay dock like the Sabrent reports one serial (`000000…`) for **both** bays, so its two entries differ only in `-0:0`/`-0:1`. Match on the model and let the shell fill in the rest; never type a serial from a screenshot:
 
 ```bash
-D=/dev/disk/by-id/usb-XXXXXXXX-0:0                          # whole-disk entry from: ls -l /dev/disk/by-id/ | grep -v part
+ls -l /dev/disk/by-id/ | grep -v part | grep -E 'ata-|usb-'  # every whole-disk entry, with the sdX it points to now
+MODEL=PUT_MODEL_HERE      # the part after "ata-" up to the next "-", e.g. WDC_WD40EFRX. Left as-is, the check below says STOP
+D=$(ls /dev/disk/by-id/ata-$MODEL-* 2>/dev/null | grep -v part); echo "$D -> $(readlink -f $D)"
 sudo smartctl -i -d sat $D | grep -E 'Model|Serial'         # the model and serial of the drive you mean to erase
-lsblk -o NAME,SIZE,FSTYPE,LABEL $D                          # an FSTYPE or LABEL here means it holds a filesystem: if it has files you want, image it first (3.4r)
+lsblk -o NAME,SIZE,FSTYPE,LABEL $D
+[ -n "$D" ] && [ $(echo "$D" | wc -l) -eq 1 ] && [ -z "$(lsblk -no FSTYPE,LABEL $D | tr -d '[:space:]')" ] && echo OK || echo STOP   # STOP = no drive, two drives, or it already holds a filesystem
+```
+
+Only if it printed `OK`. `STOP` means no drive matched, more than one did, or the drive already holds a filesystem. If there's any chance it has files you want, image it first (3.4r). A brand-new drive often ships pre-formatted (exFAT or NTFS, with the maker's software on it): look at what's there the way 3.4r A6 does for the Seagate, and only when it's nothing of yours, run the `wipefs` line anyway. This check is the one that would have stopped the accident 3.4r recovers from.
+
+```bash
 sudo wipefs -a $D && sudo parted -s $D mklabel gpt mkpart data ext4 0% 100%
 sleep 3                                                     # let udev create $D-part1
 sudo mkfs.ext4 -L wd1 -m 0 -E nodiscard $D-part1            # -m 0: no root reserve on a data drive; nodiscard: a mistake stays recoverable
@@ -248,6 +258,8 @@ echo "UUID=$U /srv/storage/disks/$L ntfs-3g uid=0,gid=$(getent group media | cut
 ```
 
 `chattr +i` locks the **empty** folder under each mount. If a drive is missing at boot (`nofail` lets the SGIN boot anyway), nothing can write into that folder by mistake and fill the system SSD; PBS and the pool just report the drive as missing. The mounted drive itself is unaffected.
+
+⚠️ **Once a drive has an fstab line, plugging it in mounts it.** systemd turns each fstab line into a mount unit tied to that UUID, and starts it whenever the drive appears, with no command typed. The first mount of a new ext4 filesystem also starts the kernel's **lazy init**, which zeroes every inode table in the background (about an hour per TB). On an empty drive that's harmless. On a drive formatted by mistake, it wipes the old file index. That's what happened to dock1a on Oct 22: formatted at 13:24, plugged back in at 13:38, and lazy init had zeroed all 7,453 groups by 14:38. Its files could only come back without names (3.4r stage D). If you ever suspect a format hit the wrong drive, **unplug it at once** and start 3.4r before plugging it in again.
 
 Then mount everything and give each drive its `library` folder. On a drive that already has files, move them into `library` (a move on the same drive is instant):
 
@@ -326,7 +338,7 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
 7. **Each "Only if it printed `OK`" means exactly that.** On `STOP`, stop and work out which drive is which before typing anything else.
 8. **Keep the original and the image until the files are checked**, both drives' files, and a second copy of the irreplaceable folders exists (stage C). Stage E is the only step that erases wd1, and it starts with a decision only you make.
 
-**dock1a** (the WD Blue 1 TB in dock bay A), if 3.4 formatted it too: the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
+**dock1a** (the 1 TB in dock bay A; it reports itself as a WD Caviar Black `WD10EALX`, whatever its label was called), if 3.4 formatted it too: the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
 
 ### Stage A: freeze, identify, image
 
@@ -336,8 +348,10 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
 # gddrescue = GNU ddrescue (the imager); dmsetup builds the throwaway overlay in stage B;
 # testdisk is only for a lost partition table (B0); e2fsprogs has mke2fs, e2fsck, dumpe2fs
 sudo apt install -y tmux smartmontools gddrescue testdisk e2fsprogs dmsetup rsync
-tmux new -s rescue        # if SSH drops: ssh back in, then  tmux attach -t rescue
+tmux new -A -s rescue     # attaches if "rescue" exists, creates it if not. If SSH drops: ssh back in and run it again
 ```
+
+A line of numbers like `^[[?61;4;6;7;…c` or `]10;rgb:cccc/…` at the prompt as tmux starts, followed by `command not found`, is harmless: it's Windows Terminal answering tmux's question about what it supports, landing in the shell. Nothing runs. `clear` tidies it up, and `echo $TMUX` printing a path proves you're inside tmux.
 
 **A2. Freeze.** Stop everything that could write to a data drive, and keep boot from mounting them. On a first install nothing is mounted yet, and these lines do nothing harmful:
 
@@ -357,38 +371,61 @@ findmnt | grep /srv/storage        # must print nothing
 lsusb -t     # wd1 and the Seagate (Driver=uas or usb-storage) under the hub at 5000M or 10000M; 480M = reseat or another hub port
 ```
 
+The link speed of each disk, by name (run it again after A4 and A6 set `$D` and `$N`):
+
+```bash
+for d in $(lsblk -dno NAME -e7 | grep '^sd'); do p=$(readlink -f /sys/block/$d); while [ "$p" != / ] && [ ! -f $p/speed ]; do p=$(dirname $p); done; echo "$d: $(cat $p/speed 2>/dev/null) Mb/s  $(lsblk -dno SIZE,MODEL /dev/$d)"; done
+```
+
+- [ ] Every drive reads `5000` or `10000`. `480` means USB 2.0 somewhere along the path, and a 6 TB image would take about two days instead of 11 hours. The usual culprit is a **USB-C to USB-A adapter**: most small ones carry only the USB 2.0 wires. Use a cable rated 5 or 10 Gbps instead. If you're short of fast ports during the rescue, the network adapter can give up its hub port and sit on one of the SGIN's USB-A ports for now: SSH needs very little, and USB 2.0's ~300 Mb/s is plenty. Move it back afterwards.
+
 **A4. Give wd1 a name that can't move, make it read-only, check its health:**
 
 ```bash
-lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL                 # wd1 = ~5.5T, WD Elements; the Seagate = ~21.8T
-ls -l /dev/disk/by-id/ | grep -v part | grep usb             # the whole-disk entries (no -part1 on the end)
-D=/dev/disk/by-id/usb-WD_Elements_XXXX_XXXXXXXXXXXX-0:0      # paste wd1's whole-disk entry here
-sudo smartctl -i -d sat $D | grep -E 'Model|Serial|Capacity' # must be the WD 6 TB (a WD60… model), not the Seagate. Write the serial down
+lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL                 # wd1 = ~5.5T, WDC WD60EDAZ; the Seagate = ~21.8T, Expansion HDD
+ls -l /dev/disk/by-id/ | grep -v part | grep -E 'ata-|usb-'  # the whole-disk entries (no -part1 on the end)
+D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* | grep -v part); echo "$D -> $(readlink -f $D)"   # wd1. dock1a: ata-WDC_WD10EALX-*
+sudo smartctl -i -d sat $D | grep -E 'Model|Serial|Capacity' # must be the WD 6 TB (WD60EDAZ), not the Seagate. Write the serial down
 sudo blockdev --setro $D $D-part1                            # kernel-level read-only, until a replug or reboot
-sudo blockdev --getro $D                                     # must print 1
+sudo blockdev --getro $D $D-part1                            # must print 1 twice
 sudo smartctl -H -A -d sat $D | grep -E 'result|Realloc|Pending|Uncorrect'   # non-zero Realloc/Pending/Uncorrect = failing: image now, nothing else
 ```
 
-- [ ] If wd1 drops off USB, or after any replug or reboot: set `D=` again and rerun the `--setro` line **before anything else**. Read-only doesn't survive a replug.
+- [ ] Why the `ata-` name: it's built from the drive's own model and serial, so it can't point at another drive. The `usb-` names come from the enclosure, and the Sabrent dual-bay dock reports serial `000000…` for both bays. Its entries differ only in `-0:0`/`-0:1`, one character apart. If no `ata-` entry shows up for a drive (some enclosures hide it), use its `usb-` entry and double-check the serial with `smartctl -i`.
+- [ ] `ls` matching on the model prefix means you never type a serial. A misread `1`/`I` or `0`/`O` from a screenshot can't happen. If the `echo` prints two paths, two drives of that model are plugged in: unplug the one you aren't rescuing.
+- [ ] If wd1 drops off USB, or after any replug, reboot or cable move: rerun the `--setro` and `--getro` lines **before anything else**. Read-only doesn't survive a replug. `$D` itself stays valid, because the by-id path comes back the same.
 - [ ] `$D-part1` doesn't exist? The partition table is gone too. Image anyway (it's the whole disk), and do B0 before B1.
 
 **A5. Record the filesystem's details** (read-only). **Screenshot this output** and keep it: B2 needs `Inode count` and `Block count`, and `Last mount time` / `Mount count` say how much of the old index is likely still there:
 
 ```bash
-sudo dumpe2fs -h $D-part1 2>/dev/null | grep -E 'volume name|UUID|created|Last mount time|Mount count|Inode count|Block count|Block size|Filesystem features'
+sudo dumpe2fs -h $D-part1 2>/dev/null | grep -E 'volume name|UUID|created|Last mount time|Last write time|Mount count|Inode count|Block count|Free blocks|Block size|Lifetime writes|Filesystem features'
 ```
 
-| `Last mount time` / `Mount count` | What it means | What to expect |
+Then measure how much of the old index the new filesystem has already wiped. The first line takes a few seconds and prints one line:
+
+```bash
+echo "groups: $(sudo dumpe2fs $D-part1 2>/dev/null | grep -c '^Group [0-9]')  zeroed: $(sudo dumpe2fs $D-part1 2>/dev/null | grep -c ITABLE_ZEROED)"
+# and a direct look at the disk: the inode table of a group near the end, non-zero bytes = something survived there
+g=$(( $(sudo dumpe2fs $D-part1 2>/dev/null | grep -c '^Group [0-9]') - 50 )); r=$(sudo dumpe2fs $D-part1 2>/dev/null | grep -A8 "^Group $g:" | grep -o 'Inode table at [0-9]*-[0-9]*' | grep -o '[0-9]*-[0-9]*'); echo "group $g ($r): $(sudo dd if=$D-part1 bs=4096 skip=${r%-*} count=$(( ${r#*-} - ${r%-*} + 1 )) status=none | tr -d '\0' | wc -c) non-zero bytes"
+```
+
+| What A5 shows | What it means | What to do |
 |---|---|---|
-| `n/a` / `0` | The new filesystem was never mounted, so the old index is intact | Most files back with names and folders |
-| A time, mounted briefly | Mounting starts a background job that zeroes the old index | Many files back with names; photorec (stage D) for the rest |
-| Mounted for hours or days | Most of the old index is zeroed | Mostly stage D: contents back, names lost |
+| `Last mount time: n/a`, `Mount count: 0` | The new filesystem was never mounted, so the old index is intact | Stage B: most files back with names and folders |
+| Mounted, and `zeroed` well below `groups` | The kernel's **lazy init** started zeroing the old index in the background and was stopped partway (about an hour per TB to finish) | Stage B for what's left, stage D for the rest |
+| `zeroed` = `groups`, and the direct look reads `0 non-zero bytes` | The whole old index is gone | Skip stage B. Go to stage D (photorec, **Whole**): contents back, names lost |
+| Used space (`Block count` − `Free blocks`, × 4 KiB) well above an empty filesystem's (Inode count × 256 bytes for the inode tables, plus about 1 GiB of journal) | Files were **written** to the new filesystem, over old contents | Expect some files to be damaged or missing even in stage D |
+
+`Lifetime writes` near the size of the inode tables (Inode count × 256 bytes) is just lazy init. Much more means something wrote files. A `needs_recovery` feature means it was never cleanly unmounted. That's why no plain `mount` may touch it: mounting would replay the journal and write. The rescue only uses `ro,noload` on the overlay.
+
+**dock1a, Oct 25 (for reference):** formatted 13:24, mounted once at 13:38 when it was plugged back in (its fstab line did that, see 3.4), last write 14:38. `zeroed` 7,453 of 7,453, and the direct look read 0 bytes in four groups. Only about 16 GB had been written, all of it the new inode tables and journal. Result: stage D only.
 
 **A6. Check the Seagate and prepare it.** This is the **only** format in stages A–D, and it erases the **Seagate**. New Seagates come with a few factory files (Seagate's installer and a "Start Here" page). Look before erasing:
 
 ```bash
-N=/dev/disk/by-id/usb-Seagate_Expansion_HDD_XXXXXXXXXXXX-0:0   # paste the Seagate's whole-disk entry here
-lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL $N                # must say ~21.8T and Seagate
+N=$(ls /dev/disk/by-id/usb-Seagate_Expansion_HDD_*-0:0); echo "$N -> $(readlink -f $N)"   # finds the Seagate's whole-disk entry
+lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL $N                # must say ~21.8T and Expansion HDD
 sudo mkdir -p /mnt/look && sudo mount -o ro $N-part2 /mnt/look 2>/dev/null || sudo mount -o ro $N-part1 /mnt/look
 ls -la /mnt/look; sudo du -sh /mnt/look; sudo umount /mnt/look # only Seagate's own files, a few MB? Then it's safe to erase
 # (if neither partition mounts, lsblk's FSTYPE column above shows what's there; blank = nothing to lose)
@@ -433,6 +470,8 @@ sudo chattr +i /mnt/rescue/wd1.img /mnt/rescue/wd1.map         # nothing (not ev
 
 The overlay is a thin layer on top of the image partition. Every write lands in a small `try.cow` file and the image is only read, so a wrong attempt costs a minute (run `mkov` again) instead of another 11-hour image.
 
+**Skip this stage** if A5 showed `zeroed` = `groups` and a direct look of `0 non-zero bytes`: there's no old index left for it to rebuild, so go straight to stage D with **Whole**. If you're unsure, run it anyway. On the overlay it costs nothing but time.
+
 **B0. Only if `$D-part1` was missing in A4** (otherwise skip to B1). testdisk finds the old partition inside the image file; its "Write" changes only the image, so unlock it first and lock it again after:
 
 ```bash
@@ -458,10 +497,12 @@ sudo mkdir -p /mnt/old && sudo mount -o ro,noload $T /mnt/old && ls /mnt/old; su
 
 - [ ] `dmsetup create` fails (no device-mapper)? Don't work on the image itself. Make a working copy instead, about 10 hours: `sudo cp --sparse=always /mnt/rescue/wd1.img /mnt/rescue/wd1-work.img`, attach it **without** `-r` (`W=$(sudo losetup -fP --show /mnt/rescue/wd1-work.img); T=${W}p1`), and use that `$T` below. To start over, delete the copy and make a new one. The locked `wd1.img` stays pristine either way.
 
-**B2. Dry run.** `mke2fs -n` only prints, it writes nothing. Put in the two numbers from A5's screenshot:
+**B2. Dry run.** `mke2fs -n` only prints, it writes nothing. The first two lines read the inode and block counts from the image itself, so you don't have to type them. Check them against A5's screenshot:
 
 ```bash
-IC=<Inode count from A5>; BC=<Block count from A5>        # YOUR two numbers from the screenshot, digits only
+IC=$(sudo dumpe2fs -h $P 2>/dev/null | awk -F': *' '/^Inode count/{print $2}')
+BC=$(sudo dumpe2fs -h $P 2>/dev/null | awk -F': *' '/^Block count/{print $2}')
+echo "IC=$IC BC=$BC"                                       # must match A5's screenshot exactly; if either is blank, stop
 sudo mke2fs -n -t ext4 -b 4096 -N $IC $T $BC              # "Creating filesystem with $BC 4k blocks and $IC inodes": same numbers
 ```
 
@@ -526,8 +567,8 @@ sudo rsync -aHAXcn --itemize-changes "/mnt/old/lost+found/#12345/" /mnt/rescue/f
 **Second copy of the irreplaceable folders (items 1 and 2).** Before any original gets erased, those folders should sit on two drives. The recovery plan uses the empty OptiPlex 4 TB in dock bay B, once both damaged drives are through stage C and unplugged. The size check refuses anything that isn't about 4 TB, so it can't hit the Seagate:
 
 ```bash
-C=/dev/disk/by-id/usb-XXXXXXXX-0:1      # the 4 TB's whole-disk entry (bay B)
-N=/dev/disk/by-id/usb-Seagate_Expansion_HDD_XXXXXXXXXXXX-0:0   # the Seagate's, set again in case this is a new session
+C=$(ls /dev/disk/by-id/ata-WDC_WD4000FYYZ-* | grep -v part); echo "$C -> $(readlink -f $C)"   # the OptiPlex 4 TB (a WD Re) in bay B
+N=$(ls /dev/disk/by-id/usb-Seagate_Expansion_HDD_*-0:0)        # the Seagate's, set again in case this is a new session
 sudo smartctl -i -d sat $C | grep -E 'Model|Serial'
 S=$(sudo blockdev --getsize64 $C); [ $S -gt 3900000000000 ] && [ $S -lt 4100000000000 ] && [ -e "$N" ] && [ "$(readlink -f $C)" != "$(readlink -f $N)" ] && echo OK || echo STOP
 ```
@@ -566,8 +607,8 @@ Sorting what it finds: photos by date with `exiftool '-Directory<DateTimeOrigina
 **E1. Identify wd1 the long way** (plug it in alone with the Seagate, on the hub):
 
 ```bash
-D=/dev/disk/by-id/usb-WD_Elements_XXXX_XXXXXXXXXXXX-0:0      # wd1's whole-disk entry again (ls -l /dev/disk/by-id/ | grep -v part)
-N=/dev/disk/by-id/usb-Seagate_Expansion_HDD_XXXXXXXXXXXX-0:0   # the Seagate's, so the check below can tell them apart
+D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* | grep -v part); echo "$D -> $(readlink -f $D)"   # wd1 (dock1a: ata-WDC_WD10EALX-*)
+N=$(ls /dev/disk/by-id/usb-Seagate_Expansion_HDD_*-0:0)        # the Seagate's, so the check below can tell them apart
 sudo smartctl -i -d sat $D | grep -E 'Model|Serial'          # the serial you wrote down in A4
 S=$(sudo blockdev --getsize64 $D); echo $S                   # about 6001175126016 (6.0 TB)
 [ -e "$N" ] && [ "$(readlink -f $D)" != "$(readlink -f $N)" ] && [ $S -gt 5900000000000 ] && [ $S -lt 6100000000000 ] && echo OK || echo STOP
@@ -578,7 +619,7 @@ For dock1a, the size range in that check is `950000000000` to `1050000000000` (1
 **E2. Erase and reformat it** (only if E1 printed `OK` and the serial matches):
 
 ```bash
-sudo blockdev --setrw $D                                     # undo stage A's read-only (only if it's still set)
+sudo blockdev --setrw $D $D-part1                            # undo stage A's read-only on both (only if it's still set)
 sudo wipefs -a $D && sudo parted -s $D mklabel gpt mkpart data ext4 0% 100%
 sleep 3; sudo mkfs.ext4 -L wd1 -m 0 -E nodiscard $D-part1
 # fstab: the new filesystem has a NEW UUID, so remove the old wd1 line and add a new one
