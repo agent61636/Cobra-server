@@ -33,6 +33,7 @@
 | ↳ **cobra-firewall** (VM 100) | 2 vCPU / 4 GB | OPNsense | Firewall, DHCP, Unbound DNS-over-TLS, WireGuard VPN, Suricata IDS/IPS, CrowdSec, DDNS | — |
 | ↳ **cobra-pihole-1** (CT 101) | 1 core / 512 MB | Debian 13 LXC | Primary ad/malware DNS filter + local DNS records | — |
 | ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
+| ↳ **cobra-home** (VM 120) | 2 vCPU / 2–3 GB | Home Assistant OS | Smart home: Sensi thermostat, Eufy bulbs and switches, phone app. Second network card on the Xfinity side to reach the Wi-Fi gadgets (part 10) | — |
 | **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless. **No built-in Ethernet**: a USB gigabit adapter (AX88179) on the powered hub, which uses the only USB 3 port (USB-C); the two USB-A ports are USB 2.0 | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
 | **cobra-arcade** | OptiPlex 7040 Mini Tower (240 W): i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class), to be replaced by an RTX 3050 6 GB (part 4.7) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
 | **cobra-switch** | TP-Link Omada ES210X-M2: 8× 2.5GBASE-T, 2× 10G SFP+, easy managed (802.1Q VLANs, loop prevention, IGMP snooping), fanless, no PoE. Replaced the Netgear 5-port switch E, which is now a spare | Omada standalone firmware (own web UI, no controller) | Links every wired machine on the LAN to the gate (the Latitude); carries part 9's VLANs | ~10 W |
@@ -91,12 +92,14 @@
 |---|---|---|
 | 10.0.0.1 | Xfinity gateway | **Today it's 10.6.9.1.** Part 2's cutover moves it back to its default 10.0.0.1/24 so your own LAN, behind OPNsense, can keep the 10.6.9.x numbers. Two networks can't share one range. |
 | 10.0.0.2 | cobra-firewall WAN | DHCP reservation on Xfinity + DMZ host |
+| 10.0.0.3 | cobra-home Xfinity side (`net1`) | Xfinity reservation; static in HA OS with **no gateway**. Thermostat and Eufy gadgets reserved at `10.0.0.20`–`.39` (part 10) |
 | 10.6.9.1 | cobra-firewall LAN | Default gateway + Unbound DNS for the LAN |
 | 10.6.9.2 | cobra-command | Proxmox web UI `https://10.6.9.2:8006` |
 | 10.6.9.3 | cobra-pihole-1 | DNS #1 |
 | 10.6.9.5 | cobra-switch | TP-Link Omada ES210X-M2, the LAN switch: web UI `http://10.6.9.5` (part 2.12). Same switch carries the VLANs in part 9. |
 | 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra`: the TP-Link RE700X in Access Point mode on cobra-switch port 6 (part 2.10b) |
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
+| 10.6.9.11 | cobra-home | Home Assistant (VM 120), port 8123 (part 10) |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
 | 10.6.9.40 / .41 | cobra-lab iDRAC / cobra-lab Proxmox (R620) | Part 9. The iDRAC moves to `10.6.30.40` on the MGMT VLAN in phase B. |
@@ -114,6 +117,7 @@
 | gate | nginx | 443 (80 only redirects to 443) | Internet on 443 (OPNsense forward) + LAN + VPN |
 | gate (in pod) | Authelia 9091 · Vaultwarden 8222 · Paperless 8000 · Postgres 5432 · Redis 6379 · MeTube 8081 · Homepage 3000 · Uptime Kuma 3001 | localhost only | Only nginx inside the pod |
 | gate | Cockpit | 9090 | LAN + VPN |
+| cobra-home | Home Assistant | 8123 | LAN + VPN directly; from outside only through the gate at `ha.songofeo.com` (part 10) |
 | stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533 · RomM 8080 · Icecast 8000 | LAN + VPN only (nftables) | gate's nginx + LAN clients |
 | stream | Samba | 445 | LAN + VPN |
 | stream | Pi-hole #2 | 53, 80/443 (admin) | LAN + VPN |
@@ -153,6 +157,7 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | High-score boards | `scores.songofeo.com` | → gate: reserved hiscore slot (§8, built later) | Login for viewers. The cabinet's sync agent uses an API key. |
 | Live radio | `radio.songofeo.com` | → stream: Liquidsoap + Icecast (part 8) | Authelia password; public only with music you have the rights to stream |
 | Optional buttons page from home | e.g. `links.songofeo.com` | → gate: static page (part 8.1) | Never the bare domain, which is the station |
+| Smart home (lights, thermostat) | `ha.songofeo.com` | → cobra-home: Home Assistant (part 10) | Skipped at home and over WireGuard; Authelia 2FA from anywhere else. Then Home Assistant's own login + 2FA |
 
 **Why the media apps are behind the station sign-in, and why home skips it:** one sign-in for the whole station keeps the apps' own login pages off the internet. But phone and TV apps (Jellyfin on the Roku, Apple TV and phones, Subsonic music apps, the Audiobookshelf app) can't complete a web sign-in. So the sign-in is skipped on the LAN and over WireGuard: the TVs at home work as before, and away from home those apps work with the WireGuard tunnel on. In a browser, and in the Song of Eo Android app, the station sign-in works from anywhere. The apps keep their own logins too, plus rate limiting, CrowdSec and strong passwords.
 
@@ -182,6 +187,7 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Hiscore board at `scores.songofeo.com`: cabinet agent uploads every changed `.hi` file; board newest first | 1 h, after 1–5 |
 | 8 | [`08-site-and-radio.md`](08-site-and-radio.md) | Landing page at `songofeo.com`; radio at `radio.songofeo.com` (Liquidsoap + Icecast) | 1 h |
 | 9 | [`09-r620-lab-and-vlans.md`](09-r620-lab-and-vlans.md) | R620 as `cobra-lab` (standalone Proxmox, remote power), then lab/detonation/management VLANs | When you're ready |
+| 10 | [`10-home-assistant.md`](10-home-assistant.md) | Home Assistant (VM 120): Sensi thermostat and Eufy lights in one app instead of Alexa, behind the station sign-in | 2 h, after 1, 2 and 5 |
 
 **Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
 

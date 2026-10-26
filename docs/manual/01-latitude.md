@@ -33,7 +33,7 @@ Proxmox VE is Debian with a hypervisor and a web UI on top. Everything below can
 | **Datacenter** | Settings shared by all nodes: users, permissions, storage, backup jobs. You have one node until the R620 joins. |
 | **VM** | Full virtual machine. VM **100** = OPNsense (`cobra-firewall`), VM **110** = `cobra-gate`. CLI: `qm`. |
 | **CT** | LXC container, shares the host kernel, much lighter. CT **101** = `cobra-pihole-1`. CLI: `pct`. |
-| **VMID** | Every VM/CT has a number. You'll only use 100, 101, 110 (and 9xx for throwaway tests). |
+| **VMID** | Every VM/CT has a number. You'll only use 100, 101, 110, 120 (Home Assistant, part 10) and 9xx for throwaway tests. |
 | **`local`** storage | Folder `/var/lib/vz`. Holds ISO files, CT templates, backup files. UI: cobra-command → local. |
 | **`local-lvm`** storage | Thin LVM pool. Holds VM/CT disks. Thin = a 32 GB disk only uses what's written. |
 | **`vmbr0`, `vmbr1`** | Linux bridges = virtual switches. A physical NIC is the bridge's uplink; VM NICs plug into bridges. |
