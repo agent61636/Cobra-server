@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Authelia: the station's sign-in at auth.songofeo.com (one password for every floor, 6 h; TOTP for admin apps).
+# Authelia: the station's sign-in at gate.songofeo.com (one password for every floor, 6 h; TOTP for admin apps).
 # nginx asks it before serving any app.
 # Needs configuration.yml and users.yml from part 5.4 in /srv/gate/authelia.
 # Run as podsvc on the gate:  ./authelia.sh
@@ -21,4 +21,4 @@ run_container authelia "$GATE_POD" "$IMAGE" \
   -v "$DATA:/config:Z"
 
 pod_http authelia http://127.0.0.1:9091/api/health 60 || warn "Authelia isn't healthy yet; check podman logs authelia"
-done_msg authelia https://auth.songofeo.com
+done_msg authelia https://gate.songofeo.com
