@@ -335,8 +335,9 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
 4. **Every `mkfs`/`mke2fs` gets `-E nodiscard`.** Without it, the format tells the drive to throw blocks away, and on a drive that honours that, anything in them is gone for good. The repair in stage B fails without it.
 5. **Only the drive being rescued and the Seagate are plugged in**, both on the **hub's USB 3 ports** (5 or 10 Gb/s), never the SGIN's own USB-A ports (USB 2.0: the 6 TB image would take two days). Every other data drive comes off the hub. The network adapter stays.
 6. **Every long command runs inside `tmux`**, so a dropped SSH session doesn't stop it.
-7. **Each "Only if it printed `OK`" means exactly that.** On `STOP`, stop and work out which drive is which before typing anything else.
-8. **Keep the original and the image until the files are checked**, both drives' files, and a second copy of the irreplaceable folders exists (stage C). Stage E is the only step that erases wd1, and it starts with a decision only you make.
+7. **Stay the `eels` user and put `sudo` in front of each command. Never `sudo su`, `sudo -i` or `su -`.** `$D`, `$N`, `$P` and `$T` live only in the shell where you set them. A root shell starts with all of them empty, so `ddrescue $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map` quietly becomes `ddrescue /mnt/rescue/wd1.img /mnt/rescue/wd1.map`, which copies the image over the map file. That has already happened once. The same goes for a new tmux window or a fresh SSH login: set the variables again, and run the `[ -b … ]` check before using them.
+8. **Each "Only if it printed `OK`" means exactly that.** On `STOP`, stop and work out which drive is which before typing anything else.
+9. **Keep the original and the image until the files are checked**, both drives' files, and a second copy of the irreplaceable folders exists (stage C). Stage E is the only step that erases wd1, and it starts with a decision only you make.
 
 **dock1a** (the 1 TB in dock bay A; it reports itself as a WD Caviar Black `WD10EALX`, whatever its label was called), if 3.4 formatted it too: the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
 
@@ -417,6 +418,8 @@ g=$(( $(sudo dumpe2fs $D-part1 2>/dev/null | grep -c '^Group [0-9]') - 50 )); r=
 | `zeroed` = `groups`, and the direct look reads `0 non-zero bytes` | The whole old index is gone | Skip stage B. Go to stage D (photorec, **Whole**): contents back, names lost |
 | Used space (`Block count` − `Free blocks`, × 4 KiB) well above an empty filesystem's (Inode count × 256 bytes for the inode tables, plus about 1 GiB of journal) | Files were **written** to the new filesystem, over old contents | Expect some files to be damaged or missing even in stage D |
 
+Any read-write mount starts lazy init, even a brief one: on a test disk, a 1-second mount left 0 of 192 files recoverable by name. On a USB hard drive the zeroing is throttled, so the loss grows with time mounted. So if A5 shows any mount at all, still try stage B where the table says so, but expect to need stage D (photorec) for most files.
+
 `Lifetime writes` near the size of the inode tables (Inode count × 256 bytes) is just lazy init. Much more means something wrote files. A `needs_recovery` feature means it was never cleanly unmounted. That's why no plain `mount` may touch it: mounting would replay the journal and write. The rescue only uses `ro,noload` on the overlay.
 
 **dock1a, Oct 25 (for reference):** formatted 13:24, mounted once at 13:38 when it was plugged back in (its fstab line did that, see 3.4), last write 14:38. `zeroed` 7,453 of 7,453, and the direct look read 0 bytes in four groups. Only about 16 GB had been written, all of it the new inode tables and journal. Result: stage D only.
@@ -443,14 +446,22 @@ sudo mkdir -p /mnt/rescue && sudo mount $N-part1 /mnt/rescue && df -h /mnt/rescu
 
 The Seagate stays mounted at `/mnt/rescue` by hand. Don't add it to fstab, so it never joins the pool by mistake.
 
-**A7. Image the whole of wd1** (`$D`, not `$D-part1`). A fast first pass copies everything that reads cleanly; the second goes back three times over any spot that didn't:
+**A7. Image the whole of wd1** (`$D`, not `$D-part1`). A fast first pass copies everything that reads cleanly; the second goes back three times over any spot that didn't. First check that the variables are still set in **this** shell (rule 7). Run this before **every** `ddrescue` line, including after a reconnect:
+
+```bash
+echo "D=$D"; [ -b "$D" ] && [ "$(sudo blockdev --getro $D)" = 1 ] && [ -d /mnt/rescue ] && mountpoint -q /mnt/rescue && echo OK || echo STOP
+#   OK   = $D is wd1's block device, still read-only, and the Seagate is mounted at /mnt/rescue
+#   STOP = set D= again (A4), rerun --setro, remount the Seagate (A6's last line), then check again
+```
+
+Only if it printed `OK`:
 
 ```bash
 sudo ddrescue -n  $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 1: no scraping, the bulk of the drive (~11 h)
 sudo ddrescue -r3 $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 2: retry bad areas up to 3 times (minutes on a healthy drive)
 ```
 
-Detach with **Ctrl+B, then D**, and check back later (`tmux attach -t rescue`). It's done when it reports `pct rescued: 100%` (or as close as the drive allows) and `bad areas: 0`. If wd1 drops off USB mid-copy: replug it, set `D=` and rerun `--setro` (A4), then rerun the **same** `ddrescue` line. The `.map` file makes it continue where it stopped. Never delete the `.map`.
+Detach with **Ctrl+B, then D**, and check back later (`tmux attach -t rescue`). It's done when it reports `pct rescued: 100%` (or as close as the drive allows) and `bad areas: 0`. If wd1 drops off USB mid-copy: replug it, set `D=` and rerun `--setro` (A4), run the `[ -b "$D" ]` check above until it prints `OK`, then rerun the **same** `ddrescue` line. The `.map` file makes it continue where it stopped. Never delete the `.map`.
 
 **A8. Check the image and lock it:**
 
@@ -509,8 +520,11 @@ sudo mke2fs -n -t ext4 -b 4096 -N $IC $T $BC              # "Creating filesystem
 **B3. Rebuild the superblocks onto the overlay.** `-S` rewrites only the superblocks and group descriptors and leaves the old inode tables (the old index) in place. Type it exactly; it asks "Proceed anyway?": answer `y`:
 
 ```bash
+[ -b "$T" ] && [ -n "$IC" ] && [ -n "$BC" ] && echo OK || echo STOP     # T, IC and BC set in this shell (rule 7)
 sudo mke2fs -S -t ext4 -L wd1 -m 0 -b 4096 -N $IC -E nodiscard -O ^has_journal,^metadata_csum $T $BC
 ```
+
+This works as written with Debian 13's e2fsprogs defaults: mke2fs drops the `orphan_file` and `metadata_csum_seed` features on its own when `metadata_csum` is turned off, so there's nothing to add.
 
 | Flag | Why it's there (from the tests) |
 |---|---|
@@ -523,7 +537,7 @@ sudo mke2fs -S -t ext4 -L wd1 -m 0 -b 4096 -N $IC -E nodiscard -O ^has_journal,^
 **B4. Let e2fsck rebuild the rest, still on the overlay.** Thousands of `Fix? yes` and `Connect to /lost+found? yes` lines are normal. The log is kept on the Seagate:
 
 ```bash
-sudo e2fsck -fy -C0 $T 2>&1 | tee /mnt/rescue/wd1-fsck.log | tail -5
+sudo e2fsck -fy -C0 $T 2>&1 | sudo tee /mnt/rescue/wd1-fsck.log | tail -5   # sudo tee: /mnt/rescue is root-owned, a plain tee gets "Permission denied"
 sudo e2fsck -fn $T >/dev/null 2>&1 && echo "clean" || echo "run the e2fsck -fy line once more"
 ```
 
