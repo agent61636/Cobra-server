@@ -1,6 +1,8 @@
 # 4. Set up OptiPlex (cobra-arcade, Windows 11, 10.6.9.30)
 
-**Result:** the cabinet boots straight into Big Box, ROMs come from the SGIN's `roms` share, and it's patched and activated.
+**Result:** the cabinet boots straight into Big Box, ROMs live on its own 4 TB drive (`D:\Roms`) and are copied each night to the SGIN for the web arcade, and it's patched and activated.
+
+**Doing this part while the SGIN is busy (e.g. the wd1 rescue in 3.4r)?** Everything up to and including 4.4, plus 4.7, runs on the OptiPlex alone: it only needs cobra-switch port 3 and the Latitude for internet. Leave the SGIN, its hub, its drives and cobra-switch port 2 alone, and don't restart or reconfigure the switch. Three steps need the SGIN's shares (3.6) and wait until 3.4–3.8 are done: the `cmdkey` line in 4.2, registering the nightly task in 4.5, and the web-arcade check under "Done when".
 
 🔌 OptiPlex Ethernet → your switch (cobra-switch **port 3**, part 2.12) the whole time. Unplug it only if you want Windows setup to skip network sign-in (Rufus's option already handles that).
 
@@ -29,25 +31,35 @@ powercfg /change standby-timeout-ac 0
 powercfg /change monitor-timeout-ac 0
 ```
 
-PowerShell **not** as Admin (plain Terminal). A drive mapped from an elevated window is invisible to normal apps like Big Box and RetroArch:
+PowerShell **not** as Admin (plain Terminal), so the folder and the saved share login below belong to `arcade`, the user Big Box and the nightly copy run as:
+
+```powershell
+New-Item -ItemType Directory -Force D:\Roms     # the ROM folder on the 4 TB drive (4.6); does nothing if it exists
+Restart-Computer
+```
+
+Once the SGIN's Samba shares are up (part 3.6), save the cabinet's login for them. The nightly copy in 4.5 uses it:
 
 ```powershell
 cmdkey /add:cobra-stream /user:arcade /pass:<samba arcade password>
-New-SmbMapping -LocalPath R: -RemotePath \\cobra-stream\roms -Persistent $true
-Restart-Computer
+Test-Path \\cobra-stream\roms        # True = the share answers with that login
 ```
 
 ## 4.3 LaunchBox, Big Box and RetroArch
 
-The cabinet plays everything natively: LaunchBox/Big Box is the menu, RetroArch does the emulating, and the ROMs stay on the SGIN. The web arcade (RomM + EmulatorJS on the SGIN, part 3) reads the **same** `roms` folder, so a game added once shows up in both.
+The cabinet plays everything natively: LaunchBox/Big Box is the menu, RetroArch does the emulating, and the ROMs live on the cabinet's own drive in `D:\Roms`, so games load from a local disk and the cabinet plays even when the SGIN or the network is down. The web arcade (RomM + EmulatorJS on the SGIN, part 3) can't read a disk inside the cabinet, and it has to work while the cabinet is off. So the nightly copy (4.5) sends new and changed ROMs to the SGIN's `roms` share, and RomM picks them up from there. That copy is also the ROMs' second copy, and the vault backup (part 5) covers it.
 
-**ROM folder names.** RomM finds each system by its folder name (`roms/<platform>/`), using the short names on its "Supported platforms" page: for example `gba`, `gb`, `gbc`, `arcade`, `atari2600`. LaunchBox doesn't care about names. If your folders already have other names, don't rename a big collection: map them instead in RomM's `config.yml` under `system.platforms` (e.g. `"Super Nintendo": snes`).
+**Add ROMs on the cabinet, in `D:\Roms\<platform>\`.** The copy only runs cabinet → SGIN, so a ROM uploaded through RomM's web page stays on the SGIN only. A new game shows in Big Box right away, and in the web arcade the morning after (or run the task by hand: `Start-ScheduledTask 'Cobra nightly copy'`, then Scan in RomM).
+
+`D:` stays NTFS, as Windows made it. Nothing in this part formats it.
+
+**ROM folder names.** RomM finds each system by its folder name (`D:\Roms\<platform>\` here, `roms/<platform>/` on the SGIN), using the short names on its "Supported platforms" page: for example `gba`, `gb`, `gbc`, `arcade`, `atari2600`. LaunchBox doesn't care about names. If your folders already have other names, don't rename a big collection: map them instead in RomM's `config.yml` under `system.platforms` (e.g. `"Super Nintendo": snes`).
 
 - [ ] LaunchBox installer from launchbox-app.com → restore the backed-up LaunchBox folder over it (to `D:\LaunchBox` if the WD drive has room, otherwise `C:\LaunchBox`)
 - [ ] **Emulator:** Tools → Manage → Emulators → Add → RetroArch → path to `retroarch.exe` (Start menu → right-click RetroArch → Open file location; usually `C:\RetroArch-Win64\`). On the **Associated Platforms** tab, let LaunchBox fill in its default core for each platform, then set Arcade to **FinalBurn Neo** (`fbneo_libretro.dll`) or **MAME 2003-Plus** to match your romset.
-- [ ] **Importing games:** Tools → Import → ROM Files → pick `R:\<platform>` → when asked, choose **use the files in their current location**. The other choice copies every ROM onto the cabinet's disk.
+- [ ] **Importing games:** Tools → Import → ROM Files → pick `D:\Roms\<platform>` → when asked, choose **use the files in their current location**. The other choice makes a second copy of every ROM inside the LaunchBox folder.
 - [ ] Big Box: Options → Startup → start Big Box on Windows startup
-- [ ] RetroArch: copy back `saves states system config playlists`. Its own ROM browser can point at `R:\` (Settings → Directory → File Browser), but day to day LaunchBox launches the games.
+- [ ] RetroArch: copy back `saves states system config playlists`. Its own ROM browser can point at `D:\Roms` (Settings → Directory → File Browser), but day to day LaunchBox launches the games.
 - [ ] Tankstick: map in RetroArch → Settings → Input → Port 1/2 binds, Save autoconfig. LaunchBox/Big Box: Options → Controllers, map the same stick for menu navigation.
 - [ ] Netplay host: Firewall allow TCP 55435 inbound from LAN; OPNsense port forward only if friends join from outside
 - [ ] Auto-login: Sysinternals Autologon (`winget install -e --id Microsoft.Sysinternals.Autologon`), user `arcade`
@@ -65,7 +77,7 @@ Hiscores are a **per-core** option in RetroArch, not a global setting. Load a ga
 
 ## 4.5 Back up the cabinet's own files to the SGIN
 
-Saves, save states, `.hi` files and the LaunchBox database live only on the cabinet. Copy them to the pool nightly, where the vault backup (part 5) picks them up. One small script does both this and 4.6.
+Saves, save states, `.hi` files, the LaunchBox database and the ROMs' main copy live only on the cabinet. Copy them to the pool nightly, where the vault backup (part 5) picks them up. One small script does both this and 4.6.
 
 Create the folder with `New-Item -ItemType Directory -Force C:\Cobra`, then save this as `C:\Cobra\nightly-copy.ps1` (Notepad, then "Save as type: All files"):
 
@@ -84,9 +96,11 @@ $up = @{
   "$ra\config"    = "$pool\backups\arcade\RetroArch\config"
   "$ra\playlists" = "$pool\backups\arcade\RetroArch\playlists"
   "$lb\Data"      = "$pool\backups\arcade\LaunchBox\Data"
+  'D:\Roms'       = '\\cobra-stream\roms'        # the web arcade (RomM) reads this copy
 }
 # 2) pool -> D: (4.6). Edit the list: the pool folders you'd hate to lose.
-$down = 'music', 'roms', 'books', 'audiobooks', 'comics', 'scans', 'backups'
+# Not 'roms': their main copy is already on D: (D:\Roms), and 1) sends them up.
+$down = 'music', 'books', 'audiobooks', 'comics', 'scans', 'backups'
 
 Add-Content $log "=== $(Get-Date)"
 foreach ($src in $up.Keys) {
@@ -97,7 +111,7 @@ foreach ($f in $down) {
 }
 ```
 
-Register it to run every night (plain PowerShell as `arcade`):
+Register it to run every night (plain PowerShell as `arcade`). Do this once the SGIN's shares are up and `cmdkey` from 4.2 is saved; before that every copy fails:
 
 ```powershell
 $a = New-ScheduledTaskAction -Execute powershell.exe -Argument '-NoProfile -ExecutionPolicy Bypass -File C:\Cobra\nightly-copy.ps1'
@@ -108,14 +122,15 @@ Start-ScheduledTask 'Cobra nightly copy'      # first run now; the first pull to
 ```
 
 - `-StartWhenAvailable`: if the cabinet was off at 3:30, it runs at next boot.
+- `/XO` never replaces a file that's newer on the other side, and nothing here deletes. A ROM you delete from `D:\Roms` stays on the SGIN until you remove it there too (`\\cobra-stream\roms`).
 - Before the first run, open your RetroArch folder and check that `saves`, `states`, `system`, `config` and `playlists` are there (they appear after RetroArch's first launch). If RetroArch lives somewhere else, change `$ra`.
 
-## 4.6 The OptiPlex's WD drive
+## 4.6 The OptiPlex's WD drive (4 TB, NTFS)
 
-It stays in the OptiPlex as `D:` (if it's the OptiPlex's **only** disk, it's the system disk instead and only job 1 applies), with two jobs:
+It stays in the OptiPlex as `D:`, NTFS as Windows made it (if it's the OptiPlex's **only** disk, it's the system disk instead and only job 1 applies), with two jobs:
 
-1. **The cabinet's local game drive.** Steam library, LaunchBox and its media (box art, videos), so the menu stays fast and doesn't depend on the network.
-2. **An extra copy of what you can't replace, until the vault drive arrives (and after).** The `$down` part of the script in 4.5 pulls those pool folders into `D:\Cobra-copy` every night. `/E /XO` never deletes, so a file removed by mistake on the pool is still here. Check `D:`'s free space against what you list; movies and TV are the big ones and you can re-rip or re-buy those.
+1. **The cabinet's local game drive.** The ROMs (`D:\Roms`, the main copy; 4.3), Steam library, LaunchBox and its media (box art, videos), so the menu and the games stay fast and don't depend on the network.
+2. **An extra copy of what you can't replace, until the vault drive arrives (and after).** The `$down` part of the script in 4.5 pulls those pool folders into `D:\Cobra-copy` every night. `/E /XO` never deletes, so a file removed by mistake on the pool is still here. Check `D:`'s free space against the ROMs plus what you list; movies and TV are the big ones and you can re-rip or re-buy those.
 
 - [ ] Before relying on it: `D:` shows healthy in `Get-PhysicalDisk | Select FriendlyName, HealthStatus` and has no SMART warnings in CrystalDiskInfo
 
@@ -143,7 +158,7 @@ The Oland card tops out around PS2-era games. A slot-powered **RTX 3050 6 GB** r
 
 ## Done when
 
-- [ ] Power on → Big Box loads by itself → a game from `R:\` plays with the stick
-- [ ] The same game shows in the web arcade (`arcade.songofeo.com`) after a RomM library scan
+- [ ] Power on → Big Box loads by itself → a game from `D:\Roms` plays with the stick
+- [ ] After the nightly copy (once the SGIN is up), the same game is in `\\cobra-stream\roms` and shows in the web arcade (`arcade.songofeo.com`) after a RomM library scan
 - [ ] Next morning: `C:\Cobra\nightly-copy.log` has no `ERROR` lines
 - [ ] After 4.7: MK11 and MK1 launch from Big Box and hold 60 fps in a fight
