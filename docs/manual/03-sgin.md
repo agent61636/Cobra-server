@@ -207,7 +207,7 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 
 Why mergerfs and not RAID: RAID across USB enclosures drops whole arrays when a USB link resets, and it needs matching drives. mergerfs takes any mix of sizes and filesystems, and losing one drive loses only the files on that drive. Protection against a dead drive comes from backups (part 5), plus optional SnapRAID parity once the second dock is in (end of this section).
 
-The OptiPlex's internal WD drive stays in the OptiPlex. See part 4.6 for what it does there. Spare space on the machines' system drives (the Latitude's NVMe, the SGIN's own SSD) is **not** added to the pool. Those disks get wiped and reinstalled, and a pool member that lives on another machine disappears whenever that machine reboots.
+The OptiPlex's internal WD drive (4 TB, NTFS) stays in the OptiPlex. It holds the ROMs' main copy and an extra copy of the irreplaceable folders; see part 4.6. The pool's `roms` folder is the copy the cabinet sends each night, for RomM. Spare space on the machines' system drives (the Latitude's NVMe, the SGIN's own SSD) is **not** added to the pool. Those disks get wiped and reinstalled, and a pool member that lives on another machine disappears whenever that machine reboots.
 
 ### Set up the drives
 
@@ -578,24 +578,27 @@ sudo rsync -aHAXcn --itemize-changes "/mnt/old/lost+found/#12345/" /mnt/rescue/f
 - [ ] After each folder, spot-check it from a desktop: open a few photos, play a few songs. (Read-only share for this, if you want one: Samba isn't running during the rescue, so use `scp eels@10.6.9.20:/mnt/rescue/files/wd1/Photos/… .`)
 - [ ] Every folder from your B5 list is copied, its `rsync -c` check listed nothing, and it has a `.sha256` list
 
-**Second copy of the irreplaceable folders (items 1 and 2).** Before any original gets erased, those folders should sit on two drives. The recovery plan uses the empty OptiPlex 4 TB in dock bay B, once both damaged drives are through stage C and unplugged. The size check refuses anything that isn't about 4 TB, so it can't hit the Seagate:
+**Second copy of the irreplaceable folders (items 1 and 2).** Before any original gets erased, those folders should sit on two drives. The second drive is the OptiPlex's 4 TB (`D:`, NTFS), which stays inside the cabinet (part 4.6), so nothing gets formatted for this. The cabinet pulls each folder over SSH while Samba is still off. Windows 11 has `scp` built in.
 
-```bash
-C=$(ls /dev/disk/by-id/ata-WDC_WD4000FYYZ-* | grep -v part); echo "$C -> $(readlink -f $C)"   # the OptiPlex 4 TB (a WD Re) in bay B
-N=$(ls /dev/disk/by-id/usb-Seagate_Expansion_HDD_*-0:0)        # the Seagate's, set again in case this is a new session
-sudo smartctl -i -d sat $C | grep -E 'Model|Serial'
-S=$(sudo blockdev --getsize64 $C); [ $S -gt 3900000000000 ] && [ $S -lt 4100000000000 ] && [ -e "$N" ] && [ "$(readlink -f $C)" != "$(readlink -f $N)" ] && echo OK || echo STOP
+On the cabinet, plain PowerShell (not Admin), one folder per run (`Photos` is an example from your B5 list):
+
+```powershell
+$f = 'Photos'                                    # the folder's name under /mnt/rescue/files/wd1
+New-Item -ItemType Directory -Force D:\Cobra-copy\wd1 | Out-Null
+# -r folders, -p keeps the dates; the .sha256 list from above comes along for the check
+scp -r -p "eels@10.6.9.20:/mnt/rescue/files/wd1/$f" D:\Cobra-copy\wd1\
+scp -p "eels@10.6.9.20:/mnt/rescue/files/wd1/$f.sha256" D:\Cobra-copy\wd1\
+# Check every file against the list. Prints nothing = every file matches.
+Get-Content -LiteralPath "D:\Cobra-copy\wd1\$f.sha256" | ForEach-Object {
+  $hash, $rel = $_ -split '  ', 2
+  $file = Join-Path "D:\Cobra-copy\wd1\$f" ($rel -replace '^\./', '')
+  if (-not (Test-Path -LiteralPath $file) -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $hash.ToUpper()) { "BAD  $rel" }
+}
 ```
 
-Only if it printed `OK` (and it holds nothing you want; check with `lsblk -o NAME,FSTYPE,LABEL $C`):
-
-```bash
-sudo wipefs -a $C && sudo parted -s $C mklabel gpt mkpart copy2 ext4 0% 100%
-sleep 3; sudo mkfs.ext4 -L copy2 -m 0 -E nodiscard $C-part1
-sudo mkdir -p /mnt/copy2 && sudo mount $C-part1 /mnt/copy2
-sudo rsync -aHAX --info=progress2 /mnt/rescue/files/wd1/Photos/ /mnt/copy2/wd1/Photos/          # one folder per run
-sudo rsync -aHAXcn --itemize-changes /mnt/rescue/files/wd1/Photos/ /mnt/copy2/wd1/Photos/       # must list nothing
-```
+- If `scp` says `Permission denied` for some files, list them on the SGIN with `sudo find /mnt/rescue/files/wd1/$f ! -perm -o+r`. Opening them up for reading (`sudo chmod -R a+rX /mnt/rescue/files/wd1/$f`) changes only the permissions on the Seagate's copy, never wd1, and not the contents the `.sha256` list checks.
+- Any `BAD` line: delete that one file under `D:\Cobra-copy\wd1\$f`, then run the two `scp` lines and the check again.
+- Windows can't store names with `: * ? " < > |`, which are fine on Linux. `scp` stops on such a file; rename it on the Seagate copy (`sudo mv`), then add the new name to the `.sha256` list with `sha256sum`.
 
 ### Stage D: photorec, only for what stage C didn't bring back
 
@@ -615,7 +618,7 @@ Sorting what it finds: photos by date with `exiftool '-Directory<DateTimeOrigina
 ⚠️ **Decision point: yours alone.** Go on only when **all** of these are true. Until then, wd1 stays unplugged and untouched, and that costs nothing:
 
 - [ ] Stage C is finished for wd1 (and dock1a, if it was formatted too): every folder copied, every `rsync -c` check empty, every `.sha256` list made
-- [ ] The irreplaceable folders also sit on the second drive (`/mnt/copy2`)
+- [ ] The irreplaceable folders also sit on the second drive (the cabinet's `D:\Cobra-copy\wd1`), and their checks printed nothing
 - [ ] You've looked at the copies yourself and you're happy nothing else is missing
 
 **E1. Identify wd1 the long way** (plug it in alone with the Seagate, on the hub):
@@ -722,7 +725,7 @@ Every machine, and every share, by the same path:
 |---|---|---|
 | Windows desktops (the-box, the-spire) | File Explorer → Map network drive (log in as `eels`) | `\\cobra-stream\media`, `\scans`, `\roms` |
 | Cobra1 laptop on `cobra` Wi-Fi (2.10b) | Same as the desktops | `\\cobra-stream\media` |
-| Cabinet | `R:` mapped in part 4 (log in as `arcade`) | `\\cobra-stream\roms` |
+| Cabinet | Its nightly copy in part 4.5 (log in as `arcade`): its ROMs up to `roms`, its saves up to `media\backups` | `\\cobra-stream\roms`, `\media` |
 | Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\cobra-stream\media` |
 | Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/pool` |
 | Containers on the SGIN | Bind mounts in 3.8 | `/media/...` |
@@ -944,7 +947,7 @@ Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside*
 
 ### 3.8b Web arcade: RomM + EmulatorJS
 
-RomM serves the browser arcade at `arcade.songofeo.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/pool/roms`, the same folder the cabinet's LaunchBox uses as `R:\` (part 4).
+RomM serves the browser arcade at `arcade.songofeo.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/pool/roms`, which the cabinet fills each night from its own `D:\Roms` (part 4.5). Add new ROMs on the cabinet; the copy only runs cabinet → SGIN.
 
 - [ ] First visit to `http://10.6.9.20:8080` → the setup wizard creates the admin user
 - [ ] Optional but recommended: a free metadata key (IGDB/Twitch, ScreenScraper or SteamGridDB) for covers and names. Add it as `Environment=` lines in `romm.container` per RomM's docs, then `systemctl --user daemon-reload && systemctl --user restart romm`.

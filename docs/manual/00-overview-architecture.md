@@ -14,11 +14,11 @@
 | 4 | *Jellyfin on the gateway box is too much. Shouldn't it go on the Optiplex and use the Intel graphics?* | **You were right to worry: it doesn't belong on the gateway.** That box has 2 cores, 16 GB and the firewall. Putting a media server facing the internet on the same machine that *is* the firewall also widens the damage if it's ever compromised. **The Optiplex is the wrong fix too.** Its HD 530 is Skylake, which has **no hardware decode for HEVC 10-bit**, and that's the format most 4K MKVs use. It would also slow down games on the cabinet. **The SGIN's Celeron N5095A (Jasper Lake) is the best video engine you own.** It does hardware HEVC 10-bit decode and encode plus HDR tone mapping, at about 10 W. So the SGIN becomes **`cobra-stream`** and also keeps its jobs as backup server and Pi-hole #2. |
 | 5 | *SGIN = backup server + Pi-hole 2?* | **Yes, plus media** (see #4). It runs Proxmox Backup Server, Pi-hole #2, Samba, and the media pod. |
 | 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's part 9. |
-| 7 | *Seamless networking + SMB from the Windows 11 desktop?* | **Yes.** All the USB storage drives attach to `cobra-stream`, are pooled into one library and shared over SMB3 (Samba); every Windows machine, the gate and VPN clients use the same shares (part 3.4–3.6). The OptiPlex's internal WD drive stays in the cabinet as its game drive and an extra copy (part 4.6). "Put files wherever I want" means *any machine reads and writes the same library*. |
+| 7 | *Seamless networking + SMB from the Windows 11 desktop?* | **Yes.** All the USB storage drives attach to `cobra-stream`, are pooled into one library and shared over SMB3 (Samba); every Windows machine, the gate and VPN clients use the same shares (part 3.4–3.6). The OptiPlex's internal WD drive (4 TB, NTFS) stays in the cabinet as its game drive, with the ROMs' main copy, and an extra copy of the irreplaceable folders (part 4.6). "Put files wherever I want" means *any machine reads and writes the same library*. |
 | 8 | *Both desktops move to the gateway switch?* | **Yes, and they have to.** Anything plugged into the Xfinity gateway bypasses the firewall. |
 | — | *M3U or XMLTV for ErsatzTV?* | **Both.** M3U is the channel list and stream URLs (the "tuner"). XMLTV is the program guide. Jellyfin takes one of each. |
 | — | *Can the cabinet's RetroArch play with web (browser) users?* | **Not directly.** RetroArch netplay and browser EmulatorJS netplay are different protocols. Both setups that do work are planned: friends join the cabinet with RetroArch, or everyone plays in the browser. |
-| — | *Does the arcade need a 3rd pod for the web arcade + hiscore sync?* | **You do need a third pod, but not on the arcade.** (1) The **web arcade (RomM/EmulatorJS) runs the game in the player's browser**. The server only hands out ROM files and the web page, so it lives in the `stream` pod next to the ROM storage and stays up when the cabinet is off. (2) **Hiscore sync has to read files RetroArch writes on Windows.** That's a job for a small **native Windows agent** (a hidden logon task). Podman on Windows runs inside a WSL2 virtual machine, which doesn't start until someone logs in, and its file-watching doesn't reliably see changes Windows programs make. (3) The **hiscore server** (scores API + storage + scoreboard website at `scores.songofeo.com`) runs on Linux, in a **reserved slot inside the `gate` pod** (see §8). Flow: cabinet RetroArch writes `.hi` → Windows sync agent → HTTPS + API key → `hiscore` pod stores the raw `.hi` files (your backup against power loss) and the parsed scores → scoreboard page with logins and filters. |
+| — | *Does the arcade need a 3rd pod for the web arcade + hiscore sync?* | **You do need a third pod, but not on the arcade.** (1) The **web arcade (RomM/EmulatorJS) runs the game in the player's browser**. The server only hands out ROM files and the web page, so it lives in the `stream` pod and reads the pool's `roms` folder, the copy the cabinet sends each night from its own drive (part 4.5). That way it stays up when the cabinet is off. (2) **Hiscore sync has to read files RetroArch writes on Windows.** That's a job for a small **native Windows agent** (a hidden logon task). Podman on Windows runs inside a WSL2 virtual machine, which doesn't start until someone logs in, and its file-watching doesn't reliably see changes Windows programs make. (3) The **hiscore server** (scores API + storage + scoreboard website at `scores.songofeo.com`) runs on Linux, in a **reserved slot inside the `gate` pod** (see §8). Flow: cabinet RetroArch writes `.hi` → Windows sync agent → HTTPS + API key → `hiscore` pod stores the raw `.hi` files (your backup against power loss) and the parsed scores → scoreboard page with logins and filters. |
 | — | *IncusOS for security on the gate?* | **No.** IncusOS is an immutable OS whose only job is running Incus (containers/VMs). It isn't a security product, and it can't be installed on Debian. It goes into the R620 lab as a learning VM. |
 | — | *Steam Link / Arch-on-USB Pi-hole?* | **No.** The Steam Link has 512 MB of RAM and frozen firmware, and Pi-hole doesn't support Arch. Both Pi-holes run on hardware that's already on 24/7. |
 | — | *Joe Sandbox?* | It's a commercial product. The free, self-hosted equivalent is **CAPEv2** (R620 lab, later). |
@@ -33,6 +33,7 @@
 | ↳ **cobra-firewall** (VM 100) | 2 vCPU / 4 GB | OPNsense | Firewall, DHCP, Unbound DNS-over-TLS, WireGuard VPN, Suricata IDS/IPS, CrowdSec, DDNS | — |
 | ↳ **cobra-pihole-1** (CT 101) | 1 core / 512 MB | Debian 13 LXC | Primary ad/malware DNS filter + local DNS records | — |
 | ↳ **cobra-gate** (VM 110) | 2 vCPU / 6 GB | Debian 13 | Rootless Podman pod: nginx (reverse proxy + TLS), Authelia (SSO + 2FA), Vaultwarden, Paperless-ngx, MeTube, Homepage, Uptime Kuma. Also Cockpit. *(Later, if wanted: NetAlertX, and a CrowdSec agent reading nginx's logs.)* | — |
+| ↳ **cobra-home** (VM 120) | 2 vCPU / 2–3 GB | Home Assistant OS | Smart home: Sensi thermostat, Eufy bulbs and switches, phone app. Second network card on the Xfinity side to reach the Wi-Fi gadgets (part 10) | — |
 | **cobra-stream** | SGIN X15: Celeron N5095A (Jasper Lake Quick Sync), 12 GB, headless. **No built-in Ethernet**: a USB gigabit adapter (AX88179) on the powered hub, which uses the only USB 3 port (USB-C); the two USB-A ports are USB 2.0 | Debian 13 (bare metal) | Rootless Podman pod: Jellyfin, ErsatzTV, Audiobookshelf, Kavita, Navidrome, RomM (EmulatorJS web arcade). Also Samba (all storage), Pi-hole #2, Proxmox Backup Server, Cockpit. | ~10–15 W + drives |
 | **cobra-arcade** | OptiPlex 7040 Mini Tower (240 W): i7-6700, 16 GB dual-channel, AMD Oland XT (R7 250-class), to be replaced by an RTX 3050 6 GB (part 4.7) | Windows 11 | LaunchBox/Big Box, RetroArch, Steam, X-Arcade Tankstick, RetroArch netplay host | ~30–60 W in use |
 | **cobra-switch** | TP-Link Omada ES210X-M2: 8× 2.5GBASE-T, 2× 10G SFP+, easy managed (802.1Q VLANs, loop prevention, IGMP snooping), fanless, no PoE. Replaced the Netgear 5-port switch E, which is now a spare | Omada standalone firmware (own web UI, no controller) | Links every wired machine on the LAN to the gate (the Latitude); carries part 9's VLANs | ~10 W |
@@ -91,12 +92,14 @@
 |---|---|---|
 | 10.0.0.1 | Xfinity gateway | **Today it's 10.6.9.1.** Part 2's cutover moves it back to its default 10.0.0.1/24 so your own LAN, behind OPNsense, can keep the 10.6.9.x numbers. Two networks can't share one range. |
 | 10.0.0.2 | cobra-firewall WAN | DHCP reservation on Xfinity + DMZ host |
+| 10.0.0.3 | cobra-home Xfinity side (`net1`) | Xfinity reservation; static in HA OS with **no gateway**. Thermostat and Eufy gadgets reserved at `10.0.0.20`–`.39` (part 10) |
 | 10.6.9.1 | cobra-firewall LAN | Default gateway + Unbound DNS for the LAN |
 | 10.6.9.2 | cobra-command | Proxmox web UI `https://10.6.9.2:8006` |
 | 10.6.9.3 | cobra-pihole-1 | DNS #1 |
 | 10.6.9.5 | cobra-switch | TP-Link Omada ES210X-M2, the LAN switch: web UI `http://10.6.9.5` (part 2.12). Same switch carries the VLANs in part 9. |
 | 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra`: the TP-Link RE700X in Access Point mode on cobra-switch port 6 (part 2.10b) |
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
+| 10.6.9.11 | cobra-home | Home Assistant (VM 120), port 8123 (part 10) |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
 | 10.6.9.40 / .41 | cobra-lab iDRAC / cobra-lab Proxmox (R620) | Part 9. The iDRAC moves to `10.6.30.40` on the MGMT VLAN in phase B. |
@@ -114,6 +117,7 @@
 | gate | nginx | 443 (80 only redirects to 443) | Internet on 443 (OPNsense forward) + LAN + VPN |
 | gate (in pod) | Authelia 9091 · Vaultwarden 8222 · Paperless 8000 · Postgres 5432 · Redis 6379 · MeTube 8081 · Homepage 3000 · Uptime Kuma 3001 | localhost only | Only nginx inside the pod |
 | gate | Cockpit | 9090 | LAN + VPN |
+| cobra-home | Home Assistant | 8123 | LAN + VPN directly; from outside only through the gate at `ha.songofeo.com` (part 10) |
 | stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533 · RomM 8080 · Icecast 8000 | LAN + VPN only (nftables) | gate's nginx + LAN clients |
 | stream | Samba | 445 | LAN + VPN |
 | stream | Pi-hole #2 | 53, 80/443 (admin) | LAN + VPN |
@@ -129,12 +133,12 @@
 All public traffic follows the same path: **user → Porkbun DNS (plain DNS, no proxy) → your home IP → Xfinity → cobra-firewall (firewall, IDS/IPS, CrowdSec) → cobra-gate (nginx TLS + rate limits [+ Authelia]) → the app.**
 At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LAN traffic never leaves the house. The bare `songofeo.com` and `www` are the exception: they're the station on Porkbun's hosting, at home too.
 
-"Station sign-in" below means Authelia's password screen at `auth.songofeo.com` (part 5.4): one sign-in covers every floor for 6 hours, and it's skipped at home and over WireGuard.
+"Station sign-in" below means Authelia's password screen at `gate.songofeo.com` (part 5.4): one sign-in covers every floor for 6 hours, and it's skipped at home and over WireGuard.
 
 | Want | URL | Path after the gate | Login |
 |---|---|---|---|
 | The station (homepage) | `songofeo.com` | Porkbun static hosting, not the gate (Project-Eo repository) | Public page. Its **Sign in** button opens the station sign-in |
-| Sign in | `auth.songofeo.com` | → gate: Authelia | Username + password (+ TOTP for admin apps); 6 h |
+| Sign in | `gate.songofeo.com` | → gate: Authelia | Username + password (+ TOTP for admin apps); 6 h |
 | Watch a movie / Live TV | `tv.songofeo.com` | → stream: Jellyfin (+ ErsatzTV channels) | Station sign-in, then Jellyfin's login once per device: hidden users (nobody's name is shown on the login page), no Quick Connect |
 | Music (the station's Music floor) | `music.songofeo.com` | → stream: Navidrome | Station sign-in; Navidrome trusts it, so no second login |
 | Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | Station sign-in, then in-app once per device |
@@ -146,13 +150,14 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | Save documents | `docs.songofeo.com` | → gate: Paperless-ngx | **Mandatory:** Authelia 2FA, then Paperless |
 | Save a YouTube video | `metube.songofeo.com` | → gate: MeTube | **Mandatory:** Authelia 2FA (MeTube has no login of its own) |
 | Web arcade | `arcade.songofeo.com` | → stream: RomM (EmulatorJS player) | Station sign-in, then in-app once per device |
-| Cabinet | (local) | arcade: Big Box → RetroArch; ROMs from `\\cobra-stream\roms` | Windows auto-login |
+| Cabinet | (local) | arcade: Big Box → RetroArch; ROMs from its own `D:\Roms` (copied nightly to `\\cobra-stream\roms` for RomM) | Windows auto-login |
 | Dashboard | `home.songofeo.com` | → gate: Homepage | Authelia 2FA |
 | Status page | `status.songofeo.com` | → gate: Uptime Kuma | Authelia 2FA |
 | Password vault | `vault.songofeo.com` | → gate: Vaultwarden | **LAN/VPN only.** Never public. |
 | High-score boards | `scores.songofeo.com` | → gate: reserved hiscore slot (§8, built later) | Login for viewers. The cabinet's sync agent uses an API key. |
 | Live radio | `radio.songofeo.com` | → stream: Liquidsoap + Icecast (part 8) | Authelia password; public only with music you have the rights to stream |
 | Optional buttons page from home | e.g. `links.songofeo.com` | → gate: static page (part 8.1) | Never the bare domain, which is the station |
+| Smart home (lights, thermostat) | `ha.songofeo.com` | → cobra-home: Home Assistant (part 10) | Skipped at home and over WireGuard; Authelia 2FA from anywhere else. Then Home Assistant's own login + 2FA |
 
 **Why the media apps are behind the station sign-in, and why home skips it:** one sign-in for the whole station keeps the apps' own login pages off the internet. But phone and TV apps (Jellyfin on the Roku, Apple TV and phones, Subsonic music apps, the Audiobookshelf app) can't complete a web sign-in. So the sign-in is skipped on the LAN and over WireGuard: the TVs at home work as before, and away from home those apps work with the WireGuard tunnel on. In a browser, and in the Song of Eo Android app, the station sign-in works from anywhere. The apps keep their own logins too, plus rate limiting, CrowdSec and strong passwords.
 
@@ -182,6 +187,7 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | 7 | [`07-hiscore-platform.md`](07-hiscore-platform.md) | Hiscore board at `scores.songofeo.com`: cabinet agent uploads every changed `.hi` file; board newest first | 1 h, after 1–5 |
 | 8 | [`08-site-and-radio.md`](08-site-and-radio.md) | Landing page at `songofeo.com`; radio at `radio.songofeo.com` (Liquidsoap + Icecast) | 1 h |
 | 9 | [`09-r620-lab-and-vlans.md`](09-r620-lab-and-vlans.md) | R620 as `cobra-lab` (standalone Proxmox, remote power), then lab/detonation/management VLANs | When you're ready |
+| 10 | [`10-home-assistant.md`](10-home-assistant.md) | Home Assistant (VM 120): Sensi thermostat and Eufy lights in one app instead of Alexa, behind the station sign-in | 2 h, after 1, 2 and 5 |
 
 **Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
 

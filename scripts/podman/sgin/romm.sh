@@ -53,7 +53,7 @@ done
 [ "$(podman inspect -f '{{.State.Health.Status}}' romm-db)" = healthy ] || warn "MariaDB isn't healthy yet; RomM keeps retrying (podman logs romm-db)"
 
 # keep-groups: RomM writes into the shared roms folder (group media).
-# The roms mount has no :Z because the cabinet reads the same folder over Samba.
+# The roms mount has no :Z because Samba shares the same folder: the cabinet copies its ROMs in each night (manual 4.5).
 run_container romm "$STREAM_POD" "$IMAGE" \
   --group-add keep-groups \
   -e DB_HOST=127.0.0.1 -e DB_NAME=romm -e DB_USER=romm \
@@ -69,6 +69,6 @@ wait_port 8080 120 || warn "RomM isn't answering on :8080 yet; check podman logs
 done_msg romm http://10.6.9.20:8080
 cat <<'TXT'
     Once (part 3.8b): first visit runs the setup wizard (admin user), then Scan.
-      ROMs go in \\cobra-stream\roms\<platform>\  (e.g. snes, n64, arcade)
+      ROMs go on the cabinet in D:\Roms\<platform>\ (e.g. snes, n64, arcade); its nightly copy puts them in \\cobra-stream\roms
       BIOS: the platform -> Firmware -> upload.  One RomM user per player, so saves stay separate.
 TXT

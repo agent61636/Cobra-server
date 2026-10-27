@@ -39,6 +39,62 @@ Copy this table into KeePassXC as a note, or keep it on paper next to the machin
 - [ ] Put the copies on a drive that is **not** one of the SGIN's USB drives (a desktop's disk or the OptiPlex's WD drive), so one failure can't take both the original and the copy
 - [ ] Open one or two files from each copy, to make sure the copy is real
 
+### BitLocker recovery keys (every Windows machine)
+
+BIOS updates, boot-order changes and swapping a graphics card (the OptiPlex in part 4.7) can make BitLocker ask for its recovery key at boot. Without the key, the drive stays locked. Do this on the OptiPlex, the-box, the-spire and Cobra1:
+
+```powershell
+# Admin PowerShell (right-click Start → Terminal (Admin))
+# Shows each drive and whether BitLocker is on ("Protection On") or off
+manage-bde -status
+# Lists C:'s protectors. Copy the "Numerical Password" ID and its 48-digit
+# password into KeePassXC, one entry per machine (repeat for D: etc. if encrypted)
+manage-bde -protectors -get C:
+```
+
+- [ ] Every encrypted drive's recovery key is in KeePassXC, labelled with the machine name. A drive that shows "Protection Off" needs nothing.
+
+### Copying Windows folders with robocopy, and checking the copy
+
+Use this for the OptiPlex folders in the table, or any other Windows folder you want to keep. Set `$src` and `$dst` for each folder; `E:` here is the backup drive.
+
+```powershell
+# Normal PowerShell. Change these two lines for each folder you copy.
+$src = "C:\LaunchBox"                       # folder to back up
+$dst = "E:\backup\cobra-arcade\LaunchBox"   # where the copy goes (created if missing)
+$log = "E:\backup\robocopy.log"             # one log for every run, appended to
+
+# /E      copy subfolders, including empty ones
+# /COPY:DAT /DCOPY:DAT  keep data, attributes and timestamps on files and folders
+# /R:1 /W:1  retry a locked file once, after 1 s, instead of the default 1 million tries
+# /XJ     skip junctions (stops endless loops through AppData links)
+# /MT:16  16 copy threads
+# /LOG+:  append to the log; /TEE also prints to the screen
+robocopy $src $dst /E /COPY:DAT /DCOPY:DAT /R:1 /W:1 /XJ /MT:16 /LOG+:$log /TEE
+```
+
+**Check the copy.** Run the same copy again as a dry run. `/L` only lists, it changes nothing:
+
+```powershell
+# /L list only   /NJH no header   /NDL no folder lines   /NP no progress   /FP full paths
+robocopy $src $dst /E /L /XJ /NJH /NDL /NP /FP
+# In the summary table at the bottom, the "Files" row's "Copied" column must be 0.
+# Anything above 0 is a file that didn't make it: run the first command again and read the log.
+```
+
+Spot-check one or two important files by hash; both lines must show the same hash:
+
+```powershell
+Get-FileHash "$src\some-file.xml", "$dst\some-file.xml" | Format-Table Hash, Path
+```
+
+### Things a folder copy won't catch
+
+- [ ] **Browsers:** turn on browser sync, or export bookmarks and passwords. Import the passwords into KeePassXC, then delete the export file; it's plain text.
+- [ ] **Old Pi-hole** (if the SGIN runs one): web UI → Settings → Teleporter → **Export**. Keep the file with the SGIN copy; its blocklists and local DNS records can be imported into Pi-hole #1 in part 2.
+- [ ] **Xfinity gateway:** screenshots of the port forwards, DHCP reservations and Wi-Fi settings, next to the inventory table.
+- [ ] **Windows licenses:** in an admin prompt run `slmgr /dli` on each machine to see whether it uses a product key or a linked Microsoft account, and note it.
+
 ## 0.4 songofeo.com on Porkbun
 
 The domain stays where it is: Porkbun is the registrar **and** the DNS. The build needs plain DNS records pointing at your home IP, plus API access so OPNsense can keep the IP current (part 2.10) and the gate can get its certificate (part 5.3).
@@ -79,7 +135,8 @@ The domain stays where it is: Porkbun is the registrar **and** the DNS. The buil
 
 - [ ] KeePassXC file exists, with a copy on USB
 - [ ] Inventory table filled in, at least the MACs and port forwards
-- [ ] Old server and cabinet backups copied and spot-checked
+- [ ] Old server and cabinet backups copied and spot-checked (robocopy dry runs show 0 files to copy)
+- [ ] BitLocker recovery keys for every encrypted Windows drive stored in KeePassXC
 - [ ] `songofeo.com` on Porkbun's nameservers with API Access on; no AAAA, parking or URL-forwarding records; both API keys stored
 
 Next: **[1. Set up Latitude](01-latitude.md)**
