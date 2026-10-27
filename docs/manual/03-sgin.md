@@ -325,7 +325,7 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
 
 **Why it can work.** The format block in 3.4 (`wipefs`, `parted`, `mkfs.ext4`) writes a new, empty filesystem index over the old one, but it doesn't erase the file contents. The method below rebuilds the old index from what's still on the disk. It was tested on a practice disk with exactly this accident, and again with stage B's exact command lines on Debian's e2fsprogs: 57 of 60 files came back byte-for-byte, with their names, in `lost+found`. The files lost were the ones under the new filesystem's own metadata. The full background, with the reasons behind each flag, is in [Ext4 drive recovery plan + backup drive pick](https://claude.ai/artifact/V8Zmd8TybMABKAGyTvMwex).
 
-**What you need:** the Seagate (new, about 21.8 TB usable: wd1's 6 TB image, dock1a's 1 TB image and every recovered file all fit), and about a day: roughly 11 h of imaging, 1–3 h of repair, then copying.
+**What you need:** the Seagate (new, about 21.8 TB usable: wd1's 6 TB image, dock1a's 1 TB image and every recovered file all fit), and about a day: roughly 17 h of imaging, 1–3 h of repair, then copying.
 
 ### The rules (read them twice)
 
@@ -378,7 +378,7 @@ The link speed of each disk, by name (run it again after A4 and A6 set `$D` and 
 for d in $(lsblk -dno NAME -e7 | grep '^sd'); do p=$(readlink -f /sys/block/$d); while [ "$p" != / ] && [ ! -f $p/speed ]; do p=$(dirname $p); done; echo "$d: $(cat $p/speed 2>/dev/null) Mb/s  $(lsblk -dno SIZE,MODEL /dev/$d)"; done
 ```
 
-- [ ] Every drive reads `5000` or `10000`. `480` means USB 2.0 somewhere along the path, and a 6 TB image would take about two days instead of 11 hours. The usual culprit is a **USB-C to USB-A adapter**: most small ones carry only the USB 2.0 wires. Use a cable rated 5 or 10 Gbps instead. If you're short of fast ports during the rescue, the network adapter can give up its hub port and sit on one of the SGIN's USB-A ports for now: SSH needs very little, and USB 2.0's ~300 Mb/s is plenty. Move it back afterwards.
+- [ ] Every drive reads `5000` or `10000`. `480` means USB 2.0 somewhere along the path, and a 6 TB image would take several days instead of about 17 hours. The usual culprit is a **USB-C to USB-A adapter**: most small ones carry only the USB 2.0 wires. Use a cable rated 5 or 10 Gbps instead. If you're short of fast ports during the rescue, the network adapter can give up its hub port and sit on one of the SGIN's USB-A ports for now: SSH needs very little, and USB 2.0's ~300 Mb/s is plenty. Move it back afterwards.
 
 **A4. Give wd1 a name that can't move, make it read-only, check its health:**
 
@@ -457,9 +457,13 @@ echo "D=$D"; [ -b "$D" ] && [ "$(sudo blockdev --getro $D)" = 1 ] && [ -d /mnt/r
 Only if it printed `OK`:
 
 ```bash
-sudo ddrescue -n  $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 1: no scraping, the bulk of the drive (~11 h)
-sudo ddrescue -r3 $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 2: retry bad areas up to 3 times (minutes on a healthy drive)
+sudo ddrescue -n  $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 1: no scraping, the bulk of the drive (~17 h)
+sudo ddrescue -r3 $D /mnt/rescue/wd1.img /mnt/rescue/wd1.map   # pass 2: only if pass 1 left anything unread (see below)
 ```
+
+**Pass 2 only when pass 1 left something.** Look at pass 1's final screen. If `non-trimmed`, `non-scraped` and `bad-sector` all read `0 B`, `bad areas` reads `0` and `pct rescued` reads `100.00%`, the image is already complete. Pass 2 would find nothing to retry, so skip it and go to A8. Otherwise run pass 2.
+
+**wd1, Oct 26 (for reference):** pass 1 alone finished in 16 h 53 m at an average of 99 MB/s, with every counter at `0` and `100.00%` rescued, so pass 2 was skipped. The rate drops toward the end of the disk (the inner tracks are slower), so the remaining-time estimate runs short in the last hours.
 
 Detach with **Ctrl+B, then D**, and check back later (`tmux attach -t rescue`). It's done when it reports `pct rescued: 100%` (or as close as the drive allows) and `bad areas: 0`. If wd1 drops off USB mid-copy: replug it, set `D=` and rerun `--setro` (A4), run the `[ -b "$D" ]` check above until it prints `OK`, then rerun the **same** `ddrescue` line. The `.map` file makes it continue where it stopped. Never delete the `.map`.
 
@@ -479,7 +483,7 @@ sudo chattr +i /mnt/rescue/wd1.img /mnt/rescue/wd1.map         # nothing (not ev
 
 ### Stage B: rebuild the old index, on a throwaway overlay
 
-The overlay is a thin layer on top of the image partition. Every write lands in a small `try.cow` file and the image is only read, so a wrong attempt costs a minute (run `mkov` again) instead of another 11-hour image.
+The overlay is a thin layer on top of the image partition. Every write lands in a small `try.cow` file and the image is only read, so a wrong attempt costs a minute (run `mkov` again) instead of another 17-hour image.
 
 **Skip this stage** if A5 showed `zeroed` = `groups` and a direct look of `0 non-zero bytes`: there's no old index left for it to rebuild, so go straight to stage D with **Whole**. If you're unsure, run it anyway. On the overlay it costs nothing but time.
 
@@ -659,12 +663,24 @@ sudo rsync -aHAX --info=progress2 /mnt/rescue/files/wd1/Music/ /srv/storage/disk
 
 ```bash
 sudo sed -i -E 's@^# RESCUE @@' /etc/fstab               # un-comment the other drives and the pool line from A2
+# dock1a not through the rescue yet? Comment its line out again, so plugging it in can't mount it (3.4's warning):
+#   sudo sed -i -E 's@^([^#].*/srv/storage/disks/dock1a[[:space:]])@# RESCUE \1@' /etc/fstab
 grep -E 'srv/storage' /etc/fstab                          # wd1: only the NEW line from E2; one pool line
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/* /srv/storage/pool
 sudo chown -R podsvc:media /srv/storage/disks/wd1/library && sudo chmod -R g+rwX /srv/storage/disks/wd1/library   # 3.5's permissions
 ```
 
-Then plug the other drives back in, and carry on with 3.4 where you left it (or 3.5 onward).
+Then plug the other drives back in. **E5. Bring the shares and apps back** (stopped in A2), once every drive is back: dock1a too, if it went through the rescue. With a drive missing, its files are missing from the pool, and a library scan in Jellyfin or Navidrome could treat them as deleted and lose their watch history.
+
+```bash
+sudo mount -a && df -h /srv/storage/disks/* /srv/storage/pool   # every drive listed, and the pool's size is all of them together
+ls /srv/storage/pool                                       # your folders (movies, tv, music…), not an empty listing
+sudo systemctl start smbd                                  # Samba shares (3.6)
+sudo machinectl shell podsvc@ /usr/bin/systemctl --user start stream-pod   # media apps (3.8)
+sudo machinectl shell podsvc@ /usr/bin/podman ps          # every container Up
+```
+
+Then carry on with 3.4 where you left it (or 3.5 onward).
 
 - [ ] Only now, once **both** drives are back and checked: `sudo umount /mnt/old; sudo dmsetup remove try; sudo losetup -D`. Keep the images on the Seagate for now; there's room
 - [ ] **Keep the Seagate's copy for a few weeks** of the pool working normally. After that, `sudo chattr -i` the images, delete them, and the Seagate becomes the `vault` backup drive (part 5.6)
