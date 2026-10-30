@@ -13,8 +13,8 @@ Each folder also has `up-all.sh`, which runs every script on that host in order.
 
 The host part of the manual must be done first, because the scripts don't use sudo:
 
-- **SGIN:** parts 3.3 to 3.7 (Intel driver and HuC firmware, the mergerfs pool at `/srv/storage/pool` with its folders, user `podsvc` in groups `media`, `render`, `video` with linger on, `/srv/stream` owned by podsvc, Samba, nftables).
-- **Gate:** part 5.2 (podsvc with linger, `/srv/gate` owned by podsvc, ports 80/443 allowed for rootless, the CIFS mount of the pool). nginx also needs the certificate from 5.3 and the site config from 5.4; Authelia needs its config from 5.4.
+- **SGIN:** parts 3.3 to 3.7 (Intel driver and HuC firmware, each data drive mounted at `/srv/storage/disks/<label>` with its folders, user `podsvc` in groups `media`, `render`, `video` with linger on, `/srv/stream` owned by podsvc, Samba, nftables).
+- **Gate:** part 5.2 (podsvc with linger, `/srv/gate` owned by podsvc, ports 80/443 allowed for rootless, the CIFS mount of the SGIN's `media` share at `/srv/storage/disks`). nginx also needs the certificate from 5.3 and the site config from 5.4; Authelia needs its config from 5.4.
 
 ## Run
 
@@ -35,7 +35,7 @@ Every script is safe to run again. It removes that app's container and starts a 
 | Update everything on the host | `UPDATE=1 ./up-all.sh` (read the release notes for Authelia, Paperless and RomM first) |
 | See logs | `podman logs -f jellyfin` |
 | Restart one app | `podman restart jellyfin` |
-| Add another person's music library | `MUSIC_USERS="eels rachel sam" ./navidrome.sh` (it makes `music/sam` on the pool and prints the steps) |
+| Add another person's music library | `MUSIC_USERS="eels rachel sam" ./navidrome.sh` (it makes `music/sam` on dock1a and prints the steps) |
 | Give one app extra settings | put `KEY=value` lines in `~/.config/cobra/<container>.env` and rerun its script, e.g. RomM's metadata keys in `romm.env` |
 | Change a pod's ports | edit `sgin/pod.sh` or `gate/pod.sh`, then `RECREATE_POD=1 ./up-all.sh` |
 | Read a generated password | `podman secret ls`, then `podman secret inspect --showsecret --format '{{.SecretData}}' romm-db-password` |
@@ -46,7 +46,7 @@ Every script is safe to run again. It removes that app's container and starts a 
 - **Start at boot.** Containers are made with `--restart always`, and the first script run enables `podman-restart.service` for podsvc, which starts them at boot (linger keeps it running without a login). On the gate, Paperless and MeTube keep restarting until the SGIN's share is back.
 - **Passwords.** The RomM, Paperless and Icecast passwords are generated once and stored as podman secrets, never in the scripts. They don't show up in `podman inspect`.
 - **Quick Sync.** Jellyfin and ErsatzTV get `/dev/dri` and `--group-add keep-groups`, so they keep podsvc's `render` group inside the container. `jellyfin.sh` checks afterwards that ffmpeg in the container sees the GPU's HEVC profiles.
-- **Folders.** Same paths as the manual: app data under `/srv/stream/<app>` and `/srv/gate/<app>` with `:Z`, and the library pool mounted read-only at `/media` without `:Z`, because Samba shares it. RomM writes to `roms` and MeTube to `youtube`; Paperless reads `scans`.
+- **Folders.** Same paths as the manual: app data under `/srv/stream/<app>` and `/srv/gate/<app>` with `:Z`, and `/srv/storage/disks` mounted read-only at `/media` with `rbind` (so each drive's own mount comes along) and without `:Z`, because Samba shares it. Which drive holds which folder is set once, in the `*_DIR` lines at the top of `lib.sh` (manual part 3.4's table). RomM writes to `dock1b/roms` and MeTube to `wd2/youtube`; Paperless reads `wd2/scans`.
 
 ## Coming from the manual's Quadlet files
 
@@ -76,4 +76,4 @@ The radio's Icecast passwords are new on every setup anyway, so `radio.sh` simpl
 shellcheck scripts/podman/lib.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh
 ```
 
-`COBRA_POOL` and `COBRA_DATA` move the pool and data folders for a test run on another machine. Leave them unset on the real hosts.
+`COBRA_DISKS` and `COBRA_DATA` move the drives and data folders for a test run on another machine. Leave them unset on the real hosts.

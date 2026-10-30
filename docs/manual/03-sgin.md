@@ -9,7 +9,7 @@
 | Port | Speed (`lsusb -t`) | Used for |
 |---|---|---|
 | USB-C | `10000M` root, the **only** USB 3 port | The powered hub. Everything else (the network adapter and every drive) plugs into the hub |
-| USB-A ×2 | `480M`, USB 2.0 only | The installer stick in 3.2; otherwise spare. Never the network adapter or a pool drive |
+| USB-A ×2 | `480M`, USB 2.0 only | The installer stick in 3.2; otherwise spare. Never the network adapter or a data drive |
 
 The network adapter has to sit on the hub because the USB-A ports would cap it at about 300 Mb/s. A USB-C splitter or dock wouldn't help: it's just another hub on the same port. The cost is one shared point of failure, covered in 3.4 under "The powered hub".
 
@@ -22,7 +22,7 @@ The network adapter has to sit on the hub because the USB-A ports would cap it a
 
 **Redoing part 3 on an SGIN that already ran it?** Do these first, then follow the part as written, with the reinstall notes in 3.4 and 3.10:
 
-- [ ] Save to the desktop or a pool drive: `/srv/stream` (every app's settings and database), `/home/podsvc/.config/containers/systemd` (the Quadlet files, which hold the RomM passwords), `/etc/fstab` (the drive labels and UUIDs), `/etc/samba/smb.conf`, and the RomM `DBPW`/`SECRET` if you kept them. If you ran the apps with the `scripts/podman` scripts, their passwords are podman secrets that the reinstall deletes: copy them out first with `sudo machinectl shell podsvc@ /usr/bin/podman secret inspect --showsecret --format '{{.Name}} {{.SecretData}}' romm-db-password romm-auth-secret icecast-source-password icecast-admin-password icecast-relay-password`. Stop the pod first so the databases are closed: `sudo machinectl shell podsvc@ /usr/bin/systemctl --user stop stream-pod`, then e.g. `sudo tar -C / -czf /srv/storage/disks/wd1/sgin-backup.tgz srv/stream home/podsvc/.config/containers etc/fstab etc/samba/smb.conf`
+- [ ] Save to the desktop or a data drive: `/srv/stream` (every app's settings and database), `/home/podsvc/.config/containers/systemd` (the Quadlet files, which hold the RomM passwords), `/etc/fstab` (the drive labels and UUIDs), `/etc/samba/smb.conf`, and the RomM `DBPW`/`SECRET` if you kept them. If you ran the apps with the `scripts/podman` scripts, their passwords are podman secrets that the reinstall deletes: copy them out first with `sudo machinectl shell podsvc@ /usr/bin/podman secret inspect --showsecret --format '{{.Name}} {{.SecretData}}' romm-db-password romm-auth-secret icecast-source-password icecast-admin-password icecast-relay-password`. Stop the pod first so the databases are closed: `sudo machinectl shell podsvc@ /usr/bin/systemctl --user stop stream-pod`, then e.g. `sudo tar -C / -czf /srv/storage/disks/wd1/sgin-backup.tgz srv/stream home/podsvc/.config/containers etc/fstab etc/samba/smb.conf`
 - [ ] Pi-hole #2 → Settings → Teleporter → **Export** (or just re-import from Pi-hole #1 in 3.9)
 - [ ] The data drives keep their files. In 3.4 **don't** run the `wipefs`/`mkfs` lines on them; only add their mount lines back. If one might be damaged, or you're not sure which drive is which, image it first (3.4r)
 - [ ] On the desktop, forget the old SSH host key, or SSH refuses with "REMOTE HOST IDENTIFICATION HAS CHANGED": `ssh-keygen -R 10.6.9.20; ssh-keygen -R cobra-stream`
@@ -132,7 +132,7 @@ sudo systemctl enable --now smartmontools fstrim.timer   # drive health warnings
 ```
 
 - Unattended upgrades never reboot on their own. After an upgrade, `needrestart` lists the services it restarted and says when the kernel needs a reboot.
-- ⚠️ **Don't install TLP or run `powertop --auto-tune`** on this laptop, whatever laptop guides say. Both turn on USB autosuspend, which drops the hub, the pool's drives **and the network adapter, the SGIN's only network link**. (`powertop` just to look is fine.)
+- ⚠️ **Don't install TLP or run `powertop --auto-tune`** on this laptop, whatever laptop guides say. Both turn on USB autosuspend, which drops the hub, the data drives **and the network adapter, the SGIN's only network link**. (`powertop` just to look is fine.)
 
 SSH keys (the desktop's key is the one made in part 1.7; if `type` says the file doesn't exist, run `ssh-keygen -t ed25519` first):
 
@@ -196,24 +196,35 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 
 **Before anything else, about the docks' clone button:** on most dual-bay docks, clone mode **erases one bay and overwrites it with the other**. Put tape over the button. Nothing in this manual uses it.
 
-### How the drives are combined
+### Which drive holds what
 
-| Layer | Path | What it is |
+No pooling and no RAID: each drive is mounted on its own, holds its own folders, and you always know where a file lives. Unplug any one drive and the others keep working; any drive can be read on its own in another computer.
+
+| Drive | Mounted at | Holds |
 |---|---|---|
-| Each drive | `/srv/storage/disks/<label>` | Mounted on its own, by UUID. Unplug any one drive and the others keep working; any drive can be read on its own in another computer. |
-| The library on each drive | `/srv/storage/disks/<label>/library` | The part of each drive that joins the pool |
-| **The pool** | **`/srv/storage/pool`** | **mergerfs** shows every drive's `library` folder as one big folder. New files go to whichever drive has the most free space, so free space on every drive gets used. This is the only path apps, Samba and the gate ever see. |
-| Backups | `/srv/storage/disks/<label>/pbs` | Proxmox Backup Server's datastore, on one drive, deliberately **outside** the pool so nobody can delete backups through a share |
+| **wd1** (WD 6 TB) | `/srv/storage/disks/wd1` | `movies`, `filler`, `pre-rolls` |
+| **wd2** (WD 6 TB) | `/srv/storage/disks/wd2` | `tv`, plus the small shared folders: `youtube`, `scans`, `backups`, `art` |
+| **dock1a** (1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks` |
+| **dock1b** (1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms`, `books`, `comics` |
+| Backups | `/srv/storage/disks/<drive>/pbs` | Proxmox Backup Server's datastore (3.10). Samba hides every `pbs` folder, so nobody can delete backups through a share |
 
-Why mergerfs and not RAID: RAID across USB enclosures drops whole arrays when a USB link resets, and it needs matching drives. mergerfs takes any mix of sizes and filesystems, and losing one drive loses only the files on that drive. Protection against a dead drive comes from backups (part 5), plus optional SnapRAID parity once the second dock is in (end of this section).
+`/srv/storage/disks` is the one folder everything uses. Samba shares it as `\\cobra-stream\media`, so Windows sees four folders, `wd1`, `wd2`, `dock1a` and `dock1b`, and the apps in 3.8 see the same four under `/media`. A path tells you the drive: `/media/wd1/movies` is on wd1. When a drive fills up, move a folder to another drive yourself and point the app at its new place. If a folder ever outgrows its drive, give it a second home (`movies` on wd1 and on a new drive) and add both folders to the app's library; Jellyfin, Navidrome and Audiobookshelf all take several folders per library.
 
-The OptiPlex's internal WD drive (4 TB, NTFS) stays in the OptiPlex. It holds the ROMs' main copy and an extra copy of the irreplaceable folders; see part 4.6. The pool's `roms` folder is the copy the cabinet sends each night, for RomM. Spare space on the machines' system drives (the Latitude's NVMe, the SGIN's own SSD) is **not** added to the pool. Those disks get wiped and reinstalled, and a pool member that lives on another machine disappears whenever that machine reboots.
+- `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin, part 6). `pre-rolls`: the movie intros for Local Intros (part 6)
+- `youtube`: MeTube saves here from the gate (part 5)
+- `scans`: drop documents here from any machine and Paperless on the gate picks them up (part 5)
+- `backups`: machines that keep files only on themselves (the cabinet's saves, part 4.5) copy them here, so the vault backup covers them
+- `art`: pictures for the station's landing pages (`art/movies`, `albums`, `books`, `comics`, `gaming`), served by eo-art on the gate (part 5.4)
+
+Protection against a dead drive comes from backups (part 5.6), not from the layout: losing one drive loses only that drive's folders, until you restore them.
+
+The OptiPlex's internal WD drive (4 TB, NTFS) stays in the OptiPlex. It holds the ROMs' main copy and an extra copy of the irreplaceable folders; see part 4.6. `dock1b/roms` is the copy the cabinet sends each night, for RomM. Spare space on the machines' system drives (the Latitude's NVMe, the SGIN's own SSD) isn't used for the library. Those disks get wiped and reinstalled.
 
 ### Set up the drives
 
 ```bash
 sudo groupadd media                                        # owns the library (users come in 3.5)
-sudo apt install -y mergerfs ntfs-3g
+sudo apt install -y ntfs-3g
 lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every drive
 ```
 
@@ -223,7 +234,7 @@ For each drive, pick a short label: `wd1`, `wd2` for the externals, `dock1a`, `d
 
 ⚠️ **Before any format line below touches a drive that holds files you want, and before any `fsck` or `mount -a` on one that may be damaged, image it first.** For wd1 (the WD 6 TB Elements Desktop), that and the full recovery are in **3.4r, "Recover wd1 onto the Seagate 24 TB"**, right after this section. Do 3.4r first, with only wd1 and the Seagate plugged in, and come back here once its files are recovered and checked.
 
-**Reinstalling, and the drives were set up here before?** Skip the `wipefs`/`parted`/`mkfs` lines: those erase the drive. `lsblk` shows each one's old label (`wd1`, `dock1a`…); for each, run only the `L=…; U=…`, `mkdir`/`chattr` and `echo … | sudo tee -a /etc/fstab` lines with its partition, then carry on at "Then mount everything". The pool block, the `mkdir` lines and 3.5's `chown` are safe to run again.
+**Reinstalling, and the drives were set up here before?** Skip the `wipefs`/`parted`/`mkfs` lines: those erase the drive. `lsblk` shows each one's old label (`wd1`, `dock1a`…); for each, run only the `L=…; U=…`, `mkdir`/`chattr` and `echo … | sudo tee -a /etc/fstab` lines with its partition, then carry on at "Then mount everything". The folder `mkdir` lines and 3.5's `chown` are safe to run again.
 
 **Empty drive, or one you've copied off first** (ext4 is the most reliable choice on Linux). ⚠️ This **erases** the drive. Name it by its by-id path, never `/dev/sdX`, and check it's the one you mean before the `wipefs` line.
 
@@ -257,49 +268,26 @@ sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
 echo "UUID=$U /srv/storage/disks/$L ntfs-3g uid=0,gid=$(getent group media | cut -d: -f3),umask=002,noatime,nofail,x-systemd.device-timeout=15 0 0" | sudo tee -a /etc/fstab
 ```
 
-`chattr +i` locks the **empty** folder under each mount. If a drive is missing at boot (`nofail` lets the SGIN boot anyway), nothing can write into that folder by mistake and fill the system SSD; PBS and the pool just report the drive as missing. The mounted drive itself is unaffected.
+`chattr +i` locks the **empty** folder under each mount. If a drive is missing at boot (`nofail` lets the SGIN boot anyway), nothing can write into that folder by mistake and fill the system SSD; PBS, Samba and the apps just see an empty folder. The mounted drive itself is unaffected.
 
 ⚠️ **Once a drive has an fstab line, plugging it in mounts it.** systemd turns each fstab line into a mount unit tied to that UUID, and starts it whenever the drive appears, with no command typed. The first mount of a new ext4 filesystem also starts the kernel's **lazy init**, which zeroes every inode table in the background (about an hour per TB). On an empty drive that's harmless. On a drive formatted by mistake, it wipes the old file index. That's what happened to dock1a on Oct 22: formatted at 13:24, plugged back in at 13:38, and lazy init had zeroed all 7,453 groups by 14:38. Its files could only come back without names (3.4r stage D). If you ever suspect a format hit the wrong drive, **unplug it at once** and start 3.4r before plugging it in again.
 
-Then mount everything and give each drive its `library` folder. On a drive that already has files, move them into `library` (a move on the same drive is instant):
+Then mount everything and make each drive's folders (the table above). On a drive that already has files, move them into those folders (a move on the same drive is instant):
 
 ```bash
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
-for d in /srv/storage/disks/*; do sudo mkdir -p "$d/library"; done
-# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd2/Movies /srv/storage/disks/wd2/library/movies
+for d in wd1 wd2 dock1a dock1b; do mountpoint -q /srv/storage/disks/$d && echo "$d mounted" || echo "$d MISSING: plug it in before the next line"; done
+sudo mkdir -p /srv/storage/disks/wd1/{movies,filler,pre-rolls} \
+  /srv/storage/disks/wd2/{tv,youtube,scans,backups,art/{movies,albums,books,comics,gaming}} \
+  /srv/storage/disks/dock1a/{music/eels,music/rachel,audiobooks} \
+  /srv/storage/disks/dock1b/{roms,books,comics}
+# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd2/Shows /srv/storage/disks/wd2/tv
 ```
 
-The pool:
+Only run the `mkdir` line once every drive printed `mounted`. On a missing drive it fails (the empty mount point is locked), which is what you want.
 
-```bash
-sudo mkdir -p /srv/storage/pool
-# Writes (or rewrites) the pool's fstab line. It waits for every drive mounted so far,
-# so at boot no drive is missing from the pool. Re-run it whenever you add a drive.
-OPTS=defaults,allow_other,use_ino,cache.files=off,dropcacheonclose=true,category.create=mfs,moveonenospc=true,minfreespace=20G,fsname=pool,nofail
-for d in /srv/storage/disks/*; do OPTS="$OPTS,x-systemd.after=$(systemd-escape --path --suffix=mount "$d")"; done
-sudo sed -i '\#[[:space:]]/srv/storage/pool[[:space:]]#d' /etc/fstab
-echo "/srv/storage/disks/*/library /srv/storage/pool fuse.mergerfs $OPTS 0 0" | sudo tee -a /etc/fstab
-sudo systemctl daemon-reload && sudo mount /srv/storage/pool && df -h /srv/storage/pool
-```
-
-- `category.create=mfs`: each new file goes to the drive with the most free space
-- `minfreespace=20G`: a drive with less than 20 GB free gets no new files
-- `moveonenospc=true`: if a drive fills mid-copy, the file moves to another drive instead of failing
-
-Folder layout (made once, on the pool): `movies tv music/eels music/rachel books audiobooks comics roms filler youtube scans backups art`.
-
-- `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin)
-- `youtube`: MeTube saves here from the gate (part 5)
-- `scans`: drop documents here from any machine and Paperless on the gate picks them up (part 5)
-- `backups`: machines that keep files only on themselves (the cabinet's saves, part 4.5) copy them here, so the vault backup covers them
-- `art`: pictures for the station's landing pages (`art/movies`, `albums`, `books`, `comics`, `gaming`), served by eo-art on the gate (part 5.4)
-
-```bash
-sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobooks,comics,roms,filler,youtube,scans,backups,art/{movies,albums,books,comics,gaming}}
-```
-
-- [ ] `df -h /srv/storage/pool` shows the combined size of all drives
-- [ ] Reboot with one drive unplugged: the SGIN still boots, the pool still mounts with the other drives
+- [ ] `df -h /srv/storage/disks/*` lists all four drives, each with its own size
+- [ ] Reboot with one drive unplugged: the SGIN still boots and the other three still mount
 
 ### USB drives on Linux: two things to check
 
@@ -308,15 +296,15 @@ sudo mkdir -p /srv/storage/pool/{movies,tv,music/eels,music/rachel,books,audiobo
   - **Bus-powered WD externals → the two 10 Gb/s USB-A 3.2 ports.** These ports draw their power from the hub's 65 W brick.
   - **Network adapter and docks (they have their own power bricks) → the 5 Gb/s USB 3.0 ports.** The adapter only needs 1 Gb/s.
   - **Leave both 45 W PD charging ports empty.** They share the same 65 W budget, and a phone or laptop charging there can starve the drives and make them drop.
-  - Speed is fine: the hub links to the SGIN at 5 Gb/s (`5000M`), shared by every drive and the network adapter. One spinning disk moves about 1.5–2 Gb/s, mergerfs reads each file from a single drive, and the network adds at most 1 Gb/s. It only gets busy when several drives copy at full speed at once.
+  - Speed is fine: the hub links to the SGIN at 5 Gb/s (`5000M`), shared by every drive and the network adapter. One spinning disk moves about 1.5–2 Gb/s, each file is read from the one drive it lives on, and the network adds at most 1 Gb/s. It only gets busy when several drives copy at full speed at once.
   - One point of failure: if the hub loses power or resets, every drive **and the network** drop at the same moment. The SGIN's USB-A ports are USB 2.0, so there's no second USB 3 port to move anything to. Plug the hub's brick and the SGIN's charger into the UPS's **battery-backed** outlets (many UPS units also have surge-only outlets that go dark in an outage), never a switched strip. A USB reset usually recovers by itself within seconds: the adapter comes back with the same `enx…` name and its `.20` address. If the SGIN stops answering and doesn't come back, use its own keyboard and screen: `sudo reboot`, or unplug the hub's brick for 10 s.
   - [ ] `lsusb -t` shows each drive and the network adapter at `5000M` or `10000M`. `480M` means it fell back to USB 2: reseat the cable at both ends, check it's a USB 3 cable (blue inside the plug, or a wide Micro-B 3.0 plug on WD drives), or try another hub port. To find which disk is slow: `for d in /sys/block/sd?; do echo "${d##*/}: $(readlink -f $d | grep -o 'usb[0-9]')"; done` (`usb1` is the USB 2 side).
-  - Bare SATA-to-USB adapter cables (even the ones with their own AC brick) are fine for testing or copying a drive off, but use a dock or enclosure for anything that joins the pool. They often fall back to USB 2 and drop under load.
+  - Bare SATA-to-USB adapter cables (even the ones with their own AC brick) are fine for testing or copying a drive off, but use a dock or enclosure for anything that stays plugged in as a data drive. They often fall back to USB 2 and drop under load.
 
 ### Adding a drive later (the second dock)
 
-1. Plug it into a 5 Gb/s port on the hub (there's no free USB 3 port on the SGIN itself) and check `lsusb -t` shows `5000M`. Label and mount it exactly as above (`dock2a`, `dock2b`), and `mkdir` its `library` folder.
-2. Re-run the pool block above (the `OPTS=...` lines through `mount`), after `sudo umount /srv/storage/pool`. The `*` picks up the new drive, and the rewritten line makes boot wait for it too.
+1. Plug it into a 5 Gb/s port on the hub (there's no free USB 3 port on the SGIN itself) and check `lsusb -t` shows `5000M`. Label and mount it exactly as above (`dock2a`, `dock2b`), then make its folders and add a row for it to the table at the top of 3.4.
+2. Run 3.5's `chown` loop again. Samba and the apps see it at once as `\\cobra-stream\media\dock2a` and `/media/dock2a` (restart the apps with `systemctl --user restart stream-pod` as podsvc so their containers see the new mount), then add its folders to the app libraries that should use them.
 3. Optional, once there are four or more drives: **SnapRAID** turns one drive into parity for the rest, so a dead drive can be rebuilt. The parity drive must be at least as big as the biggest data drive. ⚠️ Decide when you know the sizes; it's a separate short setup.
 
 ## 3.4r Recover wd1 onto the Seagate 24 TB (maximum safety)
@@ -359,9 +347,9 @@ A line of numbers like `^[[?61;4;6;7;…c` or `]10;rgb:cccc/…` at the prompt a
 ```bash
 sudo machinectl shell podsvc@ /usr/bin/systemctl --user stop stream-pod 2>/dev/null   # media apps (3.8), if they exist yet
 sudo systemctl stop smbd 2>/dev/null                                                   # Samba shares (3.6), if set up yet
-sudo umount /srv/storage/pool 2>/dev/null; sudo umount /srv/storage/disks/* 2>/dev/null
+sudo umount /srv/storage/disks/* 2>/dev/null
 sudo cp /etc/fstab /etc/fstab.before-rescue                                  # the file to restore from later
-sudo sed -i -E 's@^([^#].*/srv/storage/)@# RESCUE \1@' /etc/fstab           # comments out every drive line and the pool line
+sudo sed -i -E 's@^([^#].*/srv/storage/)@# RESCUE \1@' /etc/fstab           # comments out every drive line
 sudo systemctl daemon-reload
 findmnt | grep /srv/storage        # must print nothing
 ```
@@ -444,7 +432,7 @@ sudo mkfs.ext4 -L rescue -m 0 -E nodiscard $N-part1                             
 sudo mkdir -p /mnt/rescue && sudo mount $N-part1 /mnt/rescue && df -h /mnt/rescue   # ~22T free
 ```
 
-The Seagate stays mounted at `/mnt/rescue` by hand. Don't add it to fstab, so it never joins the pool by mistake.
+The Seagate stays mounted at `/mnt/rescue` by hand. Don't add it to fstab, so it never mounts under `/srv/storage/disks` and shows up in the shares by mistake.
 
 **A7. Image the whole of wd1** (`$D`, not `$D-part1`). A fast first pass copies everything that reads cleanly; the second goes back three times over any spot that didn't. First check that the variables are still set in **this** shell (rule 7). Run this before **every** `ddrescue` line, including after a reconnect:
 
@@ -651,30 +639,30 @@ echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.devic
 sudo systemctl daemon-reload && sudo mount /srv/storage/disks/$L && df -h /srv/storage/disks/$L
 ```
 
-**E3. Copy the files back and check them against stage C's lists:**
+**E3. Copy the files back and check them against stage C's lists.** Each folder goes where 3.4's table puts it. One that belongs on another drive (wd2's `tv`, say) stays on the Seagate until that drive is set up:
 
 ```bash
-sudo mkdir -p /srv/storage/disks/wd1/library
-sudo rsync -aHAX --info=progress2 /mnt/rescue/files/wd1/Music/ /srv/storage/disks/wd1/library/music/   # per folder, to its library name
-(cd /srv/storage/disks/wd1/library/music && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Music.sha256)   # prints nothing = every file matches
+sudo mkdir -p /srv/storage/disks/wd1/movies
+sudo rsync -aHAX --info=progress2 /mnt/rescue/files/wd1/Movies/ /srv/storage/disks/wd1/movies/   # per folder, to its place in 3.4's table
+(cd /srv/storage/disks/wd1/movies && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Movies.sha256)   # prints nothing = every file matches
 ```
 
 **E4. Back to normal:**
 
 ```bash
-sudo sed -i -E 's@^# RESCUE @@' /etc/fstab               # un-comment the other drives and the pool line from A2
+sudo sed -i -E 's@^# RESCUE @@' /etc/fstab               # un-comment the other drives' lines from A2
 # dock1a not through the rescue yet? Comment its line out again, so plugging it in can't mount it (3.4's warning):
 #   sudo sed -i -E 's@^([^#].*/srv/storage/disks/dock1a[[:space:]])@# RESCUE \1@' /etc/fstab
-grep -E 'srv/storage' /etc/fstab                          # wd1: only the NEW line from E2; one pool line
-sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/* /srv/storage/pool
-sudo chown -R podsvc:media /srv/storage/disks/wd1/library && sudo chmod -R g+rwX /srv/storage/disks/wd1/library   # 3.5's permissions
+grep -E 'srv/storage' /etc/fstab                          # wd1: only the NEW line from E2
+sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
+sudo chown -R podsvc:media /srv/storage/disks/wd1/movies && sudo chmod -R g+rwX /srv/storage/disks/wd1/movies   # 3.5's permissions, per folder you copied back
 ```
 
-Then plug the other drives back in. **E5. Bring the shares and apps back** (stopped in A2), once every drive is back: dock1a too, if it went through the rescue. With a drive missing, its files are missing from the pool, and a library scan in Jellyfin or Navidrome could treat them as deleted and lose their watch history.
+Then plug the other drives back in. **E5. Bring the shares and apps back** (stopped in A2), once every drive is back: dock1a too, if it went through the rescue. With a drive missing, its folders are empty, and a library scan in Jellyfin or Navidrome could treat them as deleted and lose their watch history.
 
 ```bash
-sudo mount -a && df -h /srv/storage/disks/* /srv/storage/pool   # every drive listed, and the pool's size is all of them together
-ls /srv/storage/pool                                       # your folders (movies, tv, music…), not an empty listing
+sudo mount -a && df -h /srv/storage/disks/*                # every drive listed, each with its own size
+ls /srv/storage/disks/*                                    # each drive's folders (movies, tv, music…), not an empty listing
 sudo systemctl start smbd                                  # Samba shares (3.6)
 sudo machinectl shell podsvc@ /usr/bin/systemctl --user start stream-pod   # media apps (3.8)
 sudo machinectl shell podsvc@ /usr/bin/podman ps          # every container Up
@@ -683,7 +671,7 @@ sudo machinectl shell podsvc@ /usr/bin/podman ps          # every container Up
 Then carry on with 3.4 where you left it (or 3.5 onward).
 
 - [ ] Only now, once **both** drives are back and checked: `sudo umount /mnt/old; sudo dmsetup remove try; sudo losetup -D`. Keep the images on the Seagate for now; there's room
-- [ ] **Keep the Seagate's copy for a few weeks** of the pool working normally. After that, `sudo chattr -i` the images, delete them, and the Seagate becomes the `vault` backup drive (part 5.6)
+- [ ] **Keep the Seagate's copy for a few weeks** of the drives working normally. After that, `sudo chattr -i` the images, delete them, and the Seagate becomes the `vault` backup drive (part 5.6)
 
 ## 3.5 Users and permissions
 
@@ -694,8 +682,10 @@ How the permissions fit together: files arrive from Samba owned by whoever wrote
 ```bash
 sudo useradd -m -s /bin/bash -G media,render,video podsvc
 sudo loginctl enable-linger podsvc
-sudo chown -R podsvc:media /srv/storage/pool && sudo chmod -R g+rwX /srv/storage/pool   # pool only, never the pbs folders
-sudo find /srv/storage/pool -type d -exec chmod g+s {} +
+# every top-level folder on every drive, except PBS's pbs folders and lost+found
+for f in $(sudo find /srv/storage/disks/*/ -mindepth 1 -maxdepth 1 -type d ! -name pbs ! -name lost+found); do
+  sudo chown -R podsvc:media "$f" && sudo chmod -R g+rwX "$f" && sudo find "$f" -type d -exec chmod g+s {} +
+done
 sudo mkdir -p /srv/stream && sudo chown podsvc: /srv/stream
 sudo usermod -aG media eels
 ```
@@ -719,14 +709,17 @@ sudo tee /etc/samba/smb.conf >/dev/null <<'EOF'
    directory mask = 2775
    read only = no
 
+   # PBS's datastores and fsck's lost+found stay invisible in every share
+   veto files = /pbs/lost+found/
+
 [media]
-   path = /srv/storage/pool
+   path = /srv/storage/disks
 
 [roms]
-   path = /srv/storage/pool/roms
+   path = /srv/storage/disks/dock1b/roms
 
 [scans]
-   path = /srv/storage/pool/scans
+   path = /srv/storage/disks/wd2/scans
 EOF
 sudo testparm -s >/dev/null && sudo systemctl restart smbd
 sudo smbpasswd -a eels
@@ -741,9 +734,9 @@ Every machine, and every share, by the same path:
 |---|---|---|
 | Windows desktops (the-box, the-spire) | File Explorer → Map network drive (log in as `eels`) | `\\cobra-stream\media`, `\scans`, `\roms` |
 | Cobra1 laptop on `cobra` Wi-Fi (2.10b) | Same as the desktops | `\\cobra-stream\media` |
-| Cabinet | Its nightly copy in part 4.5 (log in as `arcade`): its ROMs up to `roms`, its saves up to `media\backups` | `\\cobra-stream\roms`, `\media` |
+| Cabinet | Its nightly copy in part 4.5 (log in as `arcade`): its ROMs up to `roms`, its saves up to `media\wd2\backups` | `\\cobra-stream\roms`, `\media` |
 | Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\cobra-stream\media` |
-| Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/pool` |
+| Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/disks` |
 | Containers on the SGIN | Bind mounts in 3.8 | `/media/...` |
 | Phones on Wi-Fi | Xfinity Wi-Fi is outside the firewall by design; use WireGuard there too | — |
 
@@ -751,7 +744,8 @@ Map the share on a Windows desktop (wired, or on WireGuard):
 
 - [ ] File Explorer → **This PC** → **⋯** (or the Computer tab) → **Map network drive** → Drive `M:` → Folder `\\cobra-stream\media` → tick **Reconnect at sign-in** and **Connect using different credentials** → Finish → user `cobra-stream\eels`, the Samba password you just set → tick **Remember my credentials**
 - [ ] If `\\cobra-stream` isn't found, use `\\10.6.9.20\media` (the name needs the desktop's DNS to be Pi-hole, part 2.9). If Windows says you're already connected with other credentials (from the old server), Control Panel → **Credential Manager** → Windows Credentials → remove the old `cobra-stream`/`10.6.9.200` entries, then try again
-- [ ] Windows: `\\cobra-stream\media` opens and you can create and delete a test folder
+- [ ] Windows: `\\cobra-stream\media` opens and shows `wd1`, `wd2`, `dock1a`, `dock1b`; you can create and delete a test folder inside one of them
+- Want a drive letter per drive? Map `\\cobra-stream\media\wd1` as `W:` and so on. One mapping of `media` is enough, though: the four folders are the four drives
 
 ## 3.7 Firewall (LAN + VPN only)
 
@@ -815,7 +809,7 @@ AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/jellyfin/config:/config:Z
 Volume=/srv/stream/jellyfin/cache:/cache:Z
-Volume=/srv/storage/pool:/media:ro
+Volume=/srv/storage/disks:/media:ro,rbind
 [Install]
 WantedBy=default.target
 EOF
@@ -829,7 +823,7 @@ AddDevice=/dev/dri
 GroupAdd=keep-groups
 Volume=/srv/stream/ersatztv:/config:Z
 Tmpfs=/transcode:rw,size=2g,mode=1777
-Volume=/srv/storage/pool:/media:ro
+Volume=/srv/storage/disks:/media:ro,rbind
 [Install]
 WantedBy=default.target
 EOF
@@ -842,7 +836,7 @@ AutoUpdate=registry
 Environment=PORT=13378
 Volume=/srv/stream/abs/config:/config:Z
 Volume=/srv/stream/abs/metadata:/metadata:Z
-Volume=/srv/storage/pool:/media:ro
+Volume=/srv/storage/disks:/media:ro,rbind
 [Install]
 WantedBy=default.target
 EOF
@@ -853,7 +847,7 @@ Image=docker.io/jvmilazz0/kavita:latest
 Pod=stream.pod
 AutoUpdate=registry
 Volume=/srv/stream/kavita:/kavita/config:Z
-Volume=/srv/storage/pool:/media:ro
+Volume=/srv/storage/disks:/media:ro,rbind
 [Install]
 WantedBy=default.target
 EOF
@@ -863,9 +857,9 @@ ContainerName=navidrome
 Image=docker.io/deluan/navidrome:latest
 Pod=stream.pod
 AutoUpdate=registry
-Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/music/eels ND_REVERSEPROXYWHITELIST=10.6.9.10/32
+Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/music/eels ND_REVERSEPROXYWHITELIST=10.6.9.10/32
 Volume=/srv/stream/navidrome:/data:Z
-Volume=/srv/storage/pool:/media:ro
+Volume=/srv/storage/disks:/media:ro,rbind
 [Install]
 WantedBy=default.target
 EOF
@@ -895,7 +889,7 @@ Volume=/srv/stream/romm/resources:/romm/resources:Z
 Volume=/srv/stream/romm/assets:/romm/assets:Z
 Volume=/srv/stream/romm/config:/romm/config:Z
 Volume=/srv/stream/romm/redis:/redis-data:Z
-Volume=/srv/storage/pool/roms:/romm/library/roms
+Volume=/srv/storage/disks/dock1b/roms:/romm/library/roms
 [Install]
 WantedBy=default.target
 EOF
@@ -909,18 +903,19 @@ podman ps                                     # 7 containers Up
 - [ ] App URLs: Jellyfin `http://10.6.9.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
 
 - [ ] Image names (Oct 2026): ErsatzTV is published as `ghcr.io/ersatztv/legacy` (its GitHub repo ErsatzTV/legacy builds that image; the older `ghcr.io/ersatztv/ersatztv` name still exists but isn't what that repo publishes); RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders. `Tmpfs=/transcode` keeps ErsatzTV's live segments in RAM instead of wearing the SSD
-- [ ] Don't put `:Z` on `/srv/storage/pool` mounts (shared with Samba)
+- [ ] Don't put `:Z` on `/srv/storage/disks` mounts (shared with Samba). `rbind` carries each drive's own mount into the container, so `/media/wd1` is wd1 and not the empty folder under it
+- [ ] Each container sees the drives that were mounted when it started. After plugging a drive back in, as podsvc: `systemctl --user restart stream-pod`, and only then scan libraries
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable H.264/HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), hardware encoding on, **Low-Power H.264/HEVC encoder on**, tone mapping on **and VPP tone mapping on**. Leave the transcode path on the internal SSD (the default). Users: hidden, Quick Connect off. If some movies stutter, see 3.8c
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
-- [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/music/rachel` in the UI, then one user each with only their library
+- [ ] Navidrome: the first library is Eels' (`ND_MUSICFOLDER`); add a second library `/media/dock1a/music/rachel` in the UI, then one user each with only their library
 - `ND_REVERSEPROXYWHITELIST=10.6.9.10/32`: Navidrome trusts the `Remote-User` header from the gate only, so someone the station's sign-in (part 5.4) already let in isn't asked again. Give each person the same username here as in Authelia's `users.yml`.
 - [ ] Each app: create its admin user now. Until you do, the first person to open the page becomes admin. First-run screens, all from the desktop's browser:
 
 | App | First visit | Then |
 |---|---|---|
-| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/movies`; again for *Shows* → `/media/tv` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
-| Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/audiobooks`; again `Books` → `/media/books` for e-books. Settings → Users → one user each |
-| Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/comics` → Save → **Scan**. Users → Invite (or add) one per person |
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/wd1/movies`; again for *Shows* → `/media/wd2/tv` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1b/books` for e-books. Settings → Users → one user each |
+| Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1b/comics` → Save → **Scan**. Users → Invite (or add) one per person |
 | Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
 | ErsatzTV `:8409` | No login screen; it stays LAN/VPN-only because the gate never publishes it | 3.8a |
 | RomM `:8080` | Setup wizard → admin user | 3.8b |
@@ -933,9 +928,9 @@ ErsatzTV builds fake TV channels from your library (schedules, playlists, commer
 **1. Give ErsatzTV access to Jellyfin's library**
 
 - [ ] Jellyfin → Dashboard → API Keys → **+** → name `ersatztv` → copy the key
-- [ ] Jellyfin → Dashboard → Libraries → **Add Media Library** → type *Home Videos and Photos* (or *Mixed*), name `Filler`, folder `/media/filler`. This makes filler searchable, though ErsatzTV reads it directly too.
-- [ ] ErsatzTV (`http://10.6.9.20:8409`) → **Media Sources → Jellyfin** → address `http://127.0.0.1:8096`, the API key → **Save** → tick the Movies and TV libraries → **Sync**. Both containers mount the pool at `/media`, so the file paths Jellyfin reports are paths ErsatzTV can open.
-- [ ] ErsatzTV → **Media Sources → Local** → add a library of type *Other Videos* → folder `/media/filler` → **Scan**
+- [ ] Jellyfin → Dashboard → Libraries → **Add Media Library** → type *Home Videos and Photos* (or *Mixed*), name `Filler`, folder `/media/wd1/filler`. This makes filler searchable, though ErsatzTV reads it directly too.
+- [ ] ErsatzTV (`http://10.6.9.20:8409`) → **Media Sources → Jellyfin** → address `http://127.0.0.1:8096`, the API key → **Save** → tick the Movies and TV libraries → **Sync**. Both containers mount `/srv/storage/disks` at `/media`, so the file paths Jellyfin reports are paths ErsatzTV can open.
+- [ ] ErsatzTV → **Media Sources → Local** → add a library of type *Other Videos* → folder `/media/wd1/filler` → **Scan**
 
 **2. Hardware transcoding** (ErsatzTV transcodes every channel while someone watches it)
 
@@ -963,7 +958,7 @@ Movie pre-rolls (the Local Intros plugin) and breaks between episodes **outside*
 
 ### 3.8b Web arcade: RomM + EmulatorJS
 
-RomM serves the browser arcade at `arcade.songofeo.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/pool/roms`, which the cabinet fills each night from its own `D:\Roms` (part 4.5). Add new ROMs on the cabinet; the copy only runs cabinet → SGIN.
+RomM serves the browser arcade at `arcade.songofeo.com`. The game runs in the player's browser (EmulatorJS), so the SGIN only serves files. It reads `/srv/storage/disks/dock1b/roms`, which the cabinet fills each night from its own `D:\Roms` (part 4.5). Add new ROMs on the cabinet; the copy only runs cabinet → SGIN.
 
 - [ ] First visit to `http://10.6.9.20:8080` → the setup wizard creates the admin user
 - [ ] Optional but recommended: a free metadata key (IGDB/Twitch, ScreenScraper or SteamGridDB) for covers and names. Add it as `Environment=` lines in `romm.container` per RomM's docs, then `systemctl --user daemon-reload && systemctl --user restart romm`.
@@ -1047,7 +1042,7 @@ Components: pbs-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
 sudo apt update && sudo apt install -y proxmox-backup-server     # if a "Postfix Configuration" screen appears: "Local only", mail name `cobra-stream.home.arpa`
-PBSDISK=dock1a        # your label for an ext4 drive (PBS can't use NTFS) with room to spare; part 5.6 adds a second copy on the vault drive
+PBSDISK=wd2           # your label for an ext4 drive (PBS can't use NTFS) with room to spare; part 5.6 adds a second copy on the vault drive
 sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs
 # Reinstall, and that pbs folder already holds backups? Use this instead, which keeps them:
 #   sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs --reuse-datastore true
@@ -1064,13 +1059,13 @@ sudo proxmox-backup-manager acl update / Admin --auth-id eels@pam
 - [ ] Reinstall: the fingerprint and the `pve@pbs` password are new. If Proxmox already had this PBS (part 5.6), Proxmox UI → **Datacenter → Storage → pbs-stream → Edit** → paste both → OK, and update `/root/pbs.env` on the SGIN when you redo part 5.6's self-backup
 
 - [ ] Keyring URL and checksum match the PBS install docs (checked Oct 2026)
-- [ ] PBS owns `/srv/storage/disks/<drive>/pbs` from here on. It sits outside the pool, so the pool `chown` in 3.5 never touches it. Never `chown -R /srv/storage`.
+- [ ] PBS owns `/srv/storage/disks/<drive>/pbs` from here on. 3.5's `chown` loop skips every `pbs` folder and Samba hides them (`veto files`). Never `chown -R /srv/storage`.
 
 ## Done when
 
 - [ ] `https://10.6.9.20:8007` (PBS), `:9090` (Cockpit), `:8096` Jellyfin plays a 4K HEVC file with transcoding showing `(hw)`
 - [ ] `\\cobra-stream\media` opens from a desktop
-- [ ] `df -h /srv/storage/pool` shows every drive's space combined; a file copied in from a desktop shows up in Jellyfin after a library scan
+- [ ] `df -h /srv/storage/disks/*` lists wd1, wd2, dock1a and dock1b; a movie copied into `\\cobra-stream\media\wd1\movies` from a desktop shows up in Jellyfin after a library scan
 - [ ] Jellyfin → Live TV plays an ErsatzTV channel, and the guide fills in (3.8a)
 - [ ] RomM at `:8080` lists your platforms, and one game starts in the browser (3.8b)
 - [ ] `nslookup cobra-stream 10.6.9.20` answers `10.6.9.20` (Pi-hole #2)

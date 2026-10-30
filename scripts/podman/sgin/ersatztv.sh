@@ -13,7 +13,7 @@ DATA=$STREAM_DATA/ersatztv
 
 preflight
 need_gpu
-need_pool filler
+need_folders "$FILLER_DIR"
 stream_pod
 ensure_dir "$DATA"
 
@@ -23,7 +23,7 @@ run_container ersatztv "$STREAM_POD" "$IMAGE" \
   --device /dev/dri \
   --group-add keep-groups \
   -v "$DATA:/config:Z" \
-  -v "$POOL:/media:ro" \
+  -v "$DISKS:/media:ro,rbind" \
   --tmpfs /transcode:rw,size=2g,mode=1777
 
 wait_port 8409 90 || warn "ErsatzTV isn't answering on :8409 yet; check podman logs ersatztv"
@@ -32,7 +32,7 @@ cat <<'TXT'
     Set up channels (part 3.8a):
       1. Jellyfin -> Dashboard -> API Keys -> new key "ersatztv"
       2. ErsatzTV -> Media Sources -> Jellyfin: http://127.0.0.1:8096 + the key -> Sync Movies and TV
-         ErsatzTV -> Media Sources -> Local: Other Videos, folder /media/filler -> Scan
+         ErsatzTV -> Media Sources -> Local: Other Videos, folder /media/wd1/filler -> Scan
       3. Settings -> FFmpeg Profiles: VAAPI, driver iHD, /dev/dri/renderD128, H.264, 1080p
       4. Lists -> Playlists (or Collections) -> Schedules -> Channels -> Playouts -> Build
       5. Jellyfin -> Dashboard -> Live TV:

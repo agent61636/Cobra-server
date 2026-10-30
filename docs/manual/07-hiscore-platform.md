@@ -155,7 +155,7 @@ podman exec nginx nginx -t && systemctl --user restart nginx authelia
 
 ## 7.5 The agent on the cabinet (as arcade, plain non-admin PowerShell)
 
-Copy `apps\hiscore-agent\` from the ZIP to the cabinet (a USB stick, or `\\cobra-stream\media\backups`), open PowerShell in that folder, then:
+Copy `apps\hiscore-agent\` from the ZIP to the cabinet (a USB stick, or `\\cobra-stream\media\wd2\backups`), open PowerShell in that folder, then:
 
 ```powershell
 .\install.ps1          # asks for the API key from 7.2, then starts the agent at every logon

@@ -11,7 +11,23 @@ set -euo pipefail
 
 COBRA_CONF=${COBRA_CONF:-$HOME/.config/cobra}
 UPDATE=${UPDATE:-0}
-POOL=${COBRA_POOL:-/srv/storage/pool}
+DISKS=${COBRA_DISKS:-/srv/storage/disks}
+
+# Which drive holds each folder (manual part 3.4, "Which drive holds what"). Paths are relative to $DISKS
+# on the host and to /media inside the containers. Moved a folder to another drive? Change it here only.
+MOVIES_DIR=wd1/movies
+FILLER_DIR=wd1/filler
+PREROLLS_DIR=wd1/pre-rolls
+TV_DIR=wd2/tv
+YOUTUBE_DIR=wd2/youtube
+SCANS_DIR=wd2/scans
+BACKUPS_DIR=wd2/backups
+ART_DIR=wd2/art
+MUSIC_DIR=dock1a/music
+AUDIOBOOKS_DIR=dock1a/audiobooks
+ROMS_DIR=dock1b/roms
+BOOKS_DIR=dock1b/books
+COMICS_DIR=dock1b/comics
 QUADLET_DIR=$HOME/.config/containers/systemd
 
 host_tz() {
@@ -83,13 +99,17 @@ ensure_dir() {
   done
 }
 
-# need_pool [SUBFOLDER ...]   The library pool must be mounted (SGIN: mergerfs; gate: the CIFS mount).
-need_pool() {
-  local s
-  ls "$POOL" >/dev/null 2>&1 || die "$POOL isn't reachable. SGIN: sudo mount $POOL (part 3.4). Gate: is the SGIN on? (part 5.2)"
-  mountpoint -q "$POOL" || die "$POOL is an empty folder, not the mounted pool. Mount it first (part 3.4 / 5.2)"
-  for s in "$@"; do
-    [ -d "$POOL/$s" ] || mkdir -p "$POOL/$s" 2>/dev/null || die "$POOL/$s is missing and $(id -un) can't create it"
+# need_folders FOLDER ...   Each folder's drive must be mounted, and the folder must exist.
+# SGIN: every drive is its own mount at $DISKS/<label>. Gate: $DISKS itself is the CIFS mount of the SGIN's media share.
+need_folders() {
+  local f d
+  ls "$DISKS" >/dev/null 2>&1 || die "$DISKS isn't reachable. SGIN: part 3.4. Gate: is the SGIN on? (part 5.2)"
+  for f in "$@"; do
+    d=${f%%/*}
+    if ! mountpoint -q "$DISKS" && ! mountpoint -q "$DISKS/$d"; then
+      die "$DISKS/$d is an empty folder, not the mounted $d drive. Plug it in and mount it first (part 3.4)"
+    fi
+    [ -d "$DISKS/$f" ] || mkdir -p "$DISKS/$f" 2>/dev/null || die "$DISKS/$f is missing and $(id -un) can't create it"
   done
 }
 
