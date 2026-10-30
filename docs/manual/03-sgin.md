@@ -172,7 +172,7 @@ sudo systemctl restart systemd-logind
 sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
 
 # Blank the built-in screen after 60 s
-sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 consoleblank=60"/' /etc/default/grub
+grep -q consoleblank /etc/default/grub || sudo sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 consoleblank=60"/' /etc/default/grub
 sudo update-grub
 
 # Battery = built-in UPS: clean power-off at 10 % during a long outage
@@ -660,14 +660,17 @@ Sorting what it finds: photos by date with `exiftool '-Directory<DateTimeOrigina
 **E1. Identify wd1 the long way** (plug it in alone with the Seagate, on the hub):
 
 ```bash
-D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* | grep -v part); echo "$D -> $(readlink -f $D)"   # wd1 (dock1a: ata-WDC_WD10EALX-*)
+D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* /dev/disk/by-id/usb-WD_Elements_25A3_*-0:0 2>/dev/null | grep -v part | head -1)
+echo "$D -> $(readlink -f $D)"                               # wd1. Inside its WD Elements case there's often no ata- name, only usb-WD_Elements_25A3_…
 N=$(ls /dev/disk/by-id/usb-Seagate_Expansion_HDD_*-0:0)        # the Seagate's, so the check below can tell them apart
 sudo smartctl -i -d sat $D | grep -E 'Model|Serial'          # the serial you wrote down in A4
 S=$(sudo blockdev --getsize64 $D); echo $S                   # about 6001175126016 (6.0 TB)
-[ -e "$N" ] && [ "$(readlink -f $D)" != "$(readlink -f $N)" ] && [ $S -gt 5900000000000 ] && [ $S -lt 6100000000000 ] && echo OK || echo STOP
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS $D                # one disk and one part, nothing mounted, no dm overlay under it
+[ -e "$N" ] && [ "$(readlink -f $D)" != "$(readlink -f $N)" ] && [ $S -gt 5900000000000 ] && [ $S -lt 6100000000000 ] \
+  && [ $(lsblk -nr $D | wc -l) -le 2 ] && [ -z "$(lsblk -nro MOUNTPOINTS $D | tr -d '[:space:]')" ] && echo OK || echo STOP
 ```
 
-For dock1a, the size range in that check is `950000000000` to `1050000000000` (1.0 TB) instead.
+`STOP` from the last line: wrong drive, or something still uses it (a stage B overlay over the raw drive: `sudo umount` it and `sudo dmsetup remove` it first). For dock1a, the size range in that check is `950000000000` to `1050000000000` (1.0 TB) instead.
 
 **E2. Erase and reformat it** (only if E1 printed `OK` and the serial matches):
 
@@ -683,21 +686,40 @@ echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.devic
 sudo systemctl daemon-reload && sudo mount /srv/storage/disks/$L && df -h /srv/storage/disks/$L
 ```
 
-**E3. Copy the files back and check them against stage C's lists.** Each folder goes where 3.4's table puts it. For wd1, that's the whole recovered library back at the top of the drive:
+**E3. Copy the files back and check them.** This reads the Seagate and writes wd1: two disks, full speed (about 5 TB in 9–10 hours). Each folder goes where 3.4's table puts it. For wd1, that's the whole recovered library back at the top of the drive. Run it in tmux, so a dropped SSH session doesn't stop it:
 
 ```bash
-sudo mkdir -p /srv/storage/disks/wd1/movies
-sudo rsync -aHAX --info=progress2 /mnt/rescue/files/wd1/Movies/ /srv/storage/disks/wd1/movies/   # per folder, to its place in 3.4's table
-(cd /srv/storage/disks/wd1/movies && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Movies.sha256)   # prints nothing = every file matches
+tmux new -As copyback
+SRC=/mnt/rescue/wd1-library        # where stage C put the copy (the per-folder way: /mnt/rescue/files/wd1)
+ls $SRC && mountpoint -q /srv/storage/disks/wd1 && echo OK || echo STOP
+sudo rsync -a --info=progress2 $SRC/ /srv/storage/disks/wd1/
 ```
+
+Finished = the shell prompt is back and the last progress line says `100%`. Then check, and give the folders their 3.4 names:
+
+```bash
+sudo rsync -rn --size-only --itemize-changes $SRC/ /srv/storage/disks/wd1/ | head    # prints nothing = every file there, same size
+sudo dmesg | grep -i -E 'I/O error|ext4.*error' | tail                              # prints nothing = no disk errors during the copy
+sudo find $SRC -type f | shuf -n 20 | while read -r f; do
+  [ "$(sudo sha256sum < "$f")" = "$(sudo sha256sum < "/srv/storage/disks/wd1/${f#$SRC/}")" ] && echo same || echo "DIFFERENT: $f"
+done                                                                                 # 20 random files, byte for byte: 20 × same
+sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/shows                  # only if the old drive called it series
+sudo mkdir -p /srv/storage/disks/wd1/{movies,shows,filler,pre-rolls}; ls /srv/storage/disks/wd1
+```
+
+Copied it the per-folder way with stage C's `.sha256` lists? Check each folder against its list instead: `(cd /srv/storage/disks/wd1/movies && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Movies.sha256)`, which prints nothing when every file matches. Other old folders (e.g. `staging`, `downloads`) can stay at the top of wd1 until you sort them; Jellyfin only reads `movies` and `shows`.
 
 **E4. Back to normal:**
 
+Look at the lines A2 commented out before un-commenting any. Only bring back a drive that's still in 3.4's table; a line for anything else (an old drive that now lives elsewhere, `/mnt/old-wd1`, a rescue mount) gets deleted instead:
+
 ```bash
-sudo sed -i -E 's@^# RESCUE @@' /etc/fstab               # un-comment the other drives' lines from A2
-# dock1a not through the rescue yet? Comment its line out again, so plugging it in can't mount it (3.4's warning):
-#   sudo sed -i -E 's@^([^#].*/srv/storage/disks/dock1a[[:space:]])@# RESCUE \1@' /etc/fstab
-grep -E 'srv/storage' /etc/fstab                          # wd1: only the NEW line from E2
+grep -n -E 'RESCUE|srv/storage|/mnt/' /etc/fstab          # wd1: only the NEW line from E2
+# un-comment one drive's line, e.g. dock1b (one line per drive you keep):
+sudo sed -i -E 's@^# RESCUE (.*[[:space:]]/srv/storage/disks/dock1b[[:space:]])@\1@' /etc/fstab
+# delete a line you don't need any more, by its number from the grep (e.g. line 22):
+#   sudo sed -i '22d' /etc/fstab        # one at a time, and grep again after each: the numbers shift
+# dock1a not through the rescue yet? Leave its line commented, so plugging it in can't mount it (3.4's warning)
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
 sudo chown -R podsvc:media /srv/storage/disks/wd1/movies && sudo chmod -R g+rwX /srv/storage/disks/wd1/movies   # 3.5's permissions, per folder you copied back
 ```
