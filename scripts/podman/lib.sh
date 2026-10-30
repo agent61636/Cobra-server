@@ -11,7 +11,27 @@ set -euo pipefail
 
 COBRA_CONF=${COBRA_CONF:-$HOME/.config/cobra}
 UPDATE=${UPDATE:-0}
-POOL=${COBRA_POOL:-/srv/storage/pool}
+DISKS=${COBRA_DISKS:-/srv/storage/disks}
+
+# Which drive holds each folder (manual part 3.4, "Which drive holds what"). Paths are relative to $DISKS
+# on the host and to /media inside the containers. Moved a folder to another drive? Change it here only.
+# shellcheck disable=SC2034  # used by the scripts that source this file
+{
+  MOVIES_DIR=video/movies    # the wd1 + wd2 pool (part 3.4)
+  FILLER_DIR=wd1/filler
+  PREROLLS_DIR=wd1/pre-rolls
+  SHOWS_DIR=video/shows
+  MUSIC_DIR=dock1a/music
+  AUDIOBOOKS_DIR=dock1a/audiobooks
+  BOOKS_DIR=dock1a/books
+  COMICS_DIR=dock1a/comics
+  SCANS_DIR=dock1a/scans
+  BACKUPS_DIR=dock1a/backups
+  ART_DIR=dock1a/art
+  ROMS_DIR=dock1b/roms
+  YOUTUBE_DIR=wd2/youtube
+}
+
 QUADLET_DIR=$HOME/.config/containers/systemd
 
 host_tz() {
@@ -83,13 +103,17 @@ ensure_dir() {
   done
 }
 
-# need_pool [SUBFOLDER ...]   The library pool must be mounted (SGIN: mergerfs; gate: the CIFS mount).
-need_pool() {
-  local s
-  ls "$POOL" >/dev/null 2>&1 || die "$POOL isn't reachable. SGIN: sudo mount $POOL (part 3.4). Gate: is the SGIN on? (part 5.2)"
-  mountpoint -q "$POOL" || die "$POOL is an empty folder, not the mounted pool. Mount it first (part 3.4 / 5.2)"
-  for s in "$@"; do
-    [ -d "$POOL/$s" ] || mkdir -p "$POOL/$s" 2>/dev/null || die "$POOL/$s is missing and $(id -un) can't create it"
+# need_folders FOLDER ...   Each folder's drive must be mounted, and the folder must exist.
+# SGIN: every drive is its own mount at $DISKS/<label>. Gate: $DISKS itself is the CIFS mount of the SGIN's media share.
+need_folders() {
+  local f d
+  ls "$DISKS" >/dev/null 2>&1 || die "$DISKS isn't reachable. SGIN: part 3.4. Gate: is the SGIN on? (part 5.2)"
+  for f in "$@"; do
+    d=${f%%/*}
+    if ! mountpoint -q "$DISKS" && ! mountpoint -q "$DISKS/$d"; then
+      die "$DISKS/$d is an empty folder, not the mounted $d drive. Plug it in and mount it first (part 3.4)"
+    fi
+    [ -d "$DISKS/$f" ] || mkdir -p "$DISKS/$f" 2>/dev/null || die "$DISKS/$f is missing and $(id -un) can't create it"
   done
 }
 

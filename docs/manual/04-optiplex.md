@@ -77,37 +77,37 @@ Hiscores are a **per-core** option in RetroArch, not a global setting. Load a ga
 
 ## 4.5 Back up the cabinet's own files to the SGIN
 
-Saves, save states, `.hi` files, the LaunchBox database and the ROMs' main copy live only on the cabinet. Copy them to the pool nightly, where the vault backup (part 5) picks them up. One small script does both this and 4.6.
+Saves, save states, `.hi` files, the LaunchBox database and the ROMs' main copy live only on the cabinet. Copy them to the SGIN nightly (dock1a's `backups` folder), where the vault backup (part 5) picks them up. One small script does both this and 4.6.
 
 Create the folder with `New-Item -ItemType Directory -Force C:\Cobra`, then save this as `C:\Cobra\nightly-copy.ps1` (Notepad, then "Save as type: All files"):
 
 ```powershell
 # Nightly copies for cobra-arcade. robocopy /E /XO adds and updates, never deletes.
 $log = 'C:\Cobra\nightly-copy.log'
-$pool = '\\cobra-stream\media'
+$media = '\\cobra-stream\media'   # the SGIN's drives: wd1, dock1a, dock1b, wd2
 $ra = 'C:\RetroArch-Win64'      # your RetroArch folder
 $lb = 'D:\LaunchBox'            # or C:\LaunchBox
 
-# 1) cabinet -> pool (4.5)
+# 1) cabinet -> SGIN (4.5)
 $up = @{
-  "$ra\saves"     = "$pool\backups\arcade\RetroArch\saves"
-  "$ra\states"    = "$pool\backups\arcade\RetroArch\states"
-  "$ra\system"    = "$pool\backups\arcade\RetroArch\system"
-  "$ra\config"    = "$pool\backups\arcade\RetroArch\config"
-  "$ra\playlists" = "$pool\backups\arcade\RetroArch\playlists"
-  "$lb\Data"      = "$pool\backups\arcade\LaunchBox\Data"
+  "$ra\saves"     = "$media\dock1a\backups\arcade\RetroArch\saves"
+  "$ra\states"    = "$media\dock1a\backups\arcade\RetroArch\states"
+  "$ra\system"    = "$media\dock1a\backups\arcade\RetroArch\system"
+  "$ra\config"    = "$media\dock1a\backups\arcade\RetroArch\config"
+  "$ra\playlists" = "$media\dock1a\backups\arcade\RetroArch\playlists"
+  "$lb\Data"      = "$media\dock1a\backups\arcade\LaunchBox\Data"
   'D:\Roms'       = '\\cobra-stream\roms'        # the web arcade (RomM) reads this copy
 }
-# 2) pool -> D: (4.6). Edit the list: the pool folders you'd hate to lose.
+# 2) SGIN -> D: (4.6). Edit the list: the folders you'd hate to lose, as drive\folder (part 3.4's table).
 # Not 'roms': their main copy is already on D: (D:\Roms), and 1) sends them up.
-$down = 'music', 'books', 'audiobooks', 'comics', 'scans', 'backups'
+$down = 'dock1a\music', 'dock1a\audiobooks', 'dock1a\books', 'dock1a\comics', 'dock1a\scans', 'dock1a\backups'
 
 Add-Content $log "=== $(Get-Date)"
 foreach ($src in $up.Keys) {
   if (Test-Path $src) { robocopy $src $up[$src] /E /XO /R:2 /W:5 /NP /NFL /NDL /LOG+:$log | Out-Null }
 }
 foreach ($f in $down) {
-  robocopy "$pool\$f" "D:\Cobra-copy\$f" /E /XO /R:2 /W:5 /NP /NFL /NDL /LOG+:$log | Out-Null
+  robocopy "$media\$f" "D:\Cobra-copy\$f" /E /XO /R:2 /W:5 /NP /NFL /NDL /LOG+:$log | Out-Null
 }
 ```
 
@@ -130,7 +130,7 @@ Start-ScheduledTask 'Cobra nightly copy'      # first run now; the first pull to
 It stays in the OptiPlex as `D:`, NTFS as Windows made it (if it's the OptiPlex's **only** disk, it's the system disk instead and only job 1 applies), with two jobs:
 
 1. **The cabinet's local game drive.** The ROMs (`D:\Roms`, the main copy; 4.3), Steam library, LaunchBox and its media (box art, videos), so the menu and the games stay fast and don't depend on the network.
-2. **An extra copy of what you can't replace, until the vault drive arrives (and after).** The `$down` part of the script in 4.5 pulls those pool folders into `D:\Cobra-copy` every night. `/E /XO` never deletes, so a file removed by mistake on the pool is still here. Check `D:`'s free space against the ROMs plus what you list; movies and TV are the big ones and you can re-rip or re-buy those.
+2. **An extra copy of what you can't replace, until the vault drive arrives (and after).** The `$down` part of the script in 4.5 pulls those folders into `D:\Cobra-copy` every night. `/E /XO` never deletes, so a file removed by mistake on the SGIN is still here. Check `D:`'s free space against the ROMs plus what you list; movies and TV are the big ones and you can re-rip or re-buy those.
 
 - [ ] Before relying on it: `D:` shows healthy in `Get-PhysicalDisk | Select FriendlyName, HealthStatus` and has no SMART warnings in CrystalDiskInfo
 

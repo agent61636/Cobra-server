@@ -92,7 +92,7 @@ Pod=stream.pod
 AutoUpdate=registry
 Environment=ICECAST_SOURCE_PASSWORD=$SRCPW RADIO_MUSIC=/media/music RADIO_NAME="Song of Eo Radio"
 Volume=/srv/stream/radio:/radio:ro,Z
-Volume=/srv/storage/pool/music:/media/music:ro
+Volume=/srv/storage/disks/dock1a/music:/media/music:ro
 Exec=/radio/radio.liq
 [Service]
 Restart=on-failure
@@ -106,7 +106,7 @@ journalctl --user -u radio -n 30
 ```
 
 - The log should show Liquidsoap connecting to Icecast and starting a track. If it says it can't run `/radio/radio.liq` as a command, the image wants the program name too: change the line to `Exec=liquidsoap /radio/radio.liq`, then `daemon-reload` and restart radio.
-- `RADIO_MUSIC=/media/music` plays both music libraries. For a separate station playlist, make a folder (say `\\cobra-stream\media\radio`), copy or move the songs there, and change both the `Volume=` source and `RADIO_MUSIC`.
+- `RADIO_MUSIC=/media/music` plays both music libraries. For a separate station playlist, make a folder (say `\\cobra-stream\media\dock1a\radio`), copy or move the songs there, and change both the `Volume=` source and `RADIO_MUSIC`.
 - [ ] LAN check: `http://10.6.9.20:8000/stream` plays in VLC or a browser
 
 ## 8.3 Radio through the gate

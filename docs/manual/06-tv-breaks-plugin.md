@@ -2,7 +2,7 @@
 
 **Result:** every show you choose gets a **"&lt;Show&gt; — with breaks"** playlist in Jellyfin, for each person who watches it. Pick it on the Roku or Apple TV app and it plays one episode, then a random video from your filler folder, then the next episode, and so on. Movies keep their pre-roll from **Local Intros**, and Live TV channels get breaks from ErsatzTV (part 3.8a).
 
-**Needs:** part 3 (Jellyfin with the `Filler` library from 3.8a) and some short videos in `\\cobra-stream\media\filler`.
+**Needs:** part 3 (Jellyfin with the `Filler` library from 3.8a) and some short videos in `\\cobra-stream\media\wd1\filler`.
 
 ## Why playlists, not an intro plugin
 
@@ -23,7 +23,7 @@ A playlist is a list of items stored on the server, and every Jellyfin app can p
 
 ## 6.1 Filler videos
 
-- [ ] Put short videos in `\\cobra-stream\media\filler` (subfolders are fine): old commercials, bumpers, station IDs, trailers. Aim for 50+ to start.
+- [ ] Put short videos in `\\cobra-stream\media\wd1\filler` (subfolders are fine): old commercials, bumpers, station IDs, trailers. Aim for 50+ to start.
 - [ ] Jellyfin → Dashboard → Libraries → `Filler` → **Scan**. They show up in Jellyfin as Home Videos. ErsatzTV uses the same folder for Live TV breaks.
 - [ ] Jellyfin → Dashboard → Users → each person in a `[[show]]` → **Access**: tick the `Filler` library. A user who can't see a video can't have it in their playlist. To keep it off their home screen: their Settings → Home → untick `Filler` under the libraries shown.
 

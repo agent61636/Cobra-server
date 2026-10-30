@@ -17,7 +17,7 @@ REDIS_IMAGE=${PAPERLESS_REDIS_IMAGE:-docker.io/library/redis:7}
 DATA=$GATE_DATA/paperless
 
 preflight
-need_pool scans
+need_folders "$SCANS_DIR"
 gate_pod
 ensure_dir "$DATA/data" "$DATA/media" "$DATA/export" "$GATE_DATA/postgres" "$GATE_DATA/redis"
 
@@ -52,7 +52,7 @@ run_container paperless "$GATE_POD" "$IMAGE" \
   -v "$DATA/data:/usr/src/paperless/data:Z" \
   -v "$DATA/media:/usr/src/paperless/media:Z" \
   -v "$DATA/export:/usr/src/paperless/export:Z" \
-  -v "$POOL/scans:/usr/src/paperless/consume"
+  -v "$DISKS/$SCANS_DIR:/usr/src/paperless/consume"
 
 pod_http paperless http://127.0.0.1:8000 180 || warn "Paperless isn't answering yet (first start migrates the database; give it a few minutes)"
 done_msg paperless https://docs.songofeo.com

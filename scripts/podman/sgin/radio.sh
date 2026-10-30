@@ -12,7 +12,7 @@ RADIO_IMAGE=${RADIO_IMAGE:-docker.io/savonet/liquidsoap:v2.4.x-latest}
 DATA=$STREAM_DATA/radio
 
 preflight
-need_pool music
+need_folders "$MUSIC_DIR"
 [ -r "$DATA/radio.liq" ] || die "$DATA/radio.liq is missing; copy apps/radio/radio.liq there first (part 8.2)"
 stream_pod
 
@@ -32,7 +32,7 @@ run_container radio "$STREAM_POD" "$RADIO_IMAGE" \
   --secret icecast-source-password,type=env,target=ICECAST_SOURCE_PASSWORD \
   -e RADIO_MUSIC=/media/music -e RADIO_NAME="Song of Eo Radio" \
   -v "$DATA:/radio:ro,Z" \
-  -v "$POOL/music:/media/music:ro" \
+  -v "$DISKS/$MUSIC_DIR:/media/music:ro" \
   --entrypoint liquidsoap \
   -- /radio/radio.liq
 

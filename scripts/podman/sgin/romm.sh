@@ -18,7 +18,7 @@ DB_IMAGE=${ROMM_DB_IMAGE:-docker.io/library/mariadb:11}
 DATA=$STREAM_DATA/romm
 
 preflight
-need_pool roms
+need_folders "$ROMS_DIR"
 stream_pod
 ensure_dir "$DATA/resources" "$DATA/assets" "$DATA/config" "$DATA/redis" "$DATA/db"
 
@@ -63,7 +63,7 @@ run_container romm "$STREAM_POD" "$IMAGE" \
   -v "$DATA/assets:/romm/assets:Z" \
   -v "$DATA/config:/romm/config:Z" \
   -v "$DATA/redis:/redis-data:Z" \
-  -v "$POOL/roms:/romm/library/roms"
+  -v "$DISKS/$ROMS_DIR:/romm/library/roms"
 
 wait_port 8080 120 || warn "RomM isn't answering on :8080 yet; check podman logs romm"
 done_msg romm http://10.6.9.20:8080

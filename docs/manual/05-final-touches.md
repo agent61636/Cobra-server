@@ -73,18 +73,18 @@ Shared storage from the SGIN (MeTube saves into the library, Paperless reads the
 sudo apt install -y cifs-utils
 sudo install -m 600 /dev/null /root/smb-gate.cred
 printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
-sudo mkdir -p /srv/storage/pool
+sudo mkdir -p /srv/storage/disks
 PU=$(id -u podsvc); PG=$(id -g podsvc)
-echo "//10.6.9.20/media /srv/storage/pool cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
+echo "//10.6.9.20/media /srv/storage/disks cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
   | sudo tee -a /etc/fstab
-sudo systemctl daemon-reload && sudo mount /srv/storage/pool && ls /srv/storage/pool
+sudo systemctl daemon-reload && sudo mount /srv/storage/disks && ls /srv/storage/disks   # wd1 dock1a dock1b wd2
 ```
 
 - `file_mode=0666,dir_mode=0777`: Paperless and MeTube run as a non-root user *inside* their containers, which is some unnamed ID on the gate, so the mount lets anyone on the gate write. Only `eels` and `podsvc` log in there. This setting is local to the gate; on the SGIN the files still land as user `gate`, group `media`, mode 664, like everything else written over Samba.
 - `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
 - The share is addressed by IP on purpose, so it mounts even if both Pi-holes are down.
-- `/srv/storage/pool` is the same path as on the SGIN, so a path in one app's settings means the same folder everywhere.
-- [ ] `touch /srv/storage/pool/scans/test && rm /srv/storage/pool/scans/test` works as eels
+- `/srv/storage/disks` is the same path as on the SGIN, with the same drive folders under it, so a path in one app's settings means the same folder everywhere.
+- [ ] `touch /srv/storage/disks/dock1a/scans/test && rm /srv/storage/disks/dock1a/scans/test` works as eels
 
 ## 5.3 Wildcard cert (as eels)
 
@@ -239,7 +239,7 @@ AutoUpdate=registry
 Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.songofeo.com PAPERLESS_CONSUMER_POLLING=60
 Volume=/srv/gate/paperless/data:/usr/src/paperless/data:Z
 Volume=/srv/gate/paperless/media:/usr/src/paperless/media:Z
-Volume=/srv/storage/pool/scans:/usr/src/paperless/consume
+Volume=/srv/storage/disks/dock1a/scans:/usr/src/paperless/consume
 Volume=/srv/gate/paperless/export:/usr/src/paperless/export:Z
 [Service]
 Restart=on-failure
@@ -254,7 +254,7 @@ Image=ghcr.io/alexta69/metube:latest
 Pod=gate.pod
 AutoUpdate=registry
 Environment=DOWNLOAD_DIR=/downloads STATE_DIR=/state TEMP_DIR=/state/tmp
-Volume=/srv/storage/pool/youtube:/downloads
+Volume=/srv/storage/disks/wd2/youtube:/downloads
 Volume=/srv/gate/metube:/state:Z
 [Service]
 Restart=on-failure
@@ -291,7 +291,7 @@ Pod=gate.pod
 AutoUpdate=registry
 Environment=EO_ART_ADDR=127.0.0.1:8790 EO_ART_MOVIES=/art/movies EO_ART_RADIO=/art/albums EO_ART_BOOKS=/art/books EO_ART_COMICS=/art/comics EO_ART_GAMING=/art/gaming
 Volume=/srv/gate/eo-art:/app:ro,Z
-Volume=/srv/storage/pool/art:/art:ro
+Volume=/srv/storage/disks/dock1a/art:/art:ro
 Exec=python3 /app/eo_art.py
 [Service]
 Restart=on-failure
@@ -311,18 +311,18 @@ scp .\Project-Eo-main\home\eo-art\eo_art.py eels@10.6.9.10:/tmp/
 ```bash
 # on the gate, as eels
 sudo install -o podsvc -m 644 /tmp/eo_art.py /srv/gate/eo-art/eo_art.py
-mkdir -p /srv/storage/pool/art/{movies,albums,books,comics,gaming}
+mkdir -p /srv/storage/disks/dock1a/art/{movies,albums,books,comics,gaming}
 ```
 
 Each `art/` folder is a flat set of `.jpg` files (copies, not the library itself) that you fill however you like; eo-art rescans them every two minutes. Until a folder has pictures, that page shows its own drawn artwork instead.
 
 Where the gate's apps keep their files:
 
-| App | Its own data (on the gate's disk, in the nightly VM backup) | Shared files (on the SGIN pool, over the CIFS mount) |
+| App | Its own data (on the gate's disk, in the nightly VM backup) | Shared files (on the SGIN's drives, over the CIFS mount) |
 |---|---|---|
-| Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `scans`. Drop a PDF or photo into `\\cobra-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
-| MeTube | queue and history: `/srv/gate/metube` | **Finished videos:** `youtube`, so they're on the big drives and Jellyfin can show them (add `/media/youtube` as a Home Videos library) |
-| eo-art | just its script: `/srv/gate/eo-art` | **Pictures for the station:** `art/movies`, `art/albums`, `art/books`, `art/comics`, `art/gaming` (read-only) |
+| Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `dock1a/scans`. Drop a PDF or photo into `\\cobra-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
+| MeTube | queue and history: `/srv/gate/metube` | **Finished videos:** `wd2/youtube`, on the Seagate's spare space, so Jellyfin can show them (add `/media/wd2/youtube` as a Home Videos library) |
+| eo-art | just its script: `/srv/gate/eo-art` | **Pictures for the station:** `dock1a/art/movies`, `albums`, `books`, `comics`, `gaming` (read-only) |
 
 `Restart=on-failure`: if the gate boots while the SGIN is off, those three can't find their shared folder and fail. systemd retries every minute until the SGIN is back.
 
@@ -668,29 +668,30 @@ echo '30 3 * * * root . /root/pbs.env && export PBS_REPOSITORY PBS_PASSWORD PBS_
 
 - [ ] PBS UI → Datastore store1 → Prune & GC jobs: daily; Verify job: weekly
 - [ ] Test restore: Proxmox → CT 101 → Backup → restore to new VMID 901. **Before starting it**, cut its network so it doesn't steal Pi-hole #1's `10.6.9.3`: `pct set 901 --net0 name=eth0,bridge=vmbr0,ip=10.6.9.3/24,gw=10.6.9.1,link_down=1`. Start, `pct enter 901`, check `pihole status`, then stop and destroy
-- [ ] Second copy of the PBS datastore (`/srv/storage/disks/<drive>/pbs`) and of anything irreplaceable: see part 4.6 (the OptiPlex drive) and add a cloud copy for photos and documents
+- [ ] Second copy of the PBS datastore (`/srv/storage/vault/store1`) and of anything irreplaceable: see part 4.6 (the OptiPlex drive) and add a cloud copy for photos and documents
 
-### Backing up the library (the ~10 TB on the pool)
+### Backing up the library (the ~10 TB on the data drives)
 
-Until the backup drive exists, the pool has **no backup**: a dead drive loses whatever was on it. The fix is one dedicated backup drive that is never part of the pool.
+Until the backup drive exists, the library has **no backup**: a dead drive loses whatever was on it. The fix is one dedicated backup drive that holds no live library folders of its own.
 
-**What to buy:** one 3.5" desktop drive of **18–20 TB** (NAS or enterprise class), for a bay of the second dock. 10 TB of data plus room to grow, plus a few weeks of older versions. 14 TB is the smallest that works, and it would fill within a year or two.
+**The backup drive is the Seagate 24 TB** (3.4's "The Seagate" section), once 3.4r's rescue is finished and the recovered files have been fine on their drives for a few weeks. It already sits at `/srv/storage/vault`, next to `store1`. Its `wd2` folder is lent out as extra space and isn't backed up (it's on the same drive).
 
-**How it works:** Proxmox Backup Server, already running on the SGIN, gets a second datastore called `vault` on the new drive. Every night the SGIN backs up the whole pool into it. After the first full run (expect a day or more for 10 TB over USB), each night only reads what changed. You can restore a single file from the PBS web UI, and a weekly verify job re-reads everything to catch a failing disk early. The VM backups get copied into `vault` too, so they no longer depend on a pool drive.
+**How it works:** Proxmox Backup Server, already running on the SGIN, gets a second datastore called `vault` on the Seagate. Every night the SGIN backs up wd1, dock1a and dock1b into it. After the first full run (expect a day or more for 5 TB over USB), each night only reads what changed. You can restore a single file from the PBS web UI, and a weekly verify job re-reads everything to catch a failing disk early.
 
-On stream (eels), once the drive is mounted at `/srv/storage/disks/vault` (same steps as 3.4, but **don't** create a `library` folder, so it stays out of the pool):
+On stream (eels):
 
 ```bash
-sudo proxmox-backup-manager datastore create vault /srv/storage/disks/vault/pbs
+sudo proxmox-backup-manager datastore create vault /srv/storage/vault/pbs
 sudo proxmox-backup-manager acl update /datastore/vault DatastoreBackup --auth-id pve@pbs
-echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && PBS_REPOSITORY=pve@pbs@127.0.0.1:vault proxmox-backup-client backup library.pxar:/srv/storage/pool --change-detection-mode=metadata' \
+echo '0 1 * * * root . /root/pbs.env && export PBS_PASSWORD PBS_FINGERPRINT && PBS_REPOSITORY=pve@pbs@127.0.0.1:vault proxmox-backup-client backup wd1.pxar:/srv/storage/disks/wd1 dock1a.pxar:/srv/storage/disks/dock1a dock1b.pxar:/srv/storage/disks/dock1b --exclude /lost+found --change-detection-mode=metadata' \
   | sudo tee /etc/cron.d/pbs-library
 ```
 
+- Delete the 3.4r rescue images (`wd1.img`, `dock1a.img` and their copies, after `sudo chattr -i`) once you're sure you won't need them: they take about 8 TB.
 - [ ] PBS UI → Datastore **vault** → Prune: keep-daily 7, keep-weekly 4, keep-monthly 3. GC daily. Verify weekly.
-- [ ] PBS UI → Datastore **vault** → Sync Jobs → Add: source **store1** (local), daily. The VM backups now exist on two drives.
+- `store1` (the VM backups) is on the same Seagate, so there's no sync job between them. Their second copy is part 4.6 and the off-site copy below.
 - [ ] First run: start it by hand inside `tmux` (`sudo apt install -y tmux`, then paste everything after `root` from the cron line, prefixed with `sudo bash -c '...'`) so it survives closing the SSH window, and leave it overnight
-- [ ] Restore test: PBS UI → vault → library → browse → download one file and open it
+- [ ] Restore test: PBS UI → vault → the newest `host/cobra-stream` snapshot → `wd1.pxar` → browse → download one file and open it
 - `--change-detection-mode=metadata` (PBS backup client docs): each night it compares file metadata with the last snapshot and only reads files that changed, instead of re-reading all 10 TB.
 
 **What this doesn't cover: fire, theft, a power surge through the hub.** The backup drive sits next to the originals. For the files you could never get back (photos, home video, documents, your own music, saves), keep a third copy outside the house: a second backup drive you swap with one kept at a relative's every month or two, or a cloud backup of just that irreplaceable part. Movies and TV you could re-rip or re-buy can live with two copies at home.

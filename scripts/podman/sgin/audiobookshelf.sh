@@ -11,7 +11,7 @@ IMAGE=${ABS_IMAGE:-ghcr.io/advplyr/audiobookshelf:latest}
 DATA=$STREAM_DATA/abs
 
 preflight
-need_pool books audiobooks
+need_folders "$BOOKS_DIR" "$AUDIOBOOKS_DIR"
 stream_pod
 ensure_dir "$DATA/config" "$DATA/metadata"
 
@@ -20,8 +20,8 @@ run_container audiobookshelf "$STREAM_POD" "$IMAGE" \
   -e PORT=13378 \
   -v "$DATA/config:/config:Z" \
   -v "$DATA/metadata:/metadata:Z" \
-  -v "$POOL:/media:ro"
+  -v "$DISKS:/media:ro,rbind"
 
 wait_port 13378 60 || warn "Audiobookshelf isn't answering on :13378 yet; check podman logs audiobookshelf"
 done_msg audiobookshelf http://10.6.9.20:13378
-echo "    Once: first visit creates the admin, then Libraries -> add 'Audiobooks' (/media/audiobooks) and 'Books' (/media/books, type Books)"
+echo "    Once: first visit creates the admin, then Libraries -> add 'Audiobooks' (/media/$AUDIOBOOKS_DIR) and 'Books' (/media/$BOOKS_DIR, type Books)"

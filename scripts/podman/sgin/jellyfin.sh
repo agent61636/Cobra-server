@@ -12,7 +12,7 @@ DATA=$STREAM_DATA/jellyfin
 
 preflight
 need_gpu
-need_pool movies tv filler youtube
+need_folders "$MOVIES_DIR" "$SHOWS_DIR" "$FILLER_DIR" "$PREROLLS_DIR" "$YOUTUBE_DIR"
 stream_pod
 ensure_dir "$DATA/config" "$DATA/cache"
 
@@ -25,7 +25,7 @@ run_container jellyfin "$STREAM_POD" "$IMAGE" \
   -e JELLYFIN_PublishedServerUrl=https://tv.songofeo.com \
   -v "$DATA/config:/config:Z" \
   -v "$DATA/cache:/cache:Z" \
-  -v "$POOL:/media:ro" \
+  -v "$DISKS:/media:ro,rbind" \
   --tmpfs /transcode-ram:rw,size=4g,mode=1777
 
 wait_port 8096 90 || warn "Jellyfin isn't answering on :8096 yet; check podman logs jellyfin"
