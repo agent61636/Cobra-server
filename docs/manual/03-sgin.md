@@ -202,13 +202,15 @@ No pooling and no RAID: each drive is mounted on its own, holds its own folders,
 
 | Drive | Mounted at | Holds |
 |---|---|---|
-| **wd1** (WD 6 TB) | `/srv/storage/disks/wd1` | `movies`, `filler`, `pre-rolls` |
-| **wd2** (WD 6 TB) | `/srv/storage/disks/wd2` | `tv`, plus the small shared folders: `youtube`, `scans`, `backups`, `art` |
-| **dock1a** (1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks` |
-| **dock1b** (1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms`, `books`, `comics` |
-| Backups | `/srv/storage/disks/<drive>/pbs` | Proxmox Backup Server's datastore (3.10). Samba hides every `pbs` folder, so nobody can delete backups through a share |
+| **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `tv`, `filler`, `pre-rolls` |
+| **dock1a** (WD Black 1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
+| **dock1b** (WD Blue 1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
+| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `youtube`, and anything else you want there. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
+| **Seagate** (24 TB Expansion) | `/srv/storage/vault` | The backup drive: Proxmox Backup Server's datastores (3.10, 5.6), the 3.4r rescue images, and the `wd2` folder. Mounted **outside** `/srv/storage/disks`, so the backups never show up in a share |
 
-`/srv/storage/disks` is the one folder everything uses. Samba shares it as `\\cobra-stream\media`, so Windows sees four folders, `wd1`, `wd2`, `dock1a` and `dock1b`, and the apps in 3.8 see the same four under `/media`. A path tells you the drive: `/media/wd1/movies` is on wd1. When a drive fills up, move a folder to another drive yourself and point the app at its new place. If a folder ever outgrows its drive, give it a second home (`movies` on wd1 and on a new drive) and add both folders to the app's library; Jellyfin, Navidrome and Audiobookshelf all take several folders per library.
+The other WD 6 TB (the old `wd2`) holds personal files and stays on the-box, shared from there; the SGIN doesn't use it.
+
+`/srv/storage/disks` is the one folder everything uses. Samba shares it as `\\cobra-stream\media`, so Windows sees four folders, `wd1`, `dock1a`, `dock1b` and `wd2`, and the apps in 3.8 see the same four under `/media`. A path tells you the drive: `/media/wd1/movies` is on wd1. When a drive fills up, move a folder to another drive yourself and point the app at its new place. If a folder ever outgrows its drive, give it a second home (`movies` on wd1 and on a new drive) and add both folders to the app's library; Jellyfin, Navidrome and Audiobookshelf all take several folders per library.
 
 - `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin, part 6). `pre-rolls`: the movie intros for Local Intros (part 6)
 - `youtube`: MeTube saves here from the gate (part 5)
@@ -218,7 +220,7 @@ No pooling and no RAID: each drive is mounted on its own, holds its own folders,
 
 Protection against a dead drive comes from backups (part 5.6), not from the layout: losing one drive loses only that drive's folders, until you restore them.
 
-The OptiPlex's internal WD drive (4 TB, NTFS) stays in the OptiPlex. It holds the ROMs' main copy and an extra copy of the irreplaceable folders; see part 4.6. `dock1b/roms` is the copy the cabinet sends each night, for RomM. Spare space on the machines' system drives (the Latitude's NVMe, the SGIN's own SSD) isn't used for the library. Those disks get wiped and reinstalled.
+The OptiPlex's internal WD drive (4 TB, NTFS) stays in the OptiPlex as `D:`. It holds the games, the ROMs' main copy and an extra copy of the irreplaceable folders; see part 4.6. `dock1b/roms` is the copy the cabinet sends each night, so RomM's web arcade keeps working while the cabinet is off or asleep. Spare space on the machines' system drives (the Latitude's NVMe, the SGIN's own SSD) isn't used for the library. Those disks get wiped and reinstalled.
 
 ### Set up the drives
 
@@ -228,7 +230,7 @@ sudo apt install -y ntfs-3g
 lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every drive
 ```
 
-For each drive, pick a short label: `wd1`, `wd2` for the externals, `dock1a`, `dock1b` for the dock's bays.
+For each drive, pick a short label: `wd1` for the external, `dock1a`, `dock1b` for the dock's bays. The Seagate gets its own steps below.
 
 ### Safe option first: a drive that holds files (wd1)
 
@@ -263,7 +265,7 @@ echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.devic
 **Drive that already holds files in NTFS** (keep it as it is):
 
 ```bash
-L=wd2; U=$(sudo blkid -s UUID -o value /dev/sdY1)
+L=ntfs1; U=$(sudo blkid -s UUID -o value /dev/sdY1)      # any free label; none of today's drives is NTFS
 sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
 echo "UUID=$U /srv/storage/disks/$L ntfs-3g uid=0,gid=$(getent group media | cut -d: -f3),umask=002,noatime,nofail,x-systemd.device-timeout=15 0 0" | sudo tee -a /etc/fstab
 ```
@@ -276,18 +278,40 @@ Then mount everything and make each drive's folders (the table above). On a driv
 
 ```bash
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
-for d in wd1 wd2 dock1a dock1b; do mountpoint -q /srv/storage/disks/$d && echo "$d mounted" || echo "$d MISSING: plug it in before the next line"; done
-sudo mkdir -p /srv/storage/disks/wd1/{movies,filler,pre-rolls} \
-  /srv/storage/disks/wd2/{tv,youtube,scans,backups,art/{movies,albums,books,comics,gaming}} \
-  /srv/storage/disks/dock1a/{music/eels,music/rachel,audiobooks} \
-  /srv/storage/disks/dock1b/{roms,books,comics}
-# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd2/Shows /srv/storage/disks/wd2/tv
+for d in wd1 dock1a dock1b wd2; do mountpoint -q /srv/storage/disks/$d && echo "$d mounted" || echo "$d MISSING: plug it in (wd2: the Seagate, below) before the next line"; done
+sudo mkdir -p /srv/storage/disks/wd1/{movies,tv,filler,pre-rolls} \
+  /srv/storage/disks/dock1a/{music/eels,music/rachel,audiobooks,books,comics,scans,backups,art/{movies,albums,books,comics,gaming}} \
+  /srv/storage/disks/dock1b/roms \
+  /srv/storage/disks/wd2/youtube
+# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/tv
 ```
 
 Only run the `mkdir` line once every drive printed `mounted`. On a missing drive it fails (the empty mount point is locked), which is what you want.
 
-- [ ] `df -h /srv/storage/disks/*` lists all four drives, each with its own size
-- [ ] Reboot with one drive unplugged: the SGIN still boots and the other three still mount
+- [ ] `df -h /srv/storage/disks/*` lists wd1, dock1a and dock1b with their own sizes, and wd2 with the Seagate's
+- [ ] Reboot with one drive unplugged: the SGIN still boots and the others still mount
+
+### The Seagate: backup drive, with a `wd2` folder
+
+The Seagate 24 TB is first the rescue drive (3.4r, mounted by hand at `/mnt/rescue`). Once 3.4r is finished, it becomes the backup drive and gets a permanent home at `/srv/storage/vault`, with one folder, `wd2`, lent out as extra space. It's a folder, not a partition: nothing gets shrunk, and `wd2` can use as much or as little of the drive as you need. Its catch: a file that lives only in `wd2` has no second copy, because it sits on the backup drive itself.
+
+```bash
+N=$(ls /dev/disk/by-id/usb-Seagate_Expansion_HDD_*-0:0); echo "$N -> $(readlink -f $N)"
+U=$(sudo blkid -s UUID -o value $N-part1); echo $U                        # the Seagate's filesystem (the one 3.4r A6 made)
+sudo umount /mnt/rescue 2>/dev/null                                       # done with the rescue? Its files stay on the drive
+sudo sed -i '\#[[:space:]]/mnt/rescue[[:space:]]#d' /etc/fstab            # any old line for it
+sudo mkdir -p /srv/storage/vault && sudo chattr +i /srv/storage/vault
+echo "UUID=$U /srv/storage/vault ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/vault && df -h /srv/storage/vault
+# wd2: the Seagate's wd2 folder, shown at /srv/storage/disks/wd2 like a drive
+sudo mkdir -p /srv/storage/vault/wd2 /srv/storage/disks/wd2 && sudo chattr +i /srv/storage/disks/wd2
+echo "/srv/storage/vault/wd2 /srv/storage/disks/wd2 none bind,nofail,x-systemd.requires-mounts-for=/srv/storage/vault 0 0" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/disks/wd2 && findmnt /srv/storage/disks/wd2
+```
+
+- `bind`: the same folder seen at a second path. Samba and the apps see `wd2` next to the real drives; the rest of the Seagate (the backups, the rescue images) stays out of every share.
+- [ ] `findmnt /srv/storage/disks/wd2` shows `/srv/storage/vault/wd2` as its source
+- [ ] Keep `wd2` well short of full: `df -h /srv/storage/vault` shows the whole Seagate, backups included, and the backups need room to grow
 
 ### USB drives on Linux: two things to check
 
@@ -639,7 +663,7 @@ echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.devic
 sudo systemctl daemon-reload && sudo mount /srv/storage/disks/$L && df -h /srv/storage/disks/$L
 ```
 
-**E3. Copy the files back and check them against stage C's lists.** Each folder goes where 3.4's table puts it. One that belongs on another drive (wd2's `tv`, say) stays on the Seagate until that drive is set up:
+**E3. Copy the files back and check them against stage C's lists.** Each folder goes where 3.4's table puts it. For wd1, that's the whole recovered library back at the top of the drive:
 
 ```bash
 sudo mkdir -p /srv/storage/disks/wd1/movies
@@ -719,7 +743,7 @@ sudo tee /etc/samba/smb.conf >/dev/null <<'EOF'
    path = /srv/storage/disks/dock1b/roms
 
 [scans]
-   path = /srv/storage/disks/wd2/scans
+   path = /srv/storage/disks/dock1a/scans
 EOF
 sudo testparm -s >/dev/null && sudo systemctl restart smbd
 sudo smbpasswd -a eels
@@ -734,7 +758,7 @@ Every machine, and every share, by the same path:
 |---|---|---|
 | Windows desktops (the-box, the-spire) | File Explorer → Map network drive (log in as `eels`) | `\\cobra-stream\media`, `\scans`, `\roms` |
 | Cobra1 laptop on `cobra` Wi-Fi (2.10b) | Same as the desktops | `\\cobra-stream\media` |
-| Cabinet | Its nightly copy in part 4.5 (log in as `arcade`): its ROMs up to `roms`, its saves up to `media\wd2\backups` | `\\cobra-stream\roms`, `\media` |
+| Cabinet | Its nightly copy in part 4.5 (log in as `arcade`): its ROMs up to `roms`, its saves up to `media\dock1a\backups` | `\\cobra-stream\roms`, `\media` |
 | Laptop/phone on WireGuard | Same as the desktops; short names resolve through Pi-hole (part 2) | `\\cobra-stream\media` |
 | Gate VM | CIFS mount in part 5 (log in as `gate`) | `/srv/storage/disks` |
 | Containers on the SGIN | Bind mounts in 3.8 | `/media/...` |
@@ -744,7 +768,7 @@ Map the share on a Windows desktop (wired, or on WireGuard):
 
 - [ ] File Explorer → **This PC** → **⋯** (or the Computer tab) → **Map network drive** → Drive `M:` → Folder `\\cobra-stream\media` → tick **Reconnect at sign-in** and **Connect using different credentials** → Finish → user `cobra-stream\eels`, the Samba password you just set → tick **Remember my credentials**
 - [ ] If `\\cobra-stream` isn't found, use `\\10.6.9.20\media` (the name needs the desktop's DNS to be Pi-hole, part 2.9). If Windows says you're already connected with other credentials (from the old server), Control Panel → **Credential Manager** → Windows Credentials → remove the old `cobra-stream`/`10.6.9.200` entries, then try again
-- [ ] Windows: `\\cobra-stream\media` opens and shows `wd1`, `wd2`, `dock1a`, `dock1b`; you can create and delete a test folder inside one of them
+- [ ] Windows: `\\cobra-stream\media` opens and shows `wd1`, `dock1a`, `dock1b`, `wd2`; you can create and delete a test folder inside one of them
 - Want a drive letter per drive? Map `\\cobra-stream\media\wd1` as `W:` and so on. One mapping of `media` is enough, though: the four folders are the four drives
 
 ## 3.7 Firewall (LAN + VPN only)
@@ -913,9 +937,9 @@ podman ps                                     # 7 containers Up
 
 | App | First visit | Then |
 |---|---|---|
-| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/wd1/movies`; again for *Shows* → `/media/wd2/tv` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
-| Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1b/books` for e-books. Settings → Users → one user each |
-| Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1b/comics` → Save → **Scan**. Users → Invite (or add) one per person |
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/wd1/movies`; again for *Shows* → `/media/wd1/tv` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books. Settings → Users → one user each |
+| Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1a/comics` → Save → **Scan**. Users → Invite (or add) one per person |
 | Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
 | ErsatzTV `:8409` | No login screen; it stays LAN/VPN-only because the gate never publishes it | 3.8a |
 | RomM `:8080` | Setup wizard → admin user | 3.8b |
@@ -1042,10 +1066,10 @@ Components: pbs-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
 sudo apt update && sudo apt install -y proxmox-backup-server     # if a "Postfix Configuration" screen appears: "Local only", mail name `cobra-stream.home.arpa`
-PBSDISK=wd2           # your label for an ext4 drive (PBS can't use NTFS) with room to spare; part 5.6 adds a second copy on the vault drive
-sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs
-# Reinstall, and that pbs folder already holds backups? Use this instead, which keeps them:
-#   sudo proxmox-backup-manager datastore create store1 /srv/storage/disks/$PBSDISK/pbs --reuse-datastore true
+# store1 (the VM backups) lives on the Seagate, mounted at /srv/storage/vault in 3.4; part 5.6 adds the library's backups next to it
+sudo proxmox-backup-manager datastore create store1 /srv/storage/vault/store1
+# Reinstall, and that folder already holds backups? Use this instead, which keeps them:
+#   sudo proxmox-backup-manager datastore create store1 /srv/storage/vault/store1 --reuse-datastore true
 sudo proxmox-backup-manager user create pve@pbs --password "$(openssl rand -base64 24 | tee /dev/stderr)"   # store it
 sudo proxmox-backup-manager acl update /datastore/store1 DatastoreBackup --auth-id pve@pbs
 sudo proxmox-backup-manager cert info | grep Fingerprint                                     # store it; part 5.6 needs it
@@ -1059,13 +1083,13 @@ sudo proxmox-backup-manager acl update / Admin --auth-id eels@pam
 - [ ] Reinstall: the fingerprint and the `pve@pbs` password are new. If Proxmox already had this PBS (part 5.6), Proxmox UI → **Datacenter → Storage → pbs-stream → Edit** → paste both → OK, and update `/root/pbs.env` on the SGIN when you redo part 5.6's self-backup
 
 - [ ] Keyring URL and checksum match the PBS install docs (checked Oct 2026)
-- [ ] PBS owns `/srv/storage/disks/<drive>/pbs` from here on. 3.5's `chown` loop skips every `pbs` folder and Samba hides them (`veto files`). Never `chown -R /srv/storage`.
+- [ ] PBS owns `/srv/storage/vault/store1` from here on. It's outside `/srv/storage/disks`, so 3.5's `chown` loop and Samba never reach it. Never `chown -R /srv/storage`.
 
 ## Done when
 
 - [ ] `https://10.6.9.20:8007` (PBS), `:9090` (Cockpit), `:8096` Jellyfin plays a 4K HEVC file with transcoding showing `(hw)`
 - [ ] `\\cobra-stream\media` opens from a desktop
-- [ ] `df -h /srv/storage/disks/*` lists wd1, wd2, dock1a and dock1b; a movie copied into `\\cobra-stream\media\wd1\movies` from a desktop shows up in Jellyfin after a library scan
+- [ ] `df -h /srv/storage/disks/*` lists wd1, dock1a, dock1b and wd2; a movie copied into `\\cobra-stream\media\wd1\movies` from a desktop shows up in Jellyfin after a library scan
 - [ ] Jellyfin → Live TV plays an ErsatzTV channel, and the guide fills in (3.8a)
 - [ ] RomM at `:8080` lists your platforms, and one game starts in the browser (3.8b)
 - [ ] `nslookup cobra-stream 10.6.9.20` answers `10.6.9.20` (Pi-hole #2)

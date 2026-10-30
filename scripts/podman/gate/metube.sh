@@ -16,7 +16,7 @@ need_folders "$YOUTUBE_DIR"
 gate_pod
 ensure_dir "$DATA"
 
-# Finished videos go to the SGIN's wd2; the queue and partial downloads stay on the gate's disk.
+# Finished videos go to the SGIN's wd2 (a folder on the Seagate); the queue and partial downloads stay on the gate's disk.
 run_container metube "$GATE_POD" "$IMAGE" \
   -e DOWNLOAD_DIR=/downloads -e STATE_DIR=/state -e TEMP_DIR=/state/tmp \
   -v "$DISKS/$YOUTUBE_DIR:/downloads" \

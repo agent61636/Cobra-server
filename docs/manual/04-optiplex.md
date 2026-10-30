@@ -77,30 +77,30 @@ Hiscores are a **per-core** option in RetroArch, not a global setting. Load a ga
 
 ## 4.5 Back up the cabinet's own files to the SGIN
 
-Saves, save states, `.hi` files, the LaunchBox database and the ROMs' main copy live only on the cabinet. Copy them to the SGIN nightly (wd2's `backups` folder), where the vault backup (part 5) picks them up. One small script does both this and 4.6.
+Saves, save states, `.hi` files, the LaunchBox database and the ROMs' main copy live only on the cabinet. Copy them to the SGIN nightly (dock1a's `backups` folder), where the vault backup (part 5) picks them up. One small script does both this and 4.6.
 
 Create the folder with `New-Item -ItemType Directory -Force C:\Cobra`, then save this as `C:\Cobra\nightly-copy.ps1` (Notepad, then "Save as type: All files"):
 
 ```powershell
 # Nightly copies for cobra-arcade. robocopy /E /XO adds and updates, never deletes.
 $log = 'C:\Cobra\nightly-copy.log'
-$media = '\\cobra-stream\media'   # the SGIN's drives: wd1, wd2, dock1a, dock1b
+$media = '\\cobra-stream\media'   # the SGIN's drives: wd1, dock1a, dock1b, wd2
 $ra = 'C:\RetroArch-Win64'      # your RetroArch folder
 $lb = 'D:\LaunchBox'            # or C:\LaunchBox
 
 # 1) cabinet -> SGIN (4.5)
 $up = @{
-  "$ra\saves"     = "$media\wd2\backups\arcade\RetroArch\saves"
-  "$ra\states"    = "$media\wd2\backups\arcade\RetroArch\states"
-  "$ra\system"    = "$media\wd2\backups\arcade\RetroArch\system"
-  "$ra\config"    = "$media\wd2\backups\arcade\RetroArch\config"
-  "$ra\playlists" = "$media\wd2\backups\arcade\RetroArch\playlists"
-  "$lb\Data"      = "$media\wd2\backups\arcade\LaunchBox\Data"
+  "$ra\saves"     = "$media\dock1a\backups\arcade\RetroArch\saves"
+  "$ra\states"    = "$media\dock1a\backups\arcade\RetroArch\states"
+  "$ra\system"    = "$media\dock1a\backups\arcade\RetroArch\system"
+  "$ra\config"    = "$media\dock1a\backups\arcade\RetroArch\config"
+  "$ra\playlists" = "$media\dock1a\backups\arcade\RetroArch\playlists"
+  "$lb\Data"      = "$media\dock1a\backups\arcade\LaunchBox\Data"
   'D:\Roms'       = '\\cobra-stream\roms'        # the web arcade (RomM) reads this copy
 }
 # 2) SGIN -> D: (4.6). Edit the list: the folders you'd hate to lose, as drive\folder (part 3.4's table).
 # Not 'roms': their main copy is already on D: (D:\Roms), and 1) sends them up.
-$down = 'dock1a\music', 'dock1a\audiobooks', 'dock1b\books', 'dock1b\comics', 'wd2\scans', 'wd2\backups'
+$down = 'dock1a\music', 'dock1a\audiobooks', 'dock1a\books', 'dock1a\comics', 'dock1a\scans', 'dock1a\backups'
 
 Add-Content $log "=== $(Get-Date)"
 foreach ($src in $up.Keys) {

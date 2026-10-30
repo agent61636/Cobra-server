@@ -46,7 +46,7 @@ Every script is safe to run again. It removes that app's container and starts a 
 - **Start at boot.** Containers are made with `--restart always`, and the first script run enables `podman-restart.service` for podsvc, which starts them at boot (linger keeps it running without a login). On the gate, Paperless and MeTube keep restarting until the SGIN's share is back.
 - **Passwords.** The RomM, Paperless and Icecast passwords are generated once and stored as podman secrets, never in the scripts. They don't show up in `podman inspect`.
 - **Quick Sync.** Jellyfin and ErsatzTV get `/dev/dri` and `--group-add keep-groups`, so they keep podsvc's `render` group inside the container. `jellyfin.sh` checks afterwards that ffmpeg in the container sees the GPU's HEVC profiles.
-- **Folders.** Same paths as the manual: app data under `/srv/stream/<app>` and `/srv/gate/<app>` with `:Z`, and `/srv/storage/disks` mounted read-only at `/media` with `rbind` (so each drive's own mount comes along) and without `:Z`, because Samba shares it. Which drive holds which folder is set once, in the `*_DIR` lines at the top of `lib.sh` (manual part 3.4's table). RomM writes to `dock1b/roms` and MeTube to `wd2/youtube`; Paperless reads `wd2/scans`.
+- **Folders.** Same paths as the manual: app data under `/srv/stream/<app>` and `/srv/gate/<app>` with `:Z`, and `/srv/storage/disks` mounted read-only at `/media` with `rbind` (so each drive's own mount comes along) and without `:Z`, because Samba shares it. Which drive holds which folder is set once, in the `*_DIR` lines at the top of `lib.sh` (manual part 3.4's table). RomM writes to `dock1b/roms` and MeTube to `wd2/youtube`; Paperless reads `dock1a/scans`.
 
 ## Coming from the manual's Quadlet files
 

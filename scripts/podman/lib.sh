@@ -20,16 +20,16 @@ DISKS=${COBRA_DISKS:-/srv/storage/disks}
   MOVIES_DIR=wd1/movies
   FILLER_DIR=wd1/filler
   PREROLLS_DIR=wd1/pre-rolls
-  TV_DIR=wd2/tv
-  YOUTUBE_DIR=wd2/youtube
-  SCANS_DIR=wd2/scans
-  BACKUPS_DIR=wd2/backups
-  ART_DIR=wd2/art
+  TV_DIR=wd1/tv
   MUSIC_DIR=dock1a/music
   AUDIOBOOKS_DIR=dock1a/audiobooks
+  BOOKS_DIR=dock1a/books
+  COMICS_DIR=dock1a/comics
+  SCANS_DIR=dock1a/scans
+  BACKUPS_DIR=dock1a/backups
+  ART_DIR=dock1a/art
   ROMS_DIR=dock1b/roms
-  BOOKS_DIR=dock1b/books
-  COMICS_DIR=dock1b/comics
+  YOUTUBE_DIR=wd2/youtube
 }
 
 QUADLET_DIR=$HOME/.config/containers/systemd

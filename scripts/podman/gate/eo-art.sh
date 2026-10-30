@@ -18,7 +18,7 @@ gate_pod
 ensure_dir "$DATA"
 [ -r "$DATA/eo_art.py" ] || die "no $DATA/eo_art.py yet. Copy it from the Project-Eo repository (home/eo-art/eo_art.py), part 5.4"
 
-# The pictures are copies the owner puts in the art folders on wd2; eo-art only reads them.
+# The pictures are copies the owner puts in the art folders on dock1a; eo-art only reads them.
 run_container eo-art "$GATE_POD" "$IMAGE" \
   -e EO_ART_ADDR=127.0.0.1:8790 \
   -e EO_ART_MOVIES=/art/movies -e EO_ART_RADIO=/art/albums -e EO_ART_BOOKS=/art/books \
