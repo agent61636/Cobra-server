@@ -202,10 +202,10 @@ No pooling and no RAID: each drive is mounted on its own, holds its own folders,
 
 | Drive | Mounted at | Holds |
 |---|---|---|
-| **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `tv`, `filler`, `pre-rolls` |
+| **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `shows`, `filler`, `pre-rolls` |
 | **dock1a** (WD Black 1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
 | **dock1b** (WD Blue 1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
-| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `youtube`, and anything else you want there. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
+| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `shows` (same layout as wd1; Jellyfin's libraries list both drives), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
 | **Seagate** (24 TB Expansion) | `/srv/storage/vault` | The backup drive: Proxmox Backup Server's datastores (3.10, 5.6), the 3.4r rescue images, and the `wd2` folder. Mounted **outside** `/srv/storage/disks`, so the backups never show up in a share |
 
 The other WD 6 TB (the old `wd2`) holds personal files and stays on the-box, shared from there; the SGIN doesn't use it.
@@ -279,11 +279,11 @@ Then mount everything and make each drive's folders (the table above). On a driv
 ```bash
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
 for d in wd1 dock1a dock1b wd2; do mountpoint -q /srv/storage/disks/$d && echo "$d mounted" || echo "$d MISSING: plug it in (wd2: the Seagate, below) before the next line"; done
-sudo mkdir -p /srv/storage/disks/wd1/{movies,tv,filler,pre-rolls} \
+sudo mkdir -p /srv/storage/disks/wd1/{movies,shows,filler,pre-rolls} \
   /srv/storage/disks/dock1a/{music/eels,music/rachel,audiobooks,books,comics,scans,backups,art/{movies,albums,books,comics,gaming}} \
   /srv/storage/disks/dock1b/roms \
-  /srv/storage/disks/wd2/youtube
-# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/tv
+  /srv/storage/disks/wd2/{movies,shows,youtube}
+# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/shows
 ```
 
 Only run the `mkdir` line once every drive printed `mounted`. On a missing drive it fails (the empty mount point is locked), which is what you want.
@@ -686,7 +686,7 @@ Then plug the other drives back in. **E5. Bring the shares and apps back** (stop
 
 ```bash
 sudo mount -a && df -h /srv/storage/disks/*                # every drive listed, each with its own size
-ls /srv/storage/disks/*                                    # each drive's folders (movies, tv, music…), not an empty listing
+ls /srv/storage/disks/*                                    # each drive's folders (movies, shows, music…), not an empty listing
 sudo systemctl start smbd                                  # Samba shares (3.6)
 sudo machinectl shell podsvc@ /usr/bin/systemctl --user start stream-pod   # media apps (3.8)
 sudo machinectl shell podsvc@ /usr/bin/podman ps          # every container Up
@@ -937,7 +937,7 @@ podman ps                                     # 7 containers Up
 
 | App | First visit | Then |
 |---|---|---|
-| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/wd1/movies`; again for *Shows* → `/media/wd1/tv` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folders `/media/wd1/movies` **and** `/media/wd2/movies` (the **+** next to Folders adds the second); again for *Shows* → `/media/wd1/shows` and `/media/wd2/shows` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
 | Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books. Settings → Users → one user each |
 | Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1a/comics` → Save → **Scan**. Users → Invite (or add) one per person |
 | Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |

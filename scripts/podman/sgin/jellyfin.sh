@@ -12,7 +12,7 @@ DATA=$STREAM_DATA/jellyfin
 
 preflight
 need_gpu
-need_folders "$MOVIES_DIR" "$TV_DIR" "$FILLER_DIR" "$PREROLLS_DIR" "$YOUTUBE_DIR"
+need_folders "$MOVIES_DIR" "$SHOWS_DIR" "$MOVIES2_DIR" "$SHOWS2_DIR" "$FILLER_DIR" "$PREROLLS_DIR" "$YOUTUBE_DIR"
 stream_pod
 ensure_dir "$DATA/config" "$DATA/cache"
 

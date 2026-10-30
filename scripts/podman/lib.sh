@@ -20,7 +20,7 @@ DISKS=${COBRA_DISKS:-/srv/storage/disks}
   MOVIES_DIR=wd1/movies
   FILLER_DIR=wd1/filler
   PREROLLS_DIR=wd1/pre-rolls
-  TV_DIR=wd1/tv
+  SHOWS_DIR=wd1/shows
   MUSIC_DIR=dock1a/music
   AUDIOBOOKS_DIR=dock1a/audiobooks
   BOOKS_DIR=dock1a/books
@@ -29,6 +29,8 @@ DISKS=${COBRA_DISKS:-/srv/storage/disks}
   BACKUPS_DIR=dock1a/backups
   ART_DIR=dock1a/art
   ROMS_DIR=dock1b/roms
+  MOVIES2_DIR=wd2/movies
+  SHOWS2_DIR=wd2/shows
   YOUTUBE_DIR=wd2/youtube
 }
 
