@@ -15,19 +15,23 @@ DISKS=${COBRA_DISKS:-/srv/storage/disks}
 
 # Which drive holds each folder (manual part 3.4, "Which drive holds what"). Paths are relative to $DISKS
 # on the host and to /media inside the containers. Moved a folder to another drive? Change it here only.
-MOVIES_DIR=wd1/movies
-FILLER_DIR=wd1/filler
-PREROLLS_DIR=wd1/pre-rolls
-TV_DIR=wd2/tv
-YOUTUBE_DIR=wd2/youtube
-SCANS_DIR=wd2/scans
-BACKUPS_DIR=wd2/backups
-ART_DIR=wd2/art
-MUSIC_DIR=dock1a/music
-AUDIOBOOKS_DIR=dock1a/audiobooks
-ROMS_DIR=dock1b/roms
-BOOKS_DIR=dock1b/books
-COMICS_DIR=dock1b/comics
+# shellcheck disable=SC2034  # used by the scripts that source this file
+{
+  MOVIES_DIR=wd1/movies
+  FILLER_DIR=wd1/filler
+  PREROLLS_DIR=wd1/pre-rolls
+  TV_DIR=wd2/tv
+  YOUTUBE_DIR=wd2/youtube
+  SCANS_DIR=wd2/scans
+  BACKUPS_DIR=wd2/backups
+  ART_DIR=wd2/art
+  MUSIC_DIR=dock1a/music
+  AUDIOBOOKS_DIR=dock1a/audiobooks
+  ROMS_DIR=dock1b/roms
+  BOOKS_DIR=dock1b/books
+  COMICS_DIR=dock1b/comics
+}
+
 QUADLET_DIR=$HOME/.config/containers/systemd
 
 host_tz() {
