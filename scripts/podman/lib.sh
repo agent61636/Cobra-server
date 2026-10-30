@@ -17,10 +17,10 @@ DISKS=${COBRA_DISKS:-/srv/storage/disks}
 # on the host and to /media inside the containers. Moved a folder to another drive? Change it here only.
 # shellcheck disable=SC2034  # used by the scripts that source this file
 {
-  MOVIES_DIR=wd1/movies
+  MOVIES_DIR=video/movies    # the wd1 + wd2 pool (part 3.4)
   FILLER_DIR=wd1/filler
   PREROLLS_DIR=wd1/pre-rolls
-  SHOWS_DIR=wd1/shows
+  SHOWS_DIR=video/shows
   MUSIC_DIR=dock1a/music
   AUDIOBOOKS_DIR=dock1a/audiobooks
   BOOKS_DIR=dock1a/books
@@ -29,8 +29,6 @@ DISKS=${COBRA_DISKS:-/srv/storage/disks}
   BACKUPS_DIR=dock1a/backups
   ART_DIR=dock1a/art
   ROMS_DIR=dock1b/roms
-  MOVIES2_DIR=wd2/movies
-  SHOWS2_DIR=wd2/shows
   YOUTUBE_DIR=wd2/youtube
 }
 

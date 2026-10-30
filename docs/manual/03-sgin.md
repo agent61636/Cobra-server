@@ -198,19 +198,20 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 
 ### Which drive holds what
 
-No pooling and no RAID: each drive is mounted on its own, holds its own folders, and you always know where a file lives. Unplug any one drive and the others keep working; any drive can be read on its own in another computer.
+No RAID, and only one small pool: each drive is mounted on its own, holds its own folders, and you always know where a file lives. Unplug any one drive and the others keep working; any drive can be read on its own in another computer. The one exception is Jellyfin's video: wd1 and wd2 are joined into `video` (below), so movies and shows each look like one folder.
 
 | Drive | Mounted at | Holds |
 |---|---|---|
 | **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `shows`, `filler`, `pre-rolls` |
 | **dock1a** (WD Black 1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
 | **dock1b** (WD Blue 1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
-| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `shows` (same layout as wd1; Jellyfin's libraries list both drives), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
+| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `shows` (same layout as wd1, joined with it in `video`), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
+| **video** (wd1 + wd2 pooled) | `/srv/storage/disks/video` | wd1 and wd2 seen as one: `video/movies`, `video/shows`. Jellyfin uses only this. New files go to **wd1 first** and spill onto wd2 only when wd1 is nearly full |
 | **Seagate** (24 TB Expansion) | `/srv/storage/vault` | The backup drive: Proxmox Backup Server's datastores (3.10, 5.6), the 3.4r rescue images, and the `wd2` folder. Mounted **outside** `/srv/storage/disks`, so the backups never show up in a share |
 
 The other WD 6 TB (the old `wd2`) holds personal files and stays on the-box, shared from there; the SGIN doesn't use it.
 
-`/srv/storage/disks` is the one folder everything uses. Samba shares it as `\\cobra-stream\media`, so Windows sees four folders, `wd1`, `dock1a`, `dock1b` and `wd2`, and the apps in 3.8 see the same four under `/media`. A path tells you the drive: `/media/wd1/movies` is on wd1. When a drive fills up, move a folder to another drive yourself and point the app at its new place. If a folder ever outgrows its drive, give it a second home (`movies` on wd1 and on a new drive) and add both folders to the app's library; Jellyfin, Navidrome and Audiobookshelf all take several folders per library.
+`/srv/storage/disks` is the one folder everything uses. Samba shares it as `\\cobra-stream\media`, so Windows sees `wd1`, `dock1a`, `dock1b`, `wd2` and `video`, and the apps in 3.8 see the same under `/media`. A path tells you the drive: `/media/wd1/movies` is on wd1. When a drive fills up, move a folder to another drive yourself and point the app at its new place. If a folder ever outgrows its drive, give it a second home (`movies` on wd1 and on a new drive) and add both folders to the app's library; Jellyfin, Navidrome and Audiobookshelf all take several folders per library.
 
 - `filler`: short videos for TV breaks (ErsatzTV filler and the between-episodes plugin, part 6). `pre-rolls`: the movie intros for Local Intros (part 6)
 - `youtube`: MeTube saves here from the gate (part 5)
@@ -226,7 +227,7 @@ The OptiPlex's internal WD drive (4 TB, NTFS) stays in the OptiPlex as `D:`. It 
 
 ```bash
 sudo groupadd media                                        # owns the library (users come in 3.5)
-sudo apt install -y ntfs-3g
+sudo apt install -y mergerfs ntfs-3g
 lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every drive
 ```
 
@@ -312,6 +313,25 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks/wd2 && findmnt /sr
 - `bind`: the same folder seen at a second path. Samba and the apps see `wd2` next to the real drives; the rest of the Seagate (the backups, the rescue images) stays out of every share.
 - [ ] `findmnt /srv/storage/disks/wd2` shows `/srv/storage/vault/wd2` as its source
 - [ ] Keep `wd2` well short of full: `df -h /srv/storage/vault` shows the whole Seagate, backups included, and the backups need room to grow
+
+### The video pool (wd1 + wd2, for Jellyfin)
+
+**mergerfs** shows wd1 and wd2 as one folder, `/srv/storage/disks/video`. It's only a view: every file still sits whole on one drive, either drive still reads fine on its own, and `\\cobra-stream\media\wd1` and `\wd2` still show exactly what's on each. Copy new movies and shows into `video` and the pool picks the drive; copy into `wd1` or `wd2` directly when you want to choose.
+
+Do this after both wd1 and the Seagate's `wd2` folder are mounted (above):
+
+```bash
+sudo mkdir -p /srv/storage/disks/video && sudo chattr +i /srv/storage/disks/video
+OPTS=defaults,allow_other,use_ino,cache.files=off,dropcacheonclose=true,category.create=ff,minfreespace=100G,moveonenospc=true,fsname=video,nofail
+OPTS=$OPTS,x-systemd.requires-mounts-for=/srv/storage/disks/wd1,x-systemd.requires-mounts-for=/srv/storage/disks/wd2
+echo "/srv/storage/disks/wd1:/srv/storage/disks/wd2 /srv/storage/disks/video fuse.mergerfs $OPTS 0 0" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/disks/video && ls /srv/storage/disks/video
+```
+
+- `wd1:wd2` + `category.create=ff`: a new file goes to the **first** drive in that list with room, so wd1 fills first and only the overflow lands on wd2, which has no second copy. `minfreespace=100G` is the "nearly full" point; `moveonenospc` moves a file to wd2 if wd1 fills mid-copy.
+- `requires-mounts-for`: at boot, the pool waits for both drives, so it never starts with one missing.
+- [ ] `ls /srv/storage/disks/video` shows `movies`, `shows`, `filler`, `pre-rolls`, `youtube`, everything from both drives
+- [ ] Copy a test file into `\\cobra-stream\media\video\movies`: it shows up in `wd1\movies`
 
 ### USB drives on Linux: two things to check
 
@@ -706,8 +726,8 @@ How the permissions fit together: files arrive from Samba owned by whoever wrote
 ```bash
 sudo useradd -m -s /bin/bash -G media,render,video podsvc
 sudo loginctl enable-linger podsvc
-# every top-level folder on every drive, except PBS's pbs folders and lost+found
-for f in $(sudo find /srv/storage/disks/*/ -mindepth 1 -maxdepth 1 -type d ! -name pbs ! -name lost+found); do
+# every top-level folder on every drive, except lost+found
+for f in $(sudo find /srv/storage/disks/{wd1,dock1a,dock1b,wd2}/ -mindepth 1 -maxdepth 1 -type d ! -name lost+found); do   # the real drives, not the video pool
   sudo chown -R podsvc:media "$f" && sudo chmod -R g+rwX "$f" && sudo find "$f" -type d -exec chmod g+s {} +
 done
 sudo mkdir -p /srv/stream && sudo chown podsvc: /srv/stream
@@ -937,7 +957,7 @@ podman ps                                     # 7 containers Up
 
 | App | First visit | Then |
 |---|---|---|
-| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folders `/media/wd1/movies` **and** `/media/wd2/movies` (the **+** next to Folders adds the second); again for *Shows* → `/media/wd1/shows` and `/media/wd2/shows` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/shows` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
 | Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books. Settings → Users → one user each |
 | Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1a/comics` → Save → **Scan**. Users → Invite (or add) one per person |
 | Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
@@ -1089,7 +1109,7 @@ sudo proxmox-backup-manager acl update / Admin --auth-id eels@pam
 
 - [ ] `https://10.6.9.20:8007` (PBS), `:9090` (Cockpit), `:8096` Jellyfin plays a 4K HEVC file with transcoding showing `(hw)`
 - [ ] `\\cobra-stream\media` opens from a desktop
-- [ ] `df -h /srv/storage/disks/*` lists wd1, dock1a, dock1b and wd2; a movie copied into `\\cobra-stream\media\wd1\movies` from a desktop shows up in Jellyfin after a library scan
+- [ ] `df -h /srv/storage/disks/*` lists wd1, dock1a, dock1b, wd2 and video; a movie copied into `\\cobra-stream\media\video\movies` from a desktop shows up in Jellyfin after a library scan
 - [ ] Jellyfin → Live TV plays an ErsatzTV channel, and the guide fills in (3.8a)
 - [ ] RomM at `:8080` lists your platforms, and one game starts in the browser (3.8b)
 - [ ] `nslookup cobra-stream 10.6.9.20` answers `10.6.9.20` (Pi-hole #2)
