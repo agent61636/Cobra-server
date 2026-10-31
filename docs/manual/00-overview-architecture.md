@@ -188,6 +188,7 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | 8 | [`08-site-and-radio.md`](08-site-and-radio.md) | Landing page at `songofeo.com`; radio at `radio.songofeo.com` (Liquidsoap + Icecast) | 1 h |
 | 9 | [`09-r620-lab-and-vlans.md`](09-r620-lab-and-vlans.md) | R620 as `cobra-lab` (standalone Proxmox, remote power), then lab/detonation/management VLANs | When you're ready |
 | 10 | [`10-home-assistant.md`](10-home-assistant.md) | Home Assistant (VM 120): Sensi thermostat and Eufy lights in one app instead of Alexa, behind the station sign-in | 2 h, after 1, 2 and 5 |
+| 11 | [`11-extra-bling.md`](11-extra-bling.md) | Cabinet extras: LED-Wiz lit buttons per game (LEDBlinky), the marquee screen, Pinball FX backglass and DMD, Mega Bezel CRT shader matched to the buttons | An evening, after 4 |
 
 **Order matters.** Part 5's backups need PBS from part 3, and part 3 changes the DNS servers OPNsense hands out (from part 2). Each part says when it depends on another.
 
