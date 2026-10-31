@@ -198,7 +198,7 @@ upower -i $(upower -e | grep BAT) | grep -E 'state|percentage'
 
 ### Which drive holds what
 
-No RAID, and only one small pool: each drive is mounted on its own, holds its own folders, and you always know where a file lives. Unplug any one drive and the others keep working; any drive can be read on its own in another computer. The one exception is Jellyfin's video: wd1 and wd2 are joined into `video` (below), so movies and shows each look like one folder.
+No RAID, and only one small pool: each drive is mounted on its own, holds its own folders, and you always know where a file lives. Unplug any one drive and the others keep working; any drive can be read on its own in another computer. The one exception is Jellyfin's video: wd1 and wd2 are joined into `video` (below), so movies and shows each look like one folder. **Only wd1 and wd2 are ever pooled.** The dock bays (dock1 now, dock2 later) are plug-and-play drive slots: each bay's drive mounts on its own, and pulling one only takes its own folders away. Never add a dock drive to a pool.
 
 | Drive | Mounted at | Holds |
 |---|---|---|
@@ -232,6 +232,35 @@ lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every dr
 ```
 
 For each drive, pick a short label: `wd1` for the external, `dock1a`, `dock1b` for the dock's bays. The Seagate gets its own steps below.
+
+### dock1a: wipe it and start fresh (no recovery)
+
+dock1a went through the same format accident as wd1, but its files aren't worth a rescue: the music is almost all backed up elsewhere, and the ROMs, e-books and audiobooks are backed up in full. So it's wiped and filled again from those backups. Photorec's nameless copy of it (3.4r stage D, `photorec/dock1a` on the Seagate) can stay there as a last resort until you've restored the music; delete it after.
+
+Put the WD Black in dock bay A. Its old fstab line is commented out (`# RESCUE … dock1a`), so plugging it in mounts nothing. Find it by its `ata-` name; the dock gives both bays the same `usb-` serial:
+
+```bash
+D=$(ls /dev/disk/by-id/ata-WDC_WD10EALX-* 2>/dev/null | grep -v part); echo "$D -> $(readlink -f $D)"
+sudo smartctl -i -d sat $D | grep -E 'Model|Serial'         # WDC WD10EALX…: the WD Black, not the Blue (dock1b)
+S=$(sudo blockdev --getsize64 $D); echo $S                  # about 1000204886016 (1.0 TB)
+lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINTS $D         # nothing mounted
+[ -n "$D" ] && [ $(echo "$D" | wc -l) -eq 1 ] && [ $S -gt 950000000000 ] && [ $S -lt 1050000000000 ] \
+  && [ -z "$(lsblk -nro MOUNTPOINTS $D | tr -d '[:space:]')" ] && echo OK || echo STOP
+```
+
+Only if it printed `OK`. ⚠️ This erases dock1a:
+
+```bash
+sudo wipefs -a $D && sudo parted -s $D mklabel gpt mkpart data ext4 0% 100%
+sleep 3; sudo mkfs.ext4 -L dock1a -m 0 -E nodiscard $D-part1        # "Proceed anyway?" → y (the old accidental filesystem)
+sudo sed -i '\#[[:space:]]/srv/storage/disks/dock1a[[:space:]]#d' /etc/fstab   # the old line, commented or not
+L=dock1a; U=$(sudo blkid -s UUID -o value $D-part1)
+sudo chattr -i /srv/storage/disks/$L 2>/dev/null; sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
+echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /srv/storage/disks/$L && df -h /srv/storage/disks/$L
+```
+
+Then make its folders (below, "Then mount everything") and copy your backups in from Windows through `\\cobra-stream\media\dock1a` once Samba is up (3.6).
 
 ### Safe option first: a drive that holds files (wd1)
 
@@ -347,7 +376,7 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks/video && ls /srv/s
 
 ### Adding a drive later (the second dock)
 
-1. Plug it into a 5 Gb/s port on the hub (there's no free USB 3 port on the SGIN itself) and check `lsusb -t` shows `5000M`. Label and mount it exactly as above (`dock2a`, `dock2b`), then make its folders and add a row for it to the table at the top of 3.4.
+1. Plug it into a 5 Gb/s port on the hub (there's no free USB 3 port on the SGIN itself) and check `lsusb -t` shows `5000M`. Label and mount it exactly as above (`dock2a`, `dock2b`), then make its folders and add a row for it to the table at the top of 3.4. Each bay is its own mount, never part of a pool: that's what keeps the bays plug-and-play.
 2. Run 3.5's `chown` loop again. Samba and the apps see it at once as `\\cobra-stream\media\dock2a` and `/media/dock2a` (restart the apps with `systemctl --user restart stream-pod` as podsvc so their containers see the new mount), then add its folders to the app libraries that should use them.
 3. Optional, once there are four or more drives: **SnapRAID** turns one drive into parity for the rest, so a dead drive can be rebuilt. The parity drive must be at least as big as the biggest data drive. ⚠️ Decide when you know the sizes; it's a separate short setup.
 
@@ -371,7 +400,7 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks/video && ls /srv/s
 8. **Each "Only if it printed `OK`" means exactly that.** On `STOP`, stop and work out which drive is which before typing anything else.
 9. **Keep the original and the image until the files are checked**, both drives' files, and a second copy of the irreplaceable folders exists (stage C). Stage E is the only step that erases wd1, and it starts with a decision only you make.
 
-**dock1a** (the 1 TB in dock bay A; it reports itself as a WD Caviar Black `WD10EALX`, whatever its label was called), if 3.4 formatted it too: the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
+**dock1a** isn't recovered on this build: its files are restored from backups instead, and 3.4 wipes it ("dock1a: wipe it and start fresh"). For reference, a drive like it (the 1 TB in dock bay A; it reports itself as a WD Caviar Black `WD10EALX`) would go through the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
 
 ### Stage A: freeze, identify, image
 
@@ -719,7 +748,7 @@ grep -n -E 'RESCUE|srv/storage|/mnt/' /etc/fstab          # wd1: only the NEW li
 sudo sed -i -E 's@^# RESCUE (.*[[:space:]]/srv/storage/disks/dock1b[[:space:]])@\1@' /etc/fstab
 # delete a line you don't need any more, by its number from the grep (e.g. line 22):
 #   sudo sed -i '22d' /etc/fstab        # one at a time, and grep again after each: the numbers shift
-# dock1a not through the rescue yet? Leave its line commented, so plugging it in can't mount it (3.4's warning)
+# dock1a: delete nothing here; 3.4's "dock1a: wipe it and start fresh" replaces its line
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
 sudo chown -R podsvc:media /srv/storage/disks/wd1/movies && sudo chmod -R g+rwX /srv/storage/disks/wd1/movies   # 3.5's permissions, per folder you copied back
 ```

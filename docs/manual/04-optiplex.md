@@ -60,7 +60,7 @@ The cabinet plays everything natively: LaunchBox/Big Box is the menu, RetroArch 
 - [ ] **Importing games:** Tools → Import → ROM Files → pick `D:\Roms\<platform>` → when asked, choose **use the files in their current location**. The other choice makes a second copy of every ROM inside the LaunchBox folder.
 - [ ] Big Box: Options → Startup → start Big Box on Windows startup
 - [ ] RetroArch: copy back `saves states system config playlists`. Its own ROM browser can point at `D:\Roms` (Settings → Directory → File Browser), but day to day LaunchBox launches the games.
-- [ ] Tankstick: map in RetroArch → Settings → Input → Port 1/2 binds, Save autoconfig. LaunchBox/Big Box: Options → Controllers, map the same stick for menu navigation.
+- [ ] Tankstick: map in RetroArch → Settings → Input → Port 1/2 binds, Save autoconfig. LaunchBox/Big Box: Options → Controllers, map the same stick for menu navigation. Lit buttons (the LED-Wiz), the marquee screen and Pinball FX's backglass come later, in [part 11](11-extra-bling.md).
 - [ ] Netplay host: Firewall allow TCP 55435 inbound from LAN; OPNsense port forward only if friends join from outside
 - [ ] Auto-login: Sysinternals Autologon (`winget install -e --id Microsoft.Sysinternals.Autologon`), user `arcade`
 - [ ] Windows Update until nothing left; Settings → Activation shows activated

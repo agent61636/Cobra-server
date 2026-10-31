@@ -17,6 +17,8 @@ Start with the overview, then follow the parts in order.
 | 7. Hiscore board (scores.songofeo.com) | [docs/manual/07-hiscore-platform.md](docs/manual/07-hiscore-platform.md) |
 | 8. Landing site and radio | [docs/manual/08-site-and-radio.md](docs/manual/08-site-and-radio.md) |
 | 9. R620 lab and VLANs | [docs/manual/09-r620-lab-and-vlans.md](docs/manual/09-r620-lab-and-vlans.md) |
+| 10. Home Assistant | [docs/manual/10-home-assistant.md](docs/manual/10-home-assistant.md) |
+| 11. Extra bling (lit buttons, marquee, pinball, CRT bezels) | [docs/manual/11-extra-bling.md](docs/manual/11-extra-bling.md) |
 
 Not in a stage yet (distro and desktop choices, Wi-Fi APs, arcade GPU and tower upgrades, container ideas): [docs/future-builds/](docs/future-builds/README.md).
 
