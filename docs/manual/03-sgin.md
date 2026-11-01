@@ -203,8 +203,8 @@ No RAID, and only one small pool: each drive is mounted on its own, holds its ow
 | Drive | Mounted at | Holds |
 |---|---|---|
 | **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `shows`, `filler`, `pre-rolls` |
-| **dock1a** (WD Black 1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
-| **dock1b** (WD Blue 1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
+| **dock1a** (1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
+| **dock1b** (1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
 | **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `shows` (same layout as wd1, joined with it in `video`), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
 | **video** (wd1 + wd2 pooled) | `/srv/storage/disks/video` | wd1 and wd2 seen as one: `video/movies`, `video/shows`. Jellyfin uses only this. New files go to **wd1 first** and spill onto wd2 only when wd1 is nearly full |
 | **Seagate** (24 TB Expansion) | `/srv/storage/vault` | The backup drive: Proxmox Backup Server's datastores (3.10, 5.6), the 3.4r rescue images, and the `wd2` folder. Mounted **outside** `/srv/storage/disks`, so the backups never show up in a share |
@@ -233,34 +233,37 @@ lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every dr
 
 For each drive, pick a short label: `wd1` for the external, `dock1a`, `dock1b` for the dock's bays. The Seagate gets its own steps below.
 
-### dock1a: wipe it and start fresh (no recovery)
+### The dock drives: wipe both and start fresh (no recovery)
 
-dock1a went through the same format accident as wd1, but its files aren't worth a rescue: the music is almost all backed up elsewhere, and the ROMs, e-books and audiobooks are backed up in full. So it's wiped and filled again from those backups. Photorec's nameless copy of it (3.4r stage D, `photorec/dock1a` on the Seagate) can stay there as a last resort until you've restored the music; delete it after.
+The two 1 TB drives in the dock are used as blank space: their old files don't matter. (One of them, the WD Blue `WD10EALX`, went through the same format accident as wd1. Its music is almost all backed up elsewhere, and the ROMs, e-books and audiobooks are backed up in full, so it's wiped and filled again from those backups. Photorec's nameless copy of it, `photorec/dock1a` on the Seagate, can stay there as a last resort until you've restored the music.)
 
-Put the WD Black in dock bay A. Its old fstab line is commented out (`# RESCUE … dock1a`), so plugging it in mounts nothing. Find it by its `ata-` name; the dock gives both bays the same `usb-` serial:
+Which drive is which goes by **bay**, not by model: **bay A = dock1a, bay B = dock1b**. The dock reports the same `usb-…Dual_SATA_Bridge_000…` name for both bays, ending in `-0:0` for bay A and `-0:1` for bay B, and often hides the model, so the check below reads the model and serial from the drive itself. Old fstab lines for either bay must be commented out (`# RESCUE …`) or gone, so plugging the dock in mounts nothing. Do one bay at a time:
 
 ```bash
-D=$(ls /dev/disk/by-id/ata-WDC_WD10EALX-* 2>/dev/null | grep -v part); echo "$D -> $(readlink -f $D)"
-sudo smartctl -i -d sat $D | grep -E 'Model|Serial'         # WDC WD10EALX…: the WD Black, not the Blue (dock1b)
+BAY=0; L=dock1a          # bay A. For bay B: BAY=1; L=dock1b
+D=$(ls /dev/disk/by-id/usb-*Dual_SATA_Bridge_*-0:$BAY); echo "$D -> $(readlink -f $D)"
+sudo smartctl -i -d sat $D | grep -E 'Model|Serial'         # write down the serial; it's the drive you're about to erase
+sudo smartctl -H -A -d sat $D | grep -E 'result|Reallocated_Sector|Current_Pending|Offline_Uncorrectable'
 S=$(sudo blockdev --getsize64 $D); echo $S                  # about 1000204886016 (1.0 TB)
 lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINTS $D         # nothing mounted
 [ -n "$D" ] && [ $(echo "$D" | wc -l) -eq 1 ] && [ $S -gt 950000000000 ] && [ $S -lt 1050000000000 ] \
   && [ -z "$(lsblk -nro MOUNTPOINTS $D | tr -d '[:space:]')" ] && echo OK || echo STOP
 ```
 
-Only if it printed `OK`. ⚠️ This erases dock1a:
+- Health: `PASSED`, and the raw values (last column) of `Reallocated_Sector_Ct`, `Current_Pending_Sector` and `Offline_Uncorrectable` all `0` or close to it. A drive that fails here, or that throws `Input/output error` when you read it (`sudo fdisk -l $D`), isn't worth filling: swap in another drive.
+- Only if it printed `OK`. ⚠️ This erases the drive in that bay:
 
 ```bash
 sudo wipefs -a $D && sudo parted -s $D mklabel gpt mkpart data ext4 0% 100%
-sleep 3; sudo mkfs.ext4 -L dock1a -m 0 -E nodiscard $D-part1        # "Proceed anyway?" → y (the old accidental filesystem)
-sudo sed -i '\#[[:space:]]/srv/storage/disks/dock1a[[:space:]]#d' /etc/fstab   # the old line, commented or not
-L=dock1a; U=$(sudo blkid -s UUID -o value $D-part1)
+sleep 3; sudo mkfs.ext4 -F -L $L -m 0 $D-part1
+sudo sed -i "\#[[:space:]]/srv/storage/disks/$L[[:space:]]#d" /etc/fstab    # the bay's old line, commented or not
+U=$(sudo blkid -s UUID -o value $D-part1); echo $U
 sudo chattr -i /srv/storage/disks/$L 2>/dev/null; sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
 echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
 sudo systemctl daemon-reload && sudo mount /srv/storage/disks/$L && df -h /srv/storage/disks/$L
 ```
 
-Then make its folders (below, "Then mount everything") and copy your backups in from Windows through `\\cobra-stream\media\dock1a` once Samba is up (3.6).
+Then make their folders (below, "Then mount everything") and copy your backups in from Windows through `\\cobra-stream\media\dock1a` and `\dock1b` once Samba is up (3.6).
 
 ### Safe option first: a drive that holds files (wd1)
 
@@ -400,7 +403,7 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks/video && ls /srv/s
 8. **Each "Only if it printed `OK`" means exactly that.** On `STOP`, stop and work out which drive is which before typing anything else.
 9. **Keep the original and the image until the files are checked**, both drives' files, and a second copy of the irreplaceable folders exists (stage C). Stage E is the only step that erases wd1, and it starts with a decision only you make.
 
-**dock1a** isn't recovered on this build: its files are restored from backups instead, and 3.4 wipes it ("dock1a: wipe it and start fresh"). For reference, a drive like it (the 1 TB in dock bay A; it reports itself as a WD Caviar Black `WD10EALX`) would go through the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
+**The dock drives** aren't recovered on this build: their files are restored from backups instead, and 3.4 wipes them ("The dock drives: wipe both and start fresh"). For reference, a 1 TB drive like the one the accident hit (a WD Blue `WD10EALX`) would go through the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
 
 ### Stage A: freeze, identify, image
 
@@ -446,7 +449,7 @@ for d in $(lsblk -dno NAME -e7 | grep '^sd'); do p=$(readlink -f /sys/block/$d);
 ```bash
 lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL                 # wd1 = ~5.5T, WDC WD60EDAZ; the Seagate = ~21.8T, Expansion HDD
 ls -l /dev/disk/by-id/ | grep -v part | grep -E 'ata-|usb-'  # the whole-disk entries (no -part1 on the end)
-D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* | grep -v part); echo "$D -> $(readlink -f $D)"   # wd1. dock1a: ata-WDC_WD10EALX-*
+D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* | grep -v part); echo "$D -> $(readlink -f $D)"   # wd1
 sudo smartctl -i -d sat $D | grep -E 'Model|Serial|Capacity' # must be the WD 6 TB (WD60EDAZ), not the Seagate. Write the serial down
 sudo blockdev --setro $D $D-part1                            # kernel-level read-only, until a replug or reboot
 sudo blockdev --getro $D $D-part1                            # must print 1 twice
@@ -748,7 +751,7 @@ grep -n -E 'RESCUE|srv/storage|/mnt/' /etc/fstab          # wd1: only the NEW li
 sudo sed -i -E 's@^# RESCUE (.*[[:space:]]/srv/storage/disks/dock1b[[:space:]])@\1@' /etc/fstab
 # delete a line you don't need any more, by its number from the grep (e.g. line 22):
 #   sudo sed -i '22d' /etc/fstab        # one at a time, and grep again after each: the numbers shift
-# dock1a: delete nothing here; 3.4's "dock1a: wipe it and start fresh" replaces its line
+# the dock bays: delete nothing here; 3.4's "The dock drives: wipe both" replaces their lines
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
 sudo chown -R podsvc:media /srv/storage/disks/wd1/movies && sudo chmod -R g+rwX /srv/storage/disks/wd1/movies   # 3.5's permissions, per folder you copied back
 ```
