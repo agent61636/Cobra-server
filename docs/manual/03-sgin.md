@@ -202,11 +202,11 @@ No RAID, and only one small pool: each drive is mounted on its own, holds its ow
 
 | Drive | Mounted at | Holds |
 |---|---|---|
-| **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `shows`, `filler`, `pre-rolls` |
+| **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `series`, `filler`, `pre-rolls` |
 | **dock1a** (1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
 | **dock1b** (1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
-| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `shows` (same layout as wd1, joined with it in `video`), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
-| **video** (wd1 + wd2 pooled) | `/srv/storage/disks/video` | wd1 and wd2 seen as one: `video/movies`, `video/shows`. Jellyfin uses only this. New files go to **wd1 first** and spill onto wd2 only when wd1 is nearly full |
+| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `series` (same layout as wd1, joined with it in `video`), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
+| **video** (wd1 + wd2 pooled) | `/srv/storage/disks/video` | wd1 and wd2 seen as one: `video/movies`, `video/series`. Jellyfin uses only this. New files go to **wd1 first** and spill onto wd2 only when wd1 is nearly full |
 | **Seagate** (24 TB Expansion) | `/srv/storage/vault` | The backup drive: Proxmox Backup Server's datastores (3.10, 5.6), the 3.4r rescue images, and the `wd2` folder. Mounted **outside** `/srv/storage/disks`, so the backups never show up in a share |
 
 The other WD 6 TB (the old `wd2`) holds personal files and stays on the-box, shared from there; the SGIN doesn't use it.
@@ -312,11 +312,11 @@ Then mount everything and make each drive's folders (the table above). On a driv
 ```bash
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
 for d in wd1 dock1a dock1b wd2; do mountpoint -q /srv/storage/disks/$d && echo "$d mounted" || echo "$d MISSING: plug it in (wd2: the Seagate, below) before the next line"; done
-sudo mkdir -p /srv/storage/disks/wd1/{movies,shows,filler,pre-rolls} \
+sudo mkdir -p /srv/storage/disks/wd1/{movies,series,filler,pre-rolls} \
   /srv/storage/disks/dock1a/{music/eels,music/rachel,audiobooks,books,comics,scans,backups,art/{movies,albums,books,comics,gaming}} \
   /srv/storage/disks/dock1b/roms \
-  /srv/storage/disks/wd2/{movies,shows,youtube}
-# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/shows
+  /srv/storage/disks/wd2/{movies,series,youtube}
+# wd1 kept its old TV folder name, series; wd2 uses the same name so the pool joins them
 ```
 
 Only run the `mkdir` line once every drive printed `mounted`. On a missing drive it fails (the empty mount point is locked), which is what you want.
@@ -362,7 +362,7 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks/video && ls /srv/s
 
 - `wd1:wd2` + `category.create=ff`: a new file goes to the **first** drive in that list with room, so wd1 fills first and only the overflow lands on wd2, which has no second copy. `minfreespace=100G` is the "nearly full" point; `moveonenospc` moves a file to wd2 if wd1 fills mid-copy.
 - `requires-mounts-for`: at boot, the pool waits for both drives, so it never starts with one missing.
-- [ ] `ls /srv/storage/disks/video` shows `movies`, `shows`, `filler`, `pre-rolls`, `youtube`, everything from both drives
+- [ ] `ls /srv/storage/disks/video` shows `movies`, `series`, `filler`, `pre-rolls`, `youtube`, everything from both drives
 - [ ] Copy a test file into `\\cobra-stream\media\video\movies`: it shows up in `wd1\movies`
 
 ### USB drives on Linux: two things to check
@@ -735,11 +735,10 @@ sudo dmesg | grep -i -E 'I/O error|ext4.*error' | tail                          
 sudo find $SRC -type f | shuf -n 20 | while read -r f; do
   [ "$(sudo sha256sum < "$f")" = "$(sudo sha256sum < "/srv/storage/disks/wd1/${f#$SRC/}")" ] && echo same || echo "DIFFERENT: $f"
 done                                                                                 # 20 random files, byte for byte: 20 × same
-sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/shows                  # only if the old drive called it series
-sudo mkdir -p /srv/storage/disks/wd1/{movies,shows,filler,pre-rolls}; ls /srv/storage/disks/wd1
+sudo mkdir -p /srv/storage/disks/wd1/{movies,series,filler,pre-rolls}; ls /srv/storage/disks/wd1
 ```
 
-Copied it the per-folder way with stage C's `.sha256` lists? Check each folder against its list instead: `(cd /srv/storage/disks/wd1/movies && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Movies.sha256)`, which prints nothing when every file matches. Other old folders (e.g. `staging`, `downloads`) can stay at the top of wd1 until you sort them; Jellyfin only reads `movies` and `shows`.
+Copied it the per-folder way with stage C's `.sha256` lists? Check each folder against its list instead: `(cd /srv/storage/disks/wd1/movies && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Movies.sha256)`, which prints nothing when every file matches. Other old folders (e.g. `staging`, `downloads`) can stay at the top of wd1 until you sort them; Jellyfin only reads `movies` and `series`.
 
 **E4. Back to normal:**
 
@@ -1011,7 +1010,7 @@ podman ps                                     # 7 containers Up
 
 | App | First visit | Then |
 |---|---|---|
-| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/shows` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/series` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
 | Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books. Settings → Users → one user each |
 | Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1a/comics` → Save → **Scan**. Users → Invite (or add) one per person |
 | Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
