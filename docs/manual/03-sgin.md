@@ -202,11 +202,11 @@ No RAID, and only one small pool: each drive is mounted on its own, holds its ow
 
 | Drive | Mounted at | Holds |
 |---|---|---|
-| **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `shows`, `filler`, `pre-rolls` |
-| **dock1a** (WD Black 1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
-| **dock1b** (WD Blue 1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
-| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `shows` (same layout as wd1, joined with it in `video`), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
-| **video** (wd1 + wd2 pooled) | `/srv/storage/disks/video` | wd1 and wd2 seen as one: `video/movies`, `video/shows`. Jellyfin uses only this. New files go to **wd1 first** and spill onto wd2 only when wd1 is nearly full |
+| **wd1** (WD 6 TB Elements) | `/srv/storage/disks/wd1` | `movies`, `series`, `filler`, `pre-rolls` |
+| **dock1a** (1 TB, dock bay A) | `/srv/storage/disks/dock1a` | `music/eels`, `music/rachel`, `audiobooks`, `books`, `comics`, plus the small shared folders `scans`, `backups`, `art` |
+| **dock1b** (1 TB, dock bay B) | `/srv/storage/disks/dock1b` | `roms` (the nightly copy from the cabinet, for the web arcade) |
+| **wd2** (a folder on the Seagate) | `/srv/storage/disks/wd2` | `movies` and `series` (same layout as wd1, joined with it in `video`), `youtube`. Its files have **no second copy** (they sit on the backup drive itself), so keep it to things you could download again |
+| **video** (wd1 + wd2 pooled) | `/srv/storage/disks/video` | wd1 and wd2 seen as one: `video/movies`, `video/series`. Jellyfin uses only this. New files go to **wd1 first** and spill onto wd2 only when wd1 is nearly full |
 | **Seagate** (24 TB Expansion) | `/srv/storage/vault` | The backup drive: Proxmox Backup Server's datastores (3.10, 5.6), the 3.4r rescue images, and the `wd2` folder. Mounted **outside** `/srv/storage/disks`, so the backups never show up in a share |
 
 The other WD 6 TB (the old `wd2`) holds personal files and stays on the-box, shared from there; the SGIN doesn't use it.
@@ -233,34 +233,37 @@ lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MODEL,SERIAL          # write down every dr
 
 For each drive, pick a short label: `wd1` for the external, `dock1a`, `dock1b` for the dock's bays. The Seagate gets its own steps below.
 
-### dock1a: wipe it and start fresh (no recovery)
+### The dock drives: wipe both and start fresh (no recovery)
 
-dock1a went through the same format accident as wd1, but its files aren't worth a rescue: the music is almost all backed up elsewhere, and the ROMs, e-books and audiobooks are backed up in full. So it's wiped and filled again from those backups. Photorec's nameless copy of it (3.4r stage D, `photorec/dock1a` on the Seagate) can stay there as a last resort until you've restored the music; delete it after.
+The two 1 TB drives in the dock are used as blank space: their old files don't matter. (One of them, the WD Blue `WD10EALX`, went through the same format accident as wd1. Its music is almost all backed up elsewhere, and the ROMs, e-books and audiobooks are backed up in full, so it's wiped and filled again from those backups. Photorec's nameless copy of it, `photorec/dock1a` on the Seagate, can stay there as a last resort until you've restored the music.)
 
-Put the WD Black in dock bay A. Its old fstab line is commented out (`# RESCUE … dock1a`), so plugging it in mounts nothing. Find it by its `ata-` name; the dock gives both bays the same `usb-` serial:
+Which drive is which goes by **bay**, not by model: **bay A = dock1a, bay B = dock1b**. The dock reports the same `usb-…Dual_SATA_Bridge_000…` name for both bays, ending in `-0:0` for bay A and `-0:1` for bay B, and often hides the model, so the check below reads the model and serial from the drive itself. Old fstab lines for either bay must be commented out (`# RESCUE …`) or gone, so plugging the dock in mounts nothing. Do one bay at a time:
 
 ```bash
-D=$(ls /dev/disk/by-id/ata-WDC_WD10EALX-* 2>/dev/null | grep -v part); echo "$D -> $(readlink -f $D)"
-sudo smartctl -i -d sat $D | grep -E 'Model|Serial'         # WDC WD10EALX…: the WD Black, not the Blue (dock1b)
+BAY=0; L=dock1a          # bay A. For bay B: BAY=1; L=dock1b
+D=$(ls /dev/disk/by-id/usb-*Dual_SATA_Bridge_*-0:$BAY); echo "$D -> $(readlink -f $D)"
+sudo smartctl -i -d sat $D | grep -E 'Model|Serial'         # write down the serial; it's the drive you're about to erase
+sudo smartctl -H -A -d sat $D | grep -E 'result|Reallocated_Sector|Current_Pending|Offline_Uncorrectable'
 S=$(sudo blockdev --getsize64 $D); echo $S                  # about 1000204886016 (1.0 TB)
 lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINTS $D         # nothing mounted
 [ -n "$D" ] && [ $(echo "$D" | wc -l) -eq 1 ] && [ $S -gt 950000000000 ] && [ $S -lt 1050000000000 ] \
   && [ -z "$(lsblk -nro MOUNTPOINTS $D | tr -d '[:space:]')" ] && echo OK || echo STOP
 ```
 
-Only if it printed `OK`. ⚠️ This erases dock1a:
+- Health: `PASSED`, and the raw values (last column) of `Reallocated_Sector_Ct`, `Current_Pending_Sector` and `Offline_Uncorrectable` all `0` or close to it. A drive that fails here, or that throws `Input/output error` when you read it (`sudo fdisk -l $D`), isn't worth filling: swap in another drive.
+- Only if it printed `OK`. ⚠️ This erases the drive in that bay:
 
 ```bash
 sudo wipefs -a $D && sudo parted -s $D mklabel gpt mkpart data ext4 0% 100%
-sleep 3; sudo mkfs.ext4 -L dock1a -m 0 -E nodiscard $D-part1        # "Proceed anyway?" → y (the old accidental filesystem)
-sudo sed -i '\#[[:space:]]/srv/storage/disks/dock1a[[:space:]]#d' /etc/fstab   # the old line, commented or not
-L=dock1a; U=$(sudo blkid -s UUID -o value $D-part1)
+sleep 3; sudo mkfs.ext4 -F -L $L -m 0 $D-part1
+sudo sed -i "\#[[:space:]]/srv/storage/disks/$L[[:space:]]#d" /etc/fstab    # the bay's old line, commented or not
+U=$(sudo blkid -s UUID -o value $D-part1); echo $U
 sudo chattr -i /srv/storage/disks/$L 2>/dev/null; sudo mkdir -p /srv/storage/disks/$L && sudo chattr +i /srv/storage/disks/$L
 echo "UUID=$U /srv/storage/disks/$L ext4 defaults,noatime,nofail,x-systemd.device-timeout=15 0 2" | sudo tee -a /etc/fstab
 sudo systemctl daemon-reload && sudo mount /srv/storage/disks/$L && df -h /srv/storage/disks/$L
 ```
 
-Then make its folders (below, "Then mount everything") and copy your backups in from Windows through `\\cobra-stream\media\dock1a` once Samba is up (3.6).
+Then make their folders (below, "Then mount everything") and copy your backups in from Windows through `\\cobra-stream\media\dock1a` and `\dock1b` once Samba is up (3.6).
 
 ### Safe option first: a drive that holds files (wd1)
 
@@ -309,11 +312,11 @@ Then mount everything and make each drive's folders (the table above). On a driv
 ```bash
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
 for d in wd1 dock1a dock1b wd2; do mountpoint -q /srv/storage/disks/$d && echo "$d mounted" || echo "$d MISSING: plug it in (wd2: the Seagate, below) before the next line"; done
-sudo mkdir -p /srv/storage/disks/wd1/{movies,shows,filler,pre-rolls} \
+sudo mkdir -p /srv/storage/disks/wd1/{movies,series,filler,pre-rolls} \
   /srv/storage/disks/dock1a/{music/eels,music/rachel,audiobooks,books,comics,scans,backups,art/{movies,albums,books,comics,gaming}} \
   /srv/storage/disks/dock1b/roms \
-  /srv/storage/disks/wd2/{movies,shows,youtube}
-# drive with existing files, e.g.:  sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/shows
+  /srv/storage/disks/wd2/{movies,series,youtube}
+# wd1 kept its old TV folder name, series; wd2 uses the same name so the pool joins them
 ```
 
 Only run the `mkdir` line once every drive printed `mounted`. On a missing drive it fails (the empty mount point is locked), which is what you want.
@@ -359,15 +362,15 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks/video && ls /srv/s
 
 - `wd1:wd2` + `category.create=ff`: a new file goes to the **first** drive in that list with room, so wd1 fills first and only the overflow lands on wd2, which has no second copy. `minfreespace=100G` is the "nearly full" point; `moveonenospc` moves a file to wd2 if wd1 fills mid-copy.
 - `requires-mounts-for`: at boot, the pool waits for both drives, so it never starts with one missing.
-- [ ] `ls /srv/storage/disks/video` shows `movies`, `shows`, `filler`, `pre-rolls`, `youtube`, everything from both drives
+- [ ] `ls /srv/storage/disks/video` shows `movies`, `series`, `filler`, `pre-rolls`, `youtube`, everything from both drives
 - [ ] Copy a test file into `\\cobra-stream\media\video\movies`: it shows up in `wd1\movies`
 
 ### USB drives on Linux: two things to check
 
 - **Link resets.** Some USB-to-SATA chips misbehave with the fast UAS driver. If `sudo dmesg | grep -i -E 'uas|reset'` shows repeated resets for a drive, note its ID from `lsusb` (e.g. `152d:0578`), add `usb-storage.quirks=152d:0578:u` to `GRUB_CMDLINE_LINUX_DEFAULT` in `/etc/default/grub`, `sudo update-grub`, reboot.
 - **The powered hub** (9-port USB 3.2 hub, 65 W adapter), on the SGIN's USB-C port, its only USB 3 port. Which hub ports to use:
-  - **Bus-powered WD externals → the two 10 Gb/s USB-A 3.2 ports.** These ports draw their power from the hub's 65 W brick.
-  - **Network adapter and docks (they have their own power bricks) → the 5 Gb/s USB 3.0 ports.** The adapter only needs 1 Gb/s.
+  - The plan in use (intpw 9-in-1 hub): **Sabrent dock (dock1a + dock1b) → the USB-C 3.2 data port**, with its own USB-C cable (no adapter tip); **Seagate and wd1 → the two USB-A 3.2 ports**; **network adapter → a USB-A 3.0 port** (it only needs 1 Gb/s); a second dock → another USB-A 3.0 port. Avoid USB-C-to-A tips on drives: a cheap one can drop a drive to USB 2 (`480M`). Every drive here has its own power brick, so the hub's brick only powers the hub itself and the adapter.
+  - The port labels matter less than they look: every drive and dock here is a 5 Gb/s device, and the whole hub shares one 5 Gb/s link to the SGIN (next point). Any data port works at full speed; just keep data devices off the two charge-only PD ports.
   - **Leave both 45 W PD charging ports empty.** They share the same 65 W budget, and a phone or laptop charging there can starve the drives and make them drop.
   - Speed is fine: the hub links to the SGIN at 5 Gb/s (`5000M`), shared by every drive and the network adapter. One spinning disk moves about 1.5–2 Gb/s, each file is read from the one drive it lives on, and the network adds at most 1 Gb/s. It only gets busy when several drives copy at full speed at once.
   - One point of failure: if the hub loses power or resets, every drive **and the network** drop at the same moment. The SGIN's USB-A ports are USB 2.0, so there's no second USB 3 port to move anything to. Plug the hub's brick and the SGIN's charger into the UPS's **battery-backed** outlets (many UPS units also have surge-only outlets that go dark in an outage), never a switched strip. A USB reset usually recovers by itself within seconds: the adapter comes back with the same `enx…` name and its `.20` address. If the SGIN stops answering and doesn't come back, use its own keyboard and screen: `sudo reboot`, or unplug the hub's brick for 10 s.
@@ -400,7 +403,7 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks/video && ls /srv/s
 8. **Each "Only if it printed `OK`" means exactly that.** On `STOP`, stop and work out which drive is which before typing anything else.
 9. **Keep the original and the image until the files are checked**, both drives' files, and a second copy of the irreplaceable folders exists (stage C). Stage E is the only step that erases wd1, and it starts with a decision only you make.
 
-**dock1a** isn't recovered on this build: its files are restored from backups instead, and 3.4 wipes it ("dock1a: wipe it and start fresh"). For reference, a drive like it (the 1 TB in dock bay A; it reports itself as a WD Caviar Black `WD10EALX`) would go through the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
+**The dock drives** aren't recovered on this build: their files are restored from backups instead, and 3.4 wipes them ("The dock drives: wipe both and start fresh"). For reference, a 1 TB drive like the one the accident hit (a WD Blue `WD10EALX`) would go through the same stages, with `dock1a` in place of `wd1` in every file name and the `-L` label, in dock bay A with bay B **empty**. Its image takes about 2 hours, so the recovery plan does it **first**, as a rehearsal of the whole procedure on a smaller drive. If wd1's SMART check (A4) shows a failing drive, do wd1 first instead.
 
 ### Stage A: freeze, identify, image
 
@@ -446,7 +449,7 @@ for d in $(lsblk -dno NAME -e7 | grep '^sd'); do p=$(readlink -f /sys/block/$d);
 ```bash
 lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL,SERIAL                 # wd1 = ~5.5T, WDC WD60EDAZ; the Seagate = ~21.8T, Expansion HDD
 ls -l /dev/disk/by-id/ | grep -v part | grep -E 'ata-|usb-'  # the whole-disk entries (no -part1 on the end)
-D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* | grep -v part); echo "$D -> $(readlink -f $D)"   # wd1. dock1a: ata-WDC_WD10EALX-*
+D=$(ls /dev/disk/by-id/ata-WDC_WD60EDAZ-* | grep -v part); echo "$D -> $(readlink -f $D)"   # wd1
 sudo smartctl -i -d sat $D | grep -E 'Model|Serial|Capacity' # must be the WD 6 TB (WD60EDAZ), not the Seagate. Write the serial down
 sudo blockdev --setro $D $D-part1                            # kernel-level read-only, until a replug or reboot
 sudo blockdev --getro $D $D-part1                            # must print 1 twice
@@ -732,11 +735,10 @@ sudo dmesg | grep -i -E 'I/O error|ext4.*error' | tail                          
 sudo find $SRC -type f | shuf -n 20 | while read -r f; do
   [ "$(sudo sha256sum < "$f")" = "$(sudo sha256sum < "/srv/storage/disks/wd1/${f#$SRC/}")" ] && echo same || echo "DIFFERENT: $f"
 done                                                                                 # 20 random files, byte for byte: 20 × same
-sudo mv /srv/storage/disks/wd1/series /srv/storage/disks/wd1/shows                  # only if the old drive called it series
-sudo mkdir -p /srv/storage/disks/wd1/{movies,shows,filler,pre-rolls}; ls /srv/storage/disks/wd1
+sudo mkdir -p /srv/storage/disks/wd1/{movies,series,filler,pre-rolls}; ls /srv/storage/disks/wd1
 ```
 
-Copied it the per-folder way with stage C's `.sha256` lists? Check each folder against its list instead: `(cd /srv/storage/disks/wd1/movies && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Movies.sha256)`, which prints nothing when every file matches. Other old folders (e.g. `staging`, `downloads`) can stay at the top of wd1 until you sort them; Jellyfin only reads `movies` and `shows`.
+Copied it the per-folder way with stage C's `.sha256` lists? Check each folder against its list instead: `(cd /srv/storage/disks/wd1/movies && sudo sha256sum --quiet -c /mnt/rescue/files/wd1/Movies.sha256)`, which prints nothing when every file matches. Other old folders (e.g. `staging`, `downloads`) can stay at the top of wd1 until you sort them; Jellyfin only reads `movies` and `series`.
 
 **E4. Back to normal:**
 
@@ -748,7 +750,7 @@ grep -n -E 'RESCUE|srv/storage|/mnt/' /etc/fstab          # wd1: only the NEW li
 sudo sed -i -E 's@^# RESCUE (.*[[:space:]]/srv/storage/disks/dock1b[[:space:]])@\1@' /etc/fstab
 # delete a line you don't need any more, by its number from the grep (e.g. line 22):
 #   sudo sed -i '22d' /etc/fstab        # one at a time, and grep again after each: the numbers shift
-# dock1a: delete nothing here; 3.4's "dock1a: wipe it and start fresh" replaces its line
+# the dock bays: delete nothing here; 3.4's "The dock drives: wipe both" replaces their lines
 sudo systemctl daemon-reload && sudo mount -a && df -h /srv/storage/disks/*
 sudo chown -R podsvc:media /srv/storage/disks/wd1/movies && sudo chmod -R g+rwX /srv/storage/disks/wd1/movies   # 3.5's permissions, per folder you copied back
 ```
@@ -1008,7 +1010,7 @@ podman ps                                     # 7 containers Up
 
 | App | First visit | Then |
 |---|---|---|
-| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/shows` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/series` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
 | Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books. Settings → Users → one user each |
 | Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1a/comics` → Save → **Scan**. Users → Invite (or add) one per person |
 | Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
