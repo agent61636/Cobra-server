@@ -761,7 +761,7 @@ Then plug the other drives back in. **E5. Bring the shares and apps back** (stop
 sudo mount -a && df -h /srv/storage/disks/*                # every drive listed, each with its own size
 ls /srv/storage/disks/*                                    # each drive's folders (movies, shows, music…), not an empty listing
 sudo systemctl start smbd                                  # Samba shares (3.6)
-sudo machinectl shell podsvc@ /usr/bin/systemctl --user start stream-pod   # media apps (3.8)
+sudo machinectl shell podsvc@ /usr/bin/systemctl --user start stream-pod jellyfin ersatztv audiobookshelf kavita navidrome romm-db romm   # media apps (3.8)
 sudo machinectl shell podsvc@ /usr/bin/podman ps          # every container Up
 ```
 
@@ -870,7 +870,7 @@ sudo nft list ruleset | grep dport                  # the port list above
 
 ## 3.8 Media pod
 
-Run as podsvc: `sudo machinectl shell podsvc@` (a full login session, needed for `systemctl --user`). `exit` to leave.
+Run as podsvc, never as eels: `sudo machinectl shell podsvc@` (a full login session, needed for `systemctl --user`). The prompt must read `podsvc@cobra-stream`. `exit` to leave. Paste the long block below in a few parts; the `DBPW` line and the two romm files must go into the same shell.
 
 **Reinstalling with a backup of `/srv/stream`?** Restore it before anything starts, as eels: `sudo tar -C / -xzpf /srv/storage/disks/wd1/sgin-backup.tgz srv/stream`. Then, as podsvc, either restore the saved Quadlet files into `~/.config/containers/systemd` and skip the `cat` lines below, or run the block as written but set `DBPW`/`SECRET` to the old values instead of new random ones (RomM's database already uses the old password). With the scripts: `ROMM_DB_PASSWORD=<old> ROMM_AUTH_SECRET=<old> ./romm.sh` the first time. If an app then says `Permission denied`, see the last bullet of this section.
 
@@ -992,8 +992,8 @@ WantedBy=default.target
 EOF
 chmod 600 romm*.container
 systemctl --user daemon-reload
-systemctl --user start stream-pod
-podman ps                                     # 7 containers Up
+systemctl --user start stream-pod jellyfin ersatztv audiobookshelf kavita navidrome romm-db romm   # first run pulls every image: a few quiet minutes
+podman ps                                     # stream-infra + 7 containers Up
 # logs: journalctl --user -u jellyfin -f     restart one: systemctl --user restart jellyfin
 ```
 
@@ -1010,7 +1010,7 @@ podman ps                                     # 7 containers Up
 
 | App | First visit | Then |
 |---|---|---|
-| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/series` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on**, **automatic port mapping: off** → Finish → log in | The Transcoding and Networking settings below |
+| Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/series` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on** (newer Jellyfin has no automatic port mapping option, which is what we want) → Finish → log in | The Transcoding and Networking settings below |
 | Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books. Settings → Users → one user each |
 | Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1a/comics` → Save → **Scan**. Users → Invite (or add) one per person |
 | Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
