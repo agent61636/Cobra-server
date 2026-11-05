@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Navidrome music server, one music library per person. http://10.6.9.20:4533
-# (public: music.songofeo.com, eelsmusic.songofeo.com and rupaulradio.songofeo.com, all the same server)
+# (public: music.songofeo.com, eelsmusic.songofeo.com and mustang.songofeo.com, all the same server)
 # Trusts the gate's Remote-User header (the station's Authelia sign-in, part 5.4), so Music doesn't ask twice.
 # Run as podsvc on the SGIN:  ./navidrome.sh            other people:  MUSIC_USERS="eels rachel sam" ./navidrome.sh
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

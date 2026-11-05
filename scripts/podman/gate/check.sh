@@ -69,7 +69,7 @@ health=$(curl -sk -m 10 --resolve "gate.$DOMAIN:443:$TARGET" "https://gate.$DOMA
 [[ $health == *'"OK"'* ]] && ok "Authelia health" "$health" || fail "Authelia health" "${health:-no answer}"
 
 echo "== Admin apps (password + TOTP from everywhere, so always a redirect to the sign-in)"
-for pair in docs:Paperless metube:MeTube home:Homepage status:"Uptime Kuma"; do
+for pair in papers:Paperless metube:MeTube command:Homepage status:"Uptime Kuma"; do
   h=${pair%%:*}.$DOMAIN app=${pair#*:}
   probe "$h"
   if [ "$CODE" = 302 ] && [[ $LOC == "$PORTAL"* ]]; then ok "$h" "302 to the sign-in ($app)"
@@ -80,7 +80,7 @@ for pair in docs:Paperless metube:MeTube home:Homepage status:"Uptime Kuma"; do
 done
 
 echo "== The station's floors (sign-in from outside, open at home and over WireGuard)"
-for pair in tv:Jellyfin music:Navidrome eelsmusic:Navidrome rupaulradio:Navidrome books:Audiobookshelf \
+for pair in tv:Jellyfin music:Navidrome eelsmusic:Navidrome mustang:Navidrome books:Audiobookshelf \
             comics:Kavita arcade:RomM art:eo-art gaming:"holding page" sessions:"holding page" \
             scores:"hiscore, part 7" radio:"Icecast, part 8"; do
   h=${pair%%:*}.$DOMAIN app=${pair#*:}

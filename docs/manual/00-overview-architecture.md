@@ -10,7 +10,7 @@
 |---|---|---|
 | 1 | *Proxmox runs everything from the Latitude: OPNsense, Pi-hole and Jellyfin?* | **Proxmox on the Latitude: yes. Jellyfin on it: no.** The Latitude runs Proxmox with the firewall, Pi-hole #1 and the `cobra-gate` VM. Jellyfin moves elsewhere (see #4). |
 | 2 | *Optiplex gets Windows 10 for the arcade?* | **Windows, yes, but Windows 11 rather than 10.** Consumer Windows 10 Extended Security Updates end on **Oct 13, 2026**. After that the cabinet would get no more security patches while sitting on your LAN. Windows 11 installs on the i7-6700 using Rufus's requirement bypass and activates with your existing license. LaunchBox/Big Box is Windows-only, so Windows is the right OS for the cabinet. Setup is in part 4. |
-| 3 | *Does Navidrome go on the Optiplex?* | **No.** Navidrome needs no GPU, and the cabinet should only run games. It goes on `cobra-stream` with the rest of the media apps. **One Navidrome instance is enough.** Navidrome 0.58+ supports multiple libraries with per-user access. `eelsmusic.` and `rupaulradio.` are two hostnames for the same instance, and Eels and Rachel each see only their own library. |
+| 3 | *Does Navidrome go on the Optiplex?* | **No.** Navidrome needs no GPU, and the cabinet should only run games. It goes on `cobra-stream` with the rest of the media apps. **One Navidrome instance is enough.** Navidrome 0.58+ supports multiple libraries with per-user access. `eelsmusic.` and `mustang.` are two hostnames for the same instance, and Eels and Rachel each see only their own library. |
 | 4 | *Jellyfin on the gateway box is too much. Shouldn't it go on the Optiplex and use the Intel graphics?* | **You were right to worry: it doesn't belong on the gateway.** That box has 2 cores, 16 GB and the firewall. Putting a media server facing the internet on the same machine that *is* the firewall also widens the damage if it's ever compromised. **The Optiplex is the wrong fix too.** Its HD 530 is Skylake, which has **no hardware decode for HEVC 10-bit**, and that's the format most 4K MKVs use. It would also slow down games on the cabinet. **The SGIN's Celeron N5095A (Jasper Lake) is the best video engine you own.** It does hardware HEVC 10-bit decode and encode plus HDR tone mapping, at about 10 W. So the SGIN becomes **`cobra-stream`** and also keeps its jobs as backup server and Pi-hole #2. |
 | 5 | *SGIN = backup server + Pi-hole 2?* | **Yes, plus media** (see #4). It runs Proxmox Backup Server, Pi-hole #2, Samba, and the media pod. |
 | 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's part 9. |
@@ -144,14 +144,14 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | Station sign-in, then in-app once per device |
 | Comics / graphic novels | `comics.songofeo.com` | → stream: Kavita | Station sign-in, then in-app once per device |
 | Eels' music | `eelsmusic.songofeo.com` | → stream: Navidrome (Eels' library) | Same as `music.` |
-| Rachel's music | `rupaulradio.songofeo.com` | → stream: same Navidrome (Rachel's library) | Same as `music.` |
+| Rachel's music | `mustang.songofeo.com` | → stream: same Navidrome (Rachel's library) | Same as `music.` |
 | Game Cellar / The Ward | `gaming.songofeo.com`, `sessions.songofeo.com` | → gate: holding page until their apps exist | Station sign-in |
 | Landing-page pictures | `art.songofeo.com` | → gate: eo-art (random covers and backdrops from dock1a's `art` folder) | Station sign-in; signed-out visitors see the drawn art instead |
-| Save documents | `docs.songofeo.com` | → gate: Paperless-ngx | **Mandatory:** Authelia 2FA, then Paperless |
+| Save documents | `papers.songofeo.com` | → gate: Paperless-ngx | **Mandatory:** Authelia 2FA, then Paperless |
 | Save a YouTube video | `metube.songofeo.com` | → gate: MeTube | **Mandatory:** Authelia 2FA (MeTube has no login of its own) |
 | Web arcade | `arcade.songofeo.com` | → stream: RomM (EmulatorJS player) | Station sign-in, then in-app once per device |
 | Cabinet | (local) | arcade: Big Box → RetroArch; ROMs from its own `D:\Roms` (copied nightly to `\\cobra-stream\roms` for RomM) | Windows auto-login |
-| Dashboard | `home.songofeo.com` | → gate: Homepage | Authelia 2FA |
+| Dashboard | `command.songofeo.com` | → gate: Homepage | Authelia 2FA |
 | Status page | `status.songofeo.com` | → gate: Uptime Kuma | Authelia 2FA |
 | Password vault | `vault.songofeo.com` | → gate: Vaultwarden | **LAN/VPN only.** Never public. |
 | High-score boards | `scores.songofeo.com` | → gate: reserved hiscore slot (§8, built later) | Login for viewers. The cabinet's sync agent uses an API key. |
@@ -198,7 +198,7 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 
 - **Two kinds of names, kept apart on purpose:**
   - **Machines** are named for the theme and never change: `cobra-command` (Proxmox), `cobra-firewall` (OPNsense), `cobra-pihole-1`, `cobra-gate`, `cobra-stream`, `cobra-arcade`, `cobra-lab` (R620). They live under `.home.arpa`, the private suffix meant for home networks, e.g. `cobra-stream.home.arpa`.
-  - **Public addresses** use the domain, currently **`songofeo.com`**: `tv.songofeo.com`, `docs.songofeo.com` and so on. Only these change if you ever switch domains (see "Changing the domain later" below).
+  - **Public addresses** use the domain, currently **`songofeo.com`**: `tv.songofeo.com`, `papers.songofeo.com` and so on. Only these change if you ever switch domains (see "Changing the domain later" below).
 - `eels`: your admin login on every Linux box (has sudo).
 - `podsvc`: the unprivileged account that runs rootless Podman containers (no sudo, lingering enabled).
 - Quadlet files (Podman's systemd unit files) live in `/home/podsvc/.config/containers/systemd/`.

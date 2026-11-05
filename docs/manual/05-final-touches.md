@@ -245,7 +245,7 @@ ContainerName=paperless
 Image=ghcr.io/paperless-ngx/paperless-ngx:latest
 Pod=gate.pod
 AutoUpdate=registry
-Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://docs.songofeo.com PAPERLESS_CONSUMER_POLLING=60
+Environment=PAPERLESS_DBHOST=127.0.0.1 PAPERLESS_DBPASS=$PGPW PAPERLESS_REDIS=redis://127.0.0.1:6379 PAPERLESS_SECRET_KEY=$PLKEY PAPERLESS_URL=https://papers.songofeo.com PAPERLESS_CONSUMER_POLLING=60
 Volume=/srv/gate/paperless/data:/usr/src/paperless/data:Z
 Volume=/srv/gate/paperless/media:/usr/src/paperless/media:Z
 Volume=/srv/storage/disks/dock1a/scans:/usr/src/paperless/consume
@@ -277,7 +277,7 @@ ContainerName=homepage
 Image=ghcr.io/gethomepage/homepage:latest
 Pod=gate.pod
 AutoUpdate=registry
-Environment=HOMEPAGE_ALLOWED_HOSTS=home.songofeo.com
+Environment=HOMEPAGE_ALLOWED_HOSTS=command.songofeo.com
 Volume=/srv/gate/homepage:/app/config:Z
 [Install]
 WantedBy=default.target
@@ -337,7 +337,7 @@ Where the gate's apps keep their files:
 
 ### The station's sign-in (Authelia)
 
-This is the one login screen for the whole station. Someone taps the gold star **Sign in** on the station (or a floor's Enter, when they aren't signed in yet), lands on `gate.songofeo.com`, types their username and password once, and goes back where they came from. The session cookie is set for all of `songofeo.com`, so for the next **6 hours** every floor (Cinema, Music, Library, Comics, Arcade, Game Cellar, The Ward), the landing pages' live pictures, the website's players and the Android app let them straight through. The admin apps (`docs.`, `metube.`, `home.`, `status.`) also ask for a TOTP code.
+This is the one login screen for the whole station. Someone taps the gold star **Sign in** on the station (or a floor's Enter, when they aren't signed in yet), lands on `gate.songofeo.com`, types their username and password once, and goes back where they came from. The session cookie is set for all of `songofeo.com`, so for the next **6 hours** every floor (Cinema, Music, Library, Comics, Arcade, Game Cellar, The Ward), the landing pages' live pictures, the website's players and the Android app let them straight through. The admin apps (`papers.`, `metube.`, `command.`, `status.`) also ask for a TOTP code.
 
 At home and over WireGuard the station's floors skip the sign-in, so the Jellyfin apps on the TVs and the music and audiobook apps on phones keep working; they still have their own logins. From anywhere else the sign-in comes first.
 
@@ -359,10 +359,10 @@ access_control:
   default_policy: deny                    # any name not listed below is refused, even after signing in
   rules:
     # admin apps: password + TOTP, from anywhere
-    - domain: [docs.songofeo.com, metube.songofeo.com, home.songofeo.com, status.songofeo.com]
+    - domain: [papers.songofeo.com, metube.songofeo.com, command.songofeo.com, status.songofeo.com]
       policy: two_factor
     # the station's floors and its pictures: open at home, one password everywhere else
-    - domain: &station [tv.songofeo.com, music.songofeo.com, eelsmusic.songofeo.com, rupaulradio.songofeo.com,
+    - domain: &station [tv.songofeo.com, music.songofeo.com, eelsmusic.songofeo.com, mustang.songofeo.com,
                         books.songofeo.com, comics.songofeo.com, arcade.songofeo.com, gaming.songofeo.com,
                         sessions.songofeo.com, art.songofeo.com]
       networks: [home]
@@ -422,7 +422,7 @@ grep -c 'argon2id' /srv/gate/authelia/users.yml   # must print 2 (one per person
 
 - Use the **same usernames** as in Navidrome (part 3.8). Navidrome then signs in whoever Authelia signed in, so Music never asks a second time.
 - Adding someone later: add a block, then `systemctl --user restart authelia`. Removing someone: delete their block and restart; their session ends at once. (Sessions live in Authelia's memory, so any restart signs **everyone** out; they just sign in again.)
-- **TOTP for the admin apps** (once per person who uses `docs.`, `metube.`, `home.` or `status.`): open one of them, sign in, choose **Register device** → **One-Time Password**. Authelia asks for a one-time code "sent by email"; with the `filesystem` notifier above it's written to a file instead. Read it on the gate as podsvc: `tail -n 20 /srv/gate/authelia/notification.txt`, type the code, then scan the QR code with an authenticator app (Aegis, 2FAS, Google Authenticator, or the Bitwarden app with Vaultwarden). The file holds codes, so keep it at mode 600 and empty it once you're set up: `: > /srv/gate/authelia/notification.txt`. Password resets work the same way.
+- **TOTP for the admin apps** (once per person who uses `papers.`, `metube.`, `command.` or `status.`): open one of them, sign in, choose **Register device** → **One-Time Password**. Authelia asks for a one-time code "sent by email"; with the `filesystem` notifier above it's written to a file instead. Read it on the gate as podsvc: `tail -n 20 /srv/gate/authelia/notification.txt`, type the code, then scan the QR code with an authenticator app (Aegis, 2FAS, Google Authenticator, or the Bitwarden app with Vaultwarden). The file holds codes, so keep it at mode 600 and empty it once you're set up: `: > /srv/gate/authelia/notification.txt`. Password resets work the same way.
 - **Sign in** on the station links to `https://gate.songofeo.com/?rd=https%3A%2F%2Fsongofeo.com%2F`. `rd` is where Authelia sends people back to; it only accepts addresses under `songofeo.com`. To sign out: `https://gate.songofeo.com/logout`. If the station's pages (the Project-Eo repository) still link to the older `auth.songofeo.com`, change those links to `gate.songofeo.com` there: `auth.` has no DNS record and no server block any more.
 - Jellyfin, Audiobookshelf, Kavita and RomM still show their own login the first time on each device (they remember it after that). On the website's players that's the **station pass**: one username and password, asked once per browser, signs in to all four (so keep the same username and password in each app). Wiring them to Authelia too (OpenID Connect) is a later step.
 - **The website's players** (`songofeo.com/cinema/play/` and the rest, from the Project-Eo repository) call the apps from the station's pages, so the floors' server answers `songofeo.com` with CORS headers: `station-cors.inc`, included in the floors' `location /` below. Copy it from the Project-Eo repository (`home/nginx/station-cors.inc`) along with eo-art:
@@ -476,7 +476,7 @@ map $host $station {
   tv.songofeo.com           http://10.6.9.20:8096;    # Cinema: Jellyfin (+ ErsatzTV channels inside it)
   music.songofeo.com        http://10.6.9.20:4533;    # Music: Navidrome (each person sees their own library)
   eelsmusic.songofeo.com    http://10.6.9.20:4533;    # Navidrome (Eels' library)
-  rupaulradio.songofeo.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
+  mustang.songofeo.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
   books.songofeo.com        http://10.6.9.20:13378;   # Library: Audiobookshelf
   comics.songofeo.com       http://10.6.9.20:5000;    # Comics: Kavita
   arcade.songofeo.com       http://10.6.9.20:8080;    # Arcade: RomM + EmulatorJS
@@ -484,7 +484,7 @@ map $host $station {
 }
 server {
   listen 443 ssl; http2 on;
-  server_name tv.songofeo.com music.songofeo.com eelsmusic.songofeo.com rupaulradio.songofeo.com
+  server_name tv.songofeo.com music.songofeo.com eelsmusic.songofeo.com mustang.songofeo.com
               books.songofeo.com comics.songofeo.com arcade.songofeo.com art.songofeo.com;
   location /internal/authelia/authz {
     internal;
@@ -555,14 +555,14 @@ server {
 
 # --- admin apps on the gate, behind Authelia 2FA ---
 map $host $protected {
-  docs.songofeo.com    http://127.0.0.1:8000;    # Paperless-ngx
+  papers.songofeo.com    http://127.0.0.1:8000;    # Paperless-ngx
   metube.songofeo.com  http://127.0.0.1:8081;    # MeTube
-  home.songofeo.com    http://127.0.0.1:3000;    # Homepage
+  command.songofeo.com    http://127.0.0.1:3000;    # Homepage
   status.songofeo.com  http://127.0.0.1:3001;    # Uptime Kuma
 }
 server {
   listen 443 ssl; http2 on;
-  server_name docs.songofeo.com metube.songofeo.com home.songofeo.com status.songofeo.com;
+  server_name papers.songofeo.com metube.songofeo.com command.songofeo.com status.songofeo.com;
   location /internal/authelia/authz {
     internal;
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
@@ -623,32 +623,32 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 | Hostname | Goes to | Sign-in |
 |---|---|---|
 | `gate.` | Authelia (the sign-in page itself) | none |
-| `tv.` `music.` `eelsmusic.` `rupaulradio.` `books.` `comics.` `arcade.` | Jellyfin `:8096`, Navidrome `:4533` (three names), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
+| `tv.` `music.` `eelsmusic.` `mustang.` `books.` `comics.` `arcade.` | Jellyfin `:8096`, Navidrome `:4533` (three names), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
 | `art.` | eo-art `127.0.0.1:8790` on the gate | same as the floors |
 | `gaming.` `sessions.` | the holding page (`conf.d/soon`) | same as the floors |
-| `docs.` `metube.` `home.` `status.` | Paperless `:8000`, MeTube `:8081`, Homepage `:3000`, Uptime Kuma `:3001` on the gate | password + TOTP, everywhere |
+| `papers.` `metube.` `command.` `status.` | Paperless `:8000`, MeTube `:8081`, Homepage `:3000`, Uptime Kuma `:3001` on the gate | password + TOTP, everywhere |
 | `vault.` | Vaultwarden `:8222` on the gate | none; LAN and WireGuard only, 403 elsewhere |
 | `scores.` (part 7) | hiscore `127.0.0.1:8090` | password (except `/upload/`, `/public/`, `/screen`) |
 | `radio.` (part 8) | Icecast `10.6.9.20:8000` | password; `/admin` LAN and WireGuard only |
 | anything else, or the bare IP | nothing: the TLS handshake is refused | |
 
-Every name except `gate.` and `vault.` must also be a CNAME to `gate.songofeo.com` in Porkbun (5.5) before it works from outside.
+Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME to `gate.songofeo.com` in Porkbun (5.5) before it works from outside; those four are home and WireGuard only (`gate.` is the A record itself).
 
 - [ ] `podman exec nginx nginx -t` says `syntax is ok` and `test is successful`
-- [ ] Each hostname loads with a valid padlock: `tv. music. books. comics. eelsmusic. rupaulradio. arcade. gaming. sessions. art. gate. docs. metube. home. status. vault.`
-- [ ] `docs.` and `metube.` bounce you to `gate.` first, then back
+- [ ] Each hostname loads with a valid padlock: `tv. music. books. comics. eelsmusic. mustang. arcade. gaming. sessions. art. gate. papers. metube. command. status. vault.`
+- [ ] `papers.` and `metube.` bounce you to `gate.` first, then back
 - [ ] `https://gate.songofeo.com` shows the dark sign-in screen; signing in there lands on the station (`songofeo.com`)
 - [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
 - [ ] Jellyfin's phone app connects with server address `https://tv.songofeo.com` (no port)
-- [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `rupaulradio.`; each sees only their own library
+- [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `mustang.`; each sees only their own library
 - [ ] `https://10.6.9.10` (bare IP) gets no page at all: the browser says the connection was reset or closed (the catch-all refuses the handshake)
 - [ ] **The gate sees real addresses.** Load `https://tv.songofeo.com` from the desktop, then as podsvc on the gate: `podman logs --tail 3 nginx`. Each line must start with the **desktop's** `10.6.9.x` address. If every line starts with `127.0.0.1` or `10.0.2.x`, the pod isn't using pasta: stop here, because the home bypass, the Vaultwarden LAN rule and Jellyfin's logs all depend on it. Check `podman info --format '{{.Host.RootlessNetworkCmd}}'` says `pasta`
 - [ ] Authelia is up: `curl -s https://gate.songofeo.com/api/health` from the desktop prints `{"status":"OK"}`
-- [ ] **Bypass at home, but only for the floors:** in a private window on the desktop, `tv.` opens Jellyfin straight away (no sign-in, you're home), while `docs.` still sends you to the sign-in and then asks for the TOTP code
+- [ ] **Bypass at home, but only for the floors:** in a private window on the desktop, `tv.` opens Jellyfin straight away (no sign-in, you're home), while `papers.` still sends you to the sign-in and then asks for the TOTP code
 - [ ] **The cookie.** After signing in, browser → F12 → Application (Chrome) or Storage (Firefox) → Cookies → `https://gate.songofeo.com`: `authelia_session` has Domain `.songofeo.com`, **Secure** ✓, **HttpOnly** ✓, SameSite **Lax**, and expires in 6 hours
 - [ ] **Redirects stay at home.** Signed out, open `https://gate.songofeo.com/?rd=https%3A%2F%2Fexample.com%2F` and sign in: you must land on the station (`songofeo.com`), never on example.com. Authelia only sends people back to `https://` addresses under `songofeo.com`
-- [ ] HSTS on the floors and the admin apps: `curl -sI https://tv.songofeo.com/ | grep -i strict-transport` and `curl -sI https://docs.songofeo.com/ | grep -i strict-transport` each print one line. Nothing for `tv.` means `station-cors.inc` drops it (see above)
-- [ ] Signing out works everywhere: `https://gate.songofeo.com/logout`, then `docs.` asks for the sign-in again
+- [ ] HSTS on the floors and the admin apps: `curl -sI https://tv.songofeo.com/ | grep -i strict-transport` and `curl -sI https://papers.songofeo.com/ | grep -i strict-transport` each print one line. Nothing for `tv.` means `station-cors.inc` drops it (see above)
+- [ ] Signing out works everywhere: `https://gate.songofeo.com/logout`, then `papers.` asks for the sign-in again
 - [ ] The website's players: signed in with the gold star, `https://songofeo.com/radio/play/` lists albums straight away, and `https://songofeo.com/cinema/play/` asks for the station pass once, then lists films. *Home isn't answering* means `station-cors.inc` isn't included yet
 
 - [ ] Vaultwarden: create your account at `https://vault.songofeo.com`, then close sign-ups: `sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' ~/.config/containers/systemd/vaultwarden.container && systemctl --user daemon-reload && systemctl --user restart vaultwarden`. Import the interim password DB.
@@ -656,12 +656,12 @@ Every name except `gate.` and `vault.` must also be a CNAME to `gate.songofeo.co
 
 ## 5.5 Go public
 
-- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv music books comics eelsmusic rupaulradio arcade gaming sessions art docs metube home status` (not `vault`, which stays LAN/VPN-only, and not `gate`, which is already the A record). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` and `www` records alone: they belong to Porkbun's static hosting (the station). Make sure Porkbun's **URL Forwarding** has nothing for these names.
+- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv music books comics eelsmusic mustang arcade gaming sessions papers metube command`, plus `vpn` for WireGuard (2.10) (not `vault`, which stays LAN/VPN-only, and not `gate`, which is already the A record). `status` and `art` get no public record for now: they still work at home and over WireGuard, where the Pi-holes answer every `*.songofeo.com` name, but from outside they don't resolve (so the station's landing pages show their drawn artwork instead of live pictures there). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` and `www` records alone: they belong to Porkbun's static hosting (the station). Make sure Porkbun's **URL Forwarding** has nothing for these names.
 - [ ] **Before the 443 forward below:** the station's **Sign in** button and every floor's Log In (Project-Eo, live on Porkbun's hosting) must point at `https://gate.songofeo.com/?rd=...`, not `auth.songofeo.com`. Open `https://songofeo.com`, hover Sign in, and check the address in the browser's status bar. Fix them in Project-Eo and redeploy the site if they don't match
 - [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] OPNsense → Firewall → NAT → Port Forward lists **exactly one** rule: WAN TCP 443 → `10.6.9.10`. Nothing points at the SGIN (`10.6.9.20`), where Jellyfin, Navidrome and the other apps answer without the gate. (Part 3.1 deleted the old rules; check again here.) Firewall → Rules → **WAN** has only that 443 rule and the UDP 51820 WireGuard rule from 2.8
 - [ ] OPNsense → System → Firmware → **Plugins**: `os-upnp` is **not** installed. UPnP would let any device on the LAN open its own port to the internet, around the gate
-- [ ] From cellular (Wi-Fi off): each URL loads; `docs.` demands Authelia 2FA; `vault.` returns 403
+- [ ] From cellular (Wi-Fi off): each URL loads; `papers.` demands Authelia 2FA; `vault.` returns 403
 - [ ] **No bypass from outside.** From cellular in a private window, `https://tv.songofeo.com` must send you to the sign-in screen first (it's only skipped at home and over WireGuard). On the gate as podsvc, `podman logs --tail 3 nginx` shows the phone's **public** address (not `10.6.9.x`): if it showed a `10.6.9.x` address, OPNsense is rewriting the source and the outside world would get the home bypass, so stop and check OPNsense → Firewall → NAT → **Outbound** for a rule on the LAN interface
 - [ ] **No way around the gate.** Still on cellular, find your public IP (OPNsense → Interfaces → Overview → WAN), then try `http://<public IP>:8096`, `:4533`, `:8080`, `:13378`, `:5000` and `:9091`: each must time out. Only `https://tv.songofeo.com` (443) reaches anything
 - [ ] Turn WireGuard on (still on cellular): `tv.` now opens without the sign-in, and `podman logs --tail 3 nginx` shows the phone as `10.6.99.x`
@@ -743,13 +743,13 @@ cat > /srv/gate/homepage/services.yaml <<'EOF'
     - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
     - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
     - Eels' music:  { href: "https://eelsmusic.songofeo.com",   icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
-    - Rachel's music: { href: "https://rupaulradio.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4533" }
+    - Rachel's music: { href: "https://mustang.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4533" }
 - Read & play:
     - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }
     - Kavita:       { href: "https://comics.songofeo.com",      icon: kavita.png,         siteMonitor: "http://10.6.9.20:5000" }
     - Arcade:       { href: "https://arcade.songofeo.com",      icon: romm.png,           siteMonitor: "http://10.6.9.20:8080" }
 - Files:
-    - Paperless:    { href: "https://docs.songofeo.com",        icon: paperless-ngx.png,  siteMonitor: "http://127.0.0.1:8000" }
+    - Paperless:    { href: "https://papers.songofeo.com",        icon: paperless-ngx.png,  siteMonitor: "http://127.0.0.1:8000" }
     - MeTube:       { href: "https://metube.songofeo.com",      icon: metube.png,         siteMonitor: "http://127.0.0.1:8081" }
     - Vaultwarden:  { href: "https://vault.songofeo.com",       icon: vaultwarden.png,    description: "LAN/VPN only", siteMonitor: "http://127.0.0.1:8222" }
 - Admin:

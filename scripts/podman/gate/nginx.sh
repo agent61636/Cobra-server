@@ -27,5 +27,5 @@ if podman exec nginx nginx -t 2>&1 | grep -q 'test is successful'; then
 else
   warn "nginx -t failed:"; podman exec nginx nginx -t || true
 fi
-done_msg nginx "https://home.songofeo.com (and every other app hostname)"
+done_msg nginx "https://command.songofeo.com (and every other app hostname)"
 echo "    After editing conf.d:  podman exec nginx nginx -t && podman exec nginx nginx -s reload"

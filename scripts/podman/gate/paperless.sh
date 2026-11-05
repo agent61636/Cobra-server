@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Paperless-ngx document archive with its Postgres and Redis. https://docs.songofeo.com (behind Authelia)
+# Paperless-ngx document archive with its Postgres and Redis. https://papers.songofeo.com (behind Authelia)
 # Inbox: drop files in \\cobra-stream\scans; Paperless files them within a minute.
 # Run as podsvc on the gate:  ./paperless.sh
 #
@@ -44,7 +44,7 @@ podman exec postgres pg_isready -q -U paperless || warn "Postgres isn't ready ye
 run_container paperless "$GATE_POD" "$IMAGE" \
   -e PAPERLESS_DBHOST=127.0.0.1 \
   -e PAPERLESS_REDIS=redis://127.0.0.1:6379 \
-  -e PAPERLESS_URL=https://docs.songofeo.com \
+  -e PAPERLESS_URL=https://papers.songofeo.com \
   -e PAPERLESS_CONSUMER_POLLING=60 \
   -e PAPERLESS_TIME_ZONE="$COBRA_TZ" \
   --secret paperless-db-password,type=env,target=PAPERLESS_DBPASS \
@@ -55,5 +55,5 @@ run_container paperless "$GATE_POD" "$IMAGE" \
   -v "$DISKS/$SCANS_DIR:/usr/src/paperless/consume"
 
 pod_http paperless http://127.0.0.1:8000 180 || warn "Paperless isn't answering yet (first start migrates the database; give it a few minutes)"
-done_msg paperless https://docs.songofeo.com
+done_msg paperless https://papers.songofeo.com
 echo "    Once: podman exec -it paperless python3 manage.py createsuperuser"
