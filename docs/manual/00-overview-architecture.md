@@ -78,10 +78,16 @@
   stream     arcade              spire
   .20        .30        .50      .51      .6        .40 iDRAC / .41
   1 GbE      1 GbE      1 GbE    1 GbE    1 GbE     1 GbE
-  (USB NIC)                              (RE700X,  SFP+ 1–2: free, for 10G later
-                                           AP mode)
+  (USB NIC)                              (EAP772,  SFP+ 1–2: free, for 10G later
+                                           to buy)
                                             ┆ Wi-Fi "cobra"
-                                          Cobra1 laptop .52
+                                          (later) phones, TVs, Cobra1 .52
+
+   Xfinity side (10.0.0.x, untrusted, never on the cobra LAN):
+   Xfinity Wi-Fi "Electronomicon" ─ RE700X extender "Electronomicon_EXT" upstairs
+     └─ basic switch ─ work laptop dock (employer's, corporate VPN; never cobra, never WireGuard)
+                     └─ Cobra1 (uses WireGuard to reach cobra)
+   TVs, Echo, thermostat and other gadgets on Xfinity Wi-Fi
 
    WireGuard VPN clients: 10.6.99.0/24 (UDP 51820): Cobra S21 .2, Cobra1 .3
 ```
@@ -93,18 +99,19 @@
 | 10.0.0.1 | Xfinity gateway | **Today it's 10.6.9.1.** Part 2's cutover moves it back to its default 10.0.0.1/24 so your own LAN, behind OPNsense, can keep the 10.6.9.x numbers. Two networks can't share one range. |
 | 10.0.0.2 | cobra-firewall WAN | DHCP reservation on Xfinity + DMZ host |
 | 10.0.0.3 | cobra-home Xfinity side (`net1`) | Xfinity reservation; static in HA OS with **no gateway**. Thermostat and Eufy gadgets reserved at `10.0.0.20`–`.39` (part 10) |
+| 10.0.0.x | Work laptop (your employer's) | Xfinity side only, through the upstairs RE700X extender and its dock. Corporate VPN. **Never** on cobra Wi-Fi, cobra-switch or WireGuard, and nothing on the Xfinity side may change in a way that breaks its internet |
 | 10.6.9.1 | cobra-firewall LAN | Default gateway + Unbound DNS for the LAN |
 | 10.6.9.2 | cobra-command | Proxmox web UI `https://10.6.9.2:8006` |
 | 10.6.9.3 | cobra-pihole-1 | DNS #1 |
 | 10.6.9.5 | cobra-switch | TP-Link Omada ES210X-M2, the LAN switch: web UI `http://10.6.9.5` (part 2.12). Same switch carries the VLANs in part 9. |
-| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra`: the TP-Link RE700X in Access Point mode on cobra-switch port 6 (part 2.10b) |
+| 10.6.9.6 | cobra-ap | Trusted Wi-Fi access point `cobra`: a TP-Link EAP772 with a PoE+ injector on cobra-switch port 6, **not bought yet** (part 2.10b). The RE700X stays the Xfinity-side extender upstairs |
 | 10.6.9.10 | cobra-gate | nginx 80/443, Cockpit 9090 |
 | 10.6.9.11 | cobra-home | Home Assistant (VM 120), port 8123 (part 10) |
 | 10.6.9.20 | cobra-stream | Media apps, Samba, Pi-hole #2 (DNS #2), PBS 8007, Cockpit 9090 |
 | 10.6.9.30 | cobra-arcade | Windows cabinet |
 | 10.6.9.40 / .41 | cobra-lab iDRAC / cobra-lab Proxmox (R620) | Part 9. The iDRAC moves to `10.6.30.40` on the MGMT VLAN in phase B. |
 | 10.6.9.50 / .51 | the-box / the-spire (Windows 11 desktops) | DHCP reservations, wired |
-| 10.6.9.52 | Cobra1 (Windows 10 laptop) | DHCP reservation for its **Wi-Fi** MAC, on `cobra` Wi-Fi (2.10b). Away from home it uses WireGuard `10.6.99.3` (2.8) |
+| 10.6.9.52 | Cobra1 (Windows 10 laptop) | DHCP reservation for its **Wi-Fi** MAC, for when `cobra` Wi-Fi exists (2.10b). Until then it sits on the Xfinity side (upstairs, Ethernet through the RE700X) and reaches cobra only through WireGuard `10.6.99.3` (2.8) |
 | 10.6.9.100–199 | DHCP pool | Everything else |
 | 10.6.9.200 | old server (SGIN, until it's rebuilt) | Static mapping in OPNsense, so its port forwards keep working through the cutover (part 2.4) |
 | 10.6.99.0/24 | WireGuard clients | Admin access from outside |

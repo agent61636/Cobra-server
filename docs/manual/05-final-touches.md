@@ -37,8 +37,14 @@ qm start 110
 ```bash
 sudo qm guest exec 110 -- cp -a /etc/network/interfaces /etc/network/interfaces.bak     # keep the old file
 sudo qm guest exec 110 -- cp -a /etc/resolv.conf /etc/resolv.conf.bak
-sudo qm guest exec 110 -- sed -i 's|^iface ens18 inet dhcp$|iface ens18 inet static\n    address 10.6.9.10/24\n    gateway 10.6.9.1|' /etc/network/interfaces
-sudo qm guest exec 110 -- bash -c "printf 'search home.arpa\nnameserver 10.6.9.3\nnameserver 10.6.9.20\n' > /etc/resolv.conf"
+# one short line per change, so nothing breaks when pasted
+sudo qm guest exec 110 -- sed -i 's/^iface ens18 inet dhcp$/iface ens18 inet static/' /etc/network/interfaces
+sudo qm guest exec 110 -- sed -i '/^iface ens18 inet static$/a gateway 10.6.9.1' /etc/network/interfaces
+sudo qm guest exec 110 -- sed -i '/^iface ens18 inet static$/a address 10.6.9.10/24' /etc/network/interfaces   # lands above gateway
+sudo qm guest exec 110 -- cat /etc/network/interfaces                                    # ends: static / address / gateway
+sudo qm guest exec 110 -- bash -c 'echo "search home.arpa" > /etc/resolv.conf'
+sudo qm guest exec 110 -- bash -c 'echo "nameserver 10.6.9.3" >> /etc/resolv.conf'
+sudo qm guest exec 110 -- bash -c 'echo "nameserver 10.6.9.20" >> /etc/resolv.conf'
 sudo qm reboot 110                                                                       # then: ip -br addr shows 10.6.9.10
 ```
 
