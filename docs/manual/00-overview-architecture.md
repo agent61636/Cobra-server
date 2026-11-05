@@ -83,7 +83,7 @@
                                             ┆ Wi-Fi "cobra"
                                           Cobra1 laptop .52
 
-   WireGuard VPN clients: 10.6.99.0/24 (UDP 51820): phone .2, Cobra1 .3
+   WireGuard VPN clients: 10.6.99.0/24 (UDP 51820): Cobra S21 .2, Cobra1 .3
 ```
 
 ### IP plan
