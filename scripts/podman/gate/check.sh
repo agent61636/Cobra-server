@@ -38,6 +38,7 @@ probe() {
 app_answer() {
   case $CODE in
     502|504|TIMEOUT) fail "$1" "$CODE: nginx is fine, but the app behind it isn't answering ($2). Is it running? Can the gate reach it?" ;;
+    500)     fail "$1" "500: nginx couldn't ask Authelia (is it running? podman logs authelia)" ;;
     403)     fail "$1" "403: refused. Authelia has no access_control rule for $1 (default_policy: deny)" ;;
     000)     fail "$1" "no answer: nginx has no server block for this name (or nginx is down)" ;;
     *)       ok   "$1" "$CODE, the app answers ($2)" ;;
@@ -80,7 +81,7 @@ for pair in papers:Paperless metube:MeTube command:Homepage status:"Uptime Kuma"
 done
 
 echo "== The station's floors (sign-in from outside, open at home and over WireGuard)"
-for pair in tv:Jellyfin music:Navidrome eelsmusic:Navidrome mustang:Navidrome books:Audiobookshelf \
+for pair in tv:Jellyfin music:Navidrome mustang:Navidrome books:Audiobookshelf \
             comics:Kavita arcade:RomM art:eo-art gaming:"holding page" sessions:"holding page" \
             scores:"hiscore, part 7" radio:"Icecast, part 8"; do
   h=${pair%%:*}.$DOMAIN app=${pair#*:}

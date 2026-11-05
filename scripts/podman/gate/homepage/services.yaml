@@ -1,7 +1,7 @@
 - Watch & listen:
     - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
     - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
-    - Eels' music:  { href: "https://eelsmusic.songofeo.com",   icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
+    - Music:        { href: "https://music.songofeo.com",       icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
     - Rachel's music: { href: "https://mustang.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4533" }
 - Read & play:
     - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }

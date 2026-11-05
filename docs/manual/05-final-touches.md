@@ -362,7 +362,7 @@ access_control:
     - domain: [papers.songofeo.com, metube.songofeo.com, command.songofeo.com, status.songofeo.com]
       policy: two_factor
     # the station's floors and its pictures: open at home, one password everywhere else
-    - domain: &station [tv.songofeo.com, music.songofeo.com, eelsmusic.songofeo.com, mustang.songofeo.com,
+    - domain: &station [tv.songofeo.com, music.songofeo.com, mustang.songofeo.com,
                         books.songofeo.com, comics.songofeo.com, arcade.songofeo.com, gaming.songofeo.com,
                         sessions.songofeo.com, art.songofeo.com]
       networks: [home]
@@ -475,7 +475,6 @@ server {   # catch-all: bare IP, unknown names, scanners -> refuse the TLS hands
 map $host $station {
   tv.songofeo.com           http://10.6.9.20:8096;    # Cinema: Jellyfin (+ ErsatzTV channels inside it)
   music.songofeo.com        http://10.6.9.20:4533;    # Music: Navidrome (each person sees their own library)
-  eelsmusic.songofeo.com    http://10.6.9.20:4533;    # Navidrome (Eels' library)
   mustang.songofeo.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
   books.songofeo.com        http://10.6.9.20:13378;   # Library: Audiobookshelf
   comics.songofeo.com       http://10.6.9.20:5000;    # Comics: Kavita
@@ -484,7 +483,7 @@ map $host $station {
 }
 server {
   listen 443 ssl; http2 on;
-  server_name tv.songofeo.com music.songofeo.com eelsmusic.songofeo.com mustang.songofeo.com
+  server_name tv.songofeo.com music.songofeo.com mustang.songofeo.com
               books.songofeo.com comics.songofeo.com arcade.songofeo.com art.songofeo.com;
   location /internal/authelia/authz {
     internal;
@@ -623,7 +622,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 | Hostname | Goes to | Sign-in |
 |---|---|---|
 | `gate.` | Authelia (the sign-in page itself) | none |
-| `tv.` `music.` `eelsmusic.` `mustang.` `books.` `comics.` `arcade.` | Jellyfin `:8096`, Navidrome `:4533` (three names), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
+| `tv.` `music.` `mustang.` `books.` `comics.` `arcade.` | Jellyfin `:8096`, Navidrome `:4533` (two names), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
 | `art.` | eo-art `127.0.0.1:8790` on the gate | same as the floors |
 | `gaming.` `sessions.` | the holding page (`conf.d/soon`) | same as the floors |
 | `papers.` `metube.` `command.` `status.` | Paperless `:8000`, MeTube `:8081`, Homepage `:3000`, Uptime Kuma `:3001` on the gate | password + TOTP, everywhere |
@@ -635,12 +634,12 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME to `gate.songofeo.com` in Porkbun (5.5) before it works from outside; those four are home and WireGuard only (`gate.` is the A record itself).
 
 - [ ] `podman exec nginx nginx -t` says `syntax is ok` and `test is successful`
-- [ ] Each hostname loads with a valid padlock: `tv. music. books. comics. eelsmusic. mustang. arcade. gaming. sessions. art. gate. papers. metube. command. status. vault.`
+- [ ] Each hostname loads with a valid padlock: `tv. music. books. comics. mustang. arcade. gaming. sessions. art. gate. papers. metube. command. status. vault.`
 - [ ] `papers.` and `metube.` bounce you to `gate.` first, then back
 - [ ] `https://gate.songofeo.com` shows the dark sign-in screen; signing in there lands on the station (`songofeo.com`)
 - [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
 - [ ] Jellyfin's phone app connects with server address `https://tv.songofeo.com` (no port)
-- [ ] Navidrome: Eels logs in at `eelsmusic.`, Rachel at `mustang.`; each sees only their own library
+- [ ] Navidrome: Eels logs in at `music.` and, as the admin, sees every library; Rachel logs in at `mustang.` and sees only hers. Each person you add later gets their own name, folder and login the same way
 - [ ] `https://10.6.9.10` (bare IP) gets no page at all: the browser says the connection was reset or closed (the catch-all refuses the handshake)
 - [ ] **The gate sees real addresses.** Load `https://tv.songofeo.com` from the desktop, then as podsvc on the gate: `podman logs --tail 3 nginx`. Each line must start with the **desktop's** `10.6.9.x` address. If every line starts with `127.0.0.1` or `10.0.2.x`, the pod isn't using pasta: stop here, because the home bypass, the Vaultwarden LAN rule and Jellyfin's logs all depend on it. Check `podman info --format '{{.Host.RootlessNetworkCmd}}'` says `pasta`
 - [ ] Authelia is up: `curl -s https://gate.songofeo.com/api/health` from the desktop prints `{"status":"OK"}`
@@ -656,7 +655,7 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 
 ## 5.5 Go public
 
-- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv music books comics eelsmusic mustang arcade gaming sessions papers metube command`, plus `vpn` for WireGuard (2.10) (not `vault`, which stays LAN/VPN-only, and not `gate`, which is already the A record). `status` and `art` get no public record for now: they still work at home and over WireGuard, where the Pi-holes answer every `*.songofeo.com` name, but from outside they don't resolve (so the station's landing pages show their drawn artwork instead of live pictures there). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` and `www` records alone: they belong to Porkbun's static hosting (the station). Make sure Porkbun's **URL Forwarding** has nothing for these names.
+- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv music books comics mustang arcade gaming sessions papers metube command`, plus `vpn` for WireGuard (2.10) (not `vault`, which stays LAN/VPN-only, and not `gate`, which is already the A record). `status` and `art` get no public record for now: they still work at home and over WireGuard, where the Pi-holes answer every `*.songofeo.com` name, but from outside they don't resolve (so the station's landing pages show their drawn artwork instead of live pictures there). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` and `www` records alone: they belong to Porkbun's static hosting (the station). Make sure Porkbun's **URL Forwarding** has nothing for these names.
 - [ ] **Before the 443 forward below:** the station's **Sign in** button and every floor's Log In (Project-Eo, live on Porkbun's hosting) must point at `https://gate.songofeo.com/?rd=...`, not `auth.songofeo.com`. Open `https://songofeo.com`, hover Sign in, and check the address in the browser's status bar. Fix them in Project-Eo and redeploy the site if they don't match
 - [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] OPNsense → Firewall → NAT → Port Forward lists **exactly one** rule: WAN TCP 443 → `10.6.9.10`. Nothing points at the SGIN (`10.6.9.20`), where Jellyfin, Navidrome and the other apps answer without the gate. (Part 3.1 deleted the old rules; check again here.) Firewall → Rules → **WAN** has only that 443 rule and the UDP 51820 WireGuard rule from 2.8
@@ -742,7 +741,7 @@ cat > /srv/gate/homepage/services.yaml <<'EOF'
 - Watch & listen:
     - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
     - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
-    - Eels' music:  { href: "https://eelsmusic.songofeo.com",   icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
+    - Music:        { href: "https://music.songofeo.com",       icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
     - Rachel's music: { href: "https://mustang.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4533" }
 - Read & play:
     - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }
