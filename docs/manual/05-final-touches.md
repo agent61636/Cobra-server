@@ -32,6 +32,7 @@ qm start 110
 | Hostname | `cobra-gate` |
 | Disk | the 64 GB virtual disk (`sda`) |
 - [ ] `qm set 110 --ide2 none,media=cdrom`
+- [ ] **Check the address is fixed, not DHCP** (gate console): `ip -br addr` shows `10.6.9.10/24` and nothing else on the NIC, and `grep -A4 'iface' /etc/network/interfaces` says `inet static`. The Pi-holes send every `*.songofeo.com` name to `.10`, so a gate that took a DHCP lease (it would show on OPNsense's **Leases** page as `cobra-gate`, e.g. `10.6.9.176`) breaks every app name at home.
 
 On gate (eels):
 

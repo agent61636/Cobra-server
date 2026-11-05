@@ -174,22 +174,47 @@ Then:
 
 ## 2.6 DHCP reservations and DNS servers handed out
 
-OPNsense versions differ on which DHCP service is active for LAN. Use whichever page shows LAN **enabled**: **Services → ISC DHCPv4 → LAN** (older) or **Services → Dnsmasq DNS & DHCP** (newer).
+OPNsense versions differ on which DHCP service is active for LAN. Use whichever page shows LAN **enabled**: **Services → Dnsmasq DNS & DHCP** (current versions; this build uses it) or **Services → ISC DHCPv4 → LAN** (older).
 
-- [ ] DNS servers: `10.6.9.3` (Pi-hole, created in 2.9) and `10.6.9.1` (*fallback; changed to `10.6.9.20` in part 3*)
-- [ ] Domain name: `home.arpa`
-- [ ] Static mappings / hosts (MAC from `ipconfig /all`, `ip -br link`, or Services → DHCP leases after each box has connected once):
+> ⚠️ **Dnsmasq hands out its own address as DNS unless you tell it otherwise.** With no DHCP option set, every client gets `10.6.9.1` (OPNsense's Unbound) as its only DNS server. Unbound doesn't know any `cobra-*` name and skips both Pi-holes, so `\\cobra-stream` fails on every PC that uses DHCP. The **DHCP options** step below is what fixes it.
 
-| IP | Host |
-|---|---|
-| 10.6.9.6 | cobra-ap (Wi-Fi access point, 2.10b) |
-| 10.6.9.20 | cobra-stream (SGIN) |
-| 10.6.9.30 | cobra-arcade (OptiPlex) |
-| 10.6.9.40 / .41 | R620 iDRAC / R620 (later) |
-| 10.6.9.50 / .51 | the-box / the-spire (desktops) |
-| 10.6.9.52 | Cobra1 (laptop; its **Wi-Fi** adapter's MAC, from `ipconfig /all` → "Wireless LAN adapter Wi-Fi") |
+**On the Dnsmasq page** (Save on each tab, then **Apply** at the bottom once):
 
-`.2`, `.3`, `.10` are static on the hosts themselves; don't add them here.
+- [ ] **General**: Enable ticked, Interface **LAN**, Listen port **`53053`** (keeps Dnsmasq's DNS out of Unbound's way on 53), DHCP default domain **`home.arpa`**, DHCP FQDN and DHCP local domain ticked. **Router advertisements: untick** (this build has no IPv6 on the LAN; Interfaces → LAN → IPv6 Configuration Type stays **None**).
+- [ ] **DHCP ranges** → LAN: Start **`10.6.9.100`**, End **`10.6.9.199`**. Everything outside that range is for fixed addresses, so a guest phone can never land on a server's address.
+- [ ] **DHCP options** → **+**: Type **Set**, Option **`dns-server [6]`**, Interface **LAN**, Value **`10.6.9.3,10.6.9.20`** (Pi-hole 1, then Pi-hole 2). *Before part 3 is done, use `10.6.9.3` alone and add `,10.6.9.20` in 3.9.* Don't list `10.6.9.1`: Windows asks the second server whenever the first is slow, and Unbound would answer "no such name".
+- [ ] **Hosts** → one entry per fixed machine (MAC from `ipconfig /all` "Physical Address", `ip -br link`, or the **Leases** page after each box has connected once). Type MACs **with colons** (`04:7c:16:41:c7:9c`), not dashes. An entry with **no MAC** only names the address; it doesn't reserve it.
+
+| Host | IP | MAC from |
+|---|---|---|
+| cobra-ap (Wi-Fi access point, 2.10b) | 10.6.9.6 | Leases (TP-Link prefix) |
+| cobra-stream (SGIN) | 10.6.9.20 | the USB NIC (`enx…` on the SGIN) |
+| cobra-arcade (OptiPlex) | 10.6.9.30 | `ipconfig /all` on the OptiPlex, or `nbtstat -A 10.6.9.30` from a desktop |
+| r620-idrac / r620 (later) | 10.6.9.40 / .41 | part 9 |
+| the-box / the-spire (desktops) | 10.6.9.50 / .51 | `ipconfig /all` |
+| Cobra1 (laptop) | 10.6.9.52 | its **Wi-Fi** adapter: `ipconfig /all` → "Wireless LAN adapter Wi-Fi" |
+
+`.1`, `.2`, `.3`, `.5` and `.10` are set **on the machines themselves** (OPNsense, Proxmox, Pi-hole 1, cobra-switch, the gate); don't give them DHCP entries. If one of them shows up on the **Leases** page anyway, it's still asking DHCP for an address: fix it on that machine (2.12 for the switch, 5.2 for the gate).
+
+**Every PC on DHCP.** A Windows PC with a hand-typed address never receives the `home.arpa` suffix, so `\\cobra-stream` can't resolve even though `\\cobra-stream.home.arpa` does. Check each desktop and laptop (PowerShell):
+
+```powershell
+ipconfig /all | findstr /i "DHCP IPv4 Gateway DNS Suffix"
+#   want: DHCP Enabled Yes, IPv4 10.6.9.5x, Gateway 10.6.9.1, DNS 10.6.9.3 + 10.6.9.20, Suffix home.arpa
+```
+
+If it says `DHCP Enabled . . . : No`, switch it back (PowerShell **as Administrator**; the network drops for a few seconds; your reservation keeps the same address):
+
+```powershell
+# Record the current settings first, so they can be put back
+ipconfig /all | Out-File ([Environment]::GetFolderPath('Desktop') + '\ip-before.txt')
+# Find the adapter name (e.g. "Ethernet 4") and use it below
+Get-NetAdapter | Where-Object Status -eq Up | Format-Table Name, MacAddress
+netsh interface ipv4 set address    name="Ethernet 4" source=dhcp   # IP + gateway from OPNsense
+netsh interface ipv4 set dnsservers name="Ethernet 4" source=dhcp   # DNS servers + home.arpa suffix
+ipconfig /renew "Ethernet 4"
+net view \\cobra-stream                                             # the short name now resolves
+```
 
 ## 2.7 DNS over TLS (Services → Unbound DNS)
 
@@ -210,7 +235,7 @@ OPNsense versions differ on which DHCP service is active for LAN. Use whichever 
 
 - [ ] **Instances** → Add: name `wg0`, click the gear to **generate keys**, Listen port `51820`, Tunnel address `10.6.99.1/24`. Save. Copy the **public key**.
 - [ ] On the phone/laptop: WireGuard app → **+** → create from scratch → it generates the client key pair. Copy the client's **public key**.
-- [ ] **Peers** → Add: name `phone`, Public key = client's, Allowed IPs `10.6.99.2/32`, Instances `wg0`. Save. Next device: **`cobra1`** (the laptop) on `10.6.99.3/32`, then `.4`, `.5`, …
+- [ ] **Peers** → Add: name `cobra-s21` (the phone), Public key = client's, Allowed IPs `10.6.99.2/32`, Instances `wg0`. Save. Next device: **`cobra1`** (the laptop) on `10.6.99.3/32`, then `.4`, `.5`, …
 - [ ] **Settings**: Enable WireGuard. Apply.
 - [ ] **Interfaces → Assignments**: add `wg0` → description `WG` → Save → open `WG`, tick Enable, Save, Apply.
 - [ ] **Firewall → Rules → WAN** → Add: Pass, Protocol **UDP**, Destination **WAN address**, Port **51820**. Save, Apply.
@@ -227,12 +252,16 @@ DNS = 10.6.9.3, home.arpa      # the name after the IP is a search domain, so sh
 
 [Peer]
 PublicKey = <wg0 public key from OPNsense>
-Endpoint = gate.songofeo.com:51820     # the DDNS name (2.10); the bare songofeo.com is the station on Porkbun's hosting
+Endpoint = vpn.songofeo.com:51820      # CNAME to the DDNS name (2.10); NOT gate.: see the note below
 AllowedIPs = 10.6.9.0/24, 10.6.99.0/24
 PersistentKeepalive = 25
 ```
 
-✅ After 2.10 (DDNS): phone on cellular, Wi-Fi off, tunnel on → `https://10.6.9.2:8006` loads.
+**Why `vpn.` and not `gate.`:** at home the Pi-holes answer every `*.songofeo.com` name with the gate's LAN address `10.6.9.10` (2.9), and that includes `gate.songofeo.com`, because it is also the Authelia sign-in page (part 5). A phone that starts the tunnel at home would aim it at the gate, which has no WireGuard, and keep using that address after it leaves the house. `vpn.songofeo.com` is the one name the Pi-holes pass through to the internet (2.9), so it always gives your public IP.
+
+**At home, turn the tunnel off.** On `cobra` Wi-Fi or a wired port you're already on `10.6.9.x`; the tunnel would only route the LAN through the internet and back.
+
+✅ After 2.10 (DDNS + the `vpn` CNAME): phone on cellular, Wi-Fi off, tunnel on → the WireGuard app shows a **Latest handshake** a few seconds old and `https://10.6.9.2:8006` loads.
 
 ## 2.9 Pi-hole CT 101 (cobra-command shell)
 
@@ -262,7 +291,8 @@ pihole-FTL --config dns.listeningMode ALL
 # *.songofeo.com -> the gate, so LAN traffic never leaves the house. "*." matches only the names
 # under songofeo.com, so the bare songofeo.com and www (the station, on Porkbun's hosting) still
 # resolve normally; without that, the station wouldn't load at home.
-pihole-FTL --config misc.dnsmasq_lines '["address=/*.songofeo.com/10.6.9.10","server=/www.songofeo.com/#"]'
+# vpn. is the WireGuard endpoint (2.8): it must resolve to the public IP even at home.
+pihole-FTL --config misc.dnsmasq_lines '["address=/*.songofeo.com/10.6.9.10","server=/www.songofeo.com/#","server=/vpn.songofeo.com/#"]'
 # local names, full and short. The short ones matter over WireGuard: a VPN client doesn't
 # get the home.arpa search suffix, so \\cobra-stream would otherwise not resolve.
 pihole-FTL --config dns.hosts '["10.6.9.1 cobra-firewall.home.arpa cobra-firewall","10.6.9.2 cobra-command.home.arpa cobra-command","10.6.9.3 cobra-pihole-1.home.arpa cobra-pihole-1","10.6.9.5 cobra-switch.home.arpa cobra-switch","10.6.9.6 cobra-ap.home.arpa cobra-ap","10.6.9.10 cobra-gate.home.arpa cobra-gate","10.6.9.20 cobra-stream.home.arpa cobra-stream","10.6.9.30 cobra-arcade.home.arpa cobra-arcade"]'
@@ -273,6 +303,7 @@ exit
 - [ ] Desktop: `ipconfig /renew`, then `ipconfig /all` lists DNS `10.6.9.3`
 - [ ] `nslookup tv.songofeo.com` → `10.6.9.10`; `nslookup google.com` → real IP; queries show in Pi-hole
 - [ ] `nslookup songofeo.com` and `nslookup www.songofeo.com` → Porkbun's addresses, **not** `10.6.9.10` (the station has to load at home too)
+- [ ] After 2.10: `nslookup vpn.songofeo.com 10.6.9.3` → your **public** IP (via `gate.songofeo.com`), **not** `10.6.9.10`
 
 ## 2.10 Dynamic DNS (Services → Dynamic DNS)
 
@@ -293,6 +324,16 @@ Keeps **`gate.songofeo.com`** (an A record) pointed at your home IP. The bare `s
 - [ ] Save, Apply. Within a few minutes Porkbun → `songofeo.com` → DNS shows an **A** record for `gate` with your public IP. (If the updater won't create the record itself, add `gate` → `1.1.1.1` by hand first; it then corrects the address.) If it doesn't appear, the most common cause is API Access still being off for the domain (part 0.4). ⚠️ Never point the updater at the bare `songofeo.com`: it would overwrite Porkbun's hosting record and take your homepage down.
 - [ ] **IPv4 only.** This build forwards IPv4 only; Xfinity also gives you an IPv6 address, but nothing behind OPNsense is reachable on it. If any updater (this one, or an older one from your old server) publishes it, browsers try the IPv6 first and every link breaks. Leave IPv6 off in the account (no AAAA), and in Porkbun's DNS **delete any AAAA records**. Check from any machine: `nslookup -type=AAAA gate.songofeo.com 1.1.1.1` returns no address.
 - [ ] Turn off any old updater (a script or container on the old server) that also writes to this domain, so two updaters don't fight
+- [ ] Porkbun → `songofeo.com` → DNS → add a **CNAME** `vpn` → `gate.songofeo.com` (the WireGuard endpoint, 2.8).
+- [ ] **Check from outside the house's DNS** (PowerShell on a desktop). Both must print the same address:
+
+```powershell
+(Invoke-RestMethod https://api.ipify.org)                         # your public IP right now
+Resolve-DnsName gate.songofeo.com -Server 1.1.1.1 -Type A         # want: an A record with that IP
+Resolve-DnsName vpn.songofeo.com  -Server 1.1.1.1 -Type A         # want: CNAME gate.songofeo.com, then the same IP
+```
+
+  If the `gate` lookup shows only an **SOA** line (`curitiba.ns.porkbun.com …`) and no A record, the updater has never written the record. Open **Services → Dynamic DNS → Log File**: `401`/`403` or "invalid API key" = wrong keys or API Access still off for the domain (part 0.4); no entries at all = the account isn't enabled or Apply wasn't pressed.
 
 ## 2.10a Wi-Fi devices (TVs, phones, laptops)
 
@@ -435,6 +476,7 @@ The AP is ready for VLANs as-is. When part 9 turns on VLANs on cobra-switch, its
 - [ ] **System → System Info / Device Description:** name `cobra-switch`, location where it sits.
 - [ ] **System → System Time:** your time zone, NTP server `10.6.9.1` (OPNsense).
 - [ ] **System → IP Setting:** DHCP **off**, static: IP `10.6.9.5`, mask `255.255.255.0`, gateway `10.6.9.1`, DNS `10.6.9.3` (and `10.6.9.20` if it takes a second one). Management VLAN stays **1**. Apply. The page stops answering; after 30 seconds browse to **`http://10.6.9.5`** and log in again. (Did you use the `192.168.0.100` fallback? Set the desktop back to Automatic (DHCP) first, move its cable back to switch E, and then browse to `10.6.9.5`.) Static rather than a DHCP mapping on purpose: the switch then comes up on a known address even when the OPNsense VM is down, which is exactly when you need to reach it.
+- [ ] **Check it stuck:** after a **Save Config** (below) and a reboot of the switch, `ping 10.6.9.5` answers, and the Dnsmasq **Leases** page no longer lists `ES210X-M2`. If it still shows a dynamic lease (e.g. `10.6.9.88`), the IP setting wasn't saved: repeat it and press Save Config.
 - [ ] **Security / Access:** if it has an HTTPS option, turn it on and use `https://10.6.9.5` from now on (self-signed warning, as on Proxmox). Turn off **Telnet** if it's listed. The UI is only reachable from the LAN and over WireGuard, because OPNsense forwards nothing to it.
 - [ ] **Loop Prevention** (under L2 Features or Monitoring): **on**, globally and on every port. It usually ships on; check it.
 - [ ] **VLAN → 802.1Q VLAN:** leave the default: VLAN 1, every port **untagged**, every PVID **1**. Part 9 changes this; until then a tag in the wrong place cuts machines off.
@@ -497,10 +539,10 @@ Unplugged, labelled *spare, unmanaged*, and kept with its power brick. Two good 
 
 ## Done when
 
-- [ ] Wired devices get `10.6.9.1xx` (or their reservation), DNS `10.6.9.3`, and browse normally
+- [ ] Wired devices get `10.6.9.1xx` (or their reservation), DNS `10.6.9.3` + `10.6.9.20`, suffix `home.arpa`, and browse normally; `net view \\cobra-stream` works by its short name
 - [ ] Proxmox at `https://10.6.9.2:8006`, OPNsense at `https://10.6.9.1` (TOTP)
 - [ ] `nslookup anything.songofeo.com` on the LAN → `10.6.9.10`; `nslookup songofeo.com` → not `10.6.9.10`
-- [ ] Porkbun A record for `gate.songofeo.com` = your public IP; no AAAA records; the bare `songofeo.com` still shows your Porkbun-hosted homepage
+- [ ] Porkbun A record for `gate.songofeo.com` = your public IP, and `vpn` CNAME → `gate.songofeo.com` (checked against `1.1.1.1`); no AAAA records; the bare `songofeo.com` still shows your Porkbun-hosted homepage
 - [ ] Phone on cellular reaches Proxmox through WireGuard
 - [ ] A laptop on `cobra` Wi-Fi (2.10b) gets `10.6.9.1xx` and opens `\\cobra-stream`
 - [ ] Every wired machine is on cobra-switch (2.12) at its expected link speed, and `http://10.6.9.5` (or `https://`) opens its UI
