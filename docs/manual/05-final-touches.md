@@ -37,7 +37,7 @@ On gate (eels):
 
 ```bash
 sudo apt update && sudo apt full-upgrade -y
-sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit nftables systemd-container
+sudo apt install -y qemu-guest-agent podman crun passt uidmap cockpit nftables systemd-container curl openssl git   # curl + openssl: scripts/podman/gate/check.sh; git: to clone the scripts
 # rootless containers may bind 80/443
 echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/90-ports.conf && sudo sysctl --system
 sudo useradd -m -s /bin/bash podsvc && sudo loginctl enable-linger podsvc
@@ -608,6 +608,22 @@ podman logs authelia 2>&1 | grep -iE 'level=(error|fatal)|deprecat' || echo "Aut
 ```
 
 Checks before going public (from a desktop on the LAN, where Pi-hole sends every name to the gate):
+
+- [ ] **Every hostname in one go.** On the gate (as eels or podsvc), from the repo checkout: `~podsvc/cobra-server/scripts/podman/gate/check.sh`. It asks the gate's own nginx for each name below and prints OK, NOTE or FAIL with what to look at. Run from the gate it's the view from *outside* the house, so the floors must send you to the sign-in too. Expected before parts 7 and 8: `scores.` and `radio.` show NOTE (no server block yet). The other checks below are the ones a script can't do for you (real browsers, the cookie, apps' own logins).
+
+| Hostname | Goes to | Sign-in |
+|---|---|---|
+| `gate.` | Authelia (the sign-in page itself) | none |
+| `tv.` `music.` `eelsmusic.` `rupaulradio.` `books.` `comics.` `arcade.` | Jellyfin `:8096`, Navidrome `:4533` (three names), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
+| `art.` | eo-art `127.0.0.1:8790` on the gate | same as the floors |
+| `gaming.` `sessions.` | the holding page (`conf.d/soon`) | same as the floors |
+| `docs.` `metube.` `home.` `status.` | Paperless `:8000`, MeTube `:8081`, Homepage `:3000`, Uptime Kuma `:3001` on the gate | password + TOTP, everywhere |
+| `vault.` | Vaultwarden `:8222` on the gate | none; LAN and WireGuard only, 403 elsewhere |
+| `scores.` (part 7) | hiscore `127.0.0.1:8090` | password (except `/upload/`, `/public/`, `/screen`) |
+| `radio.` (part 8) | Icecast `10.6.9.20:8000` | password; `/admin` LAN and WireGuard only |
+| anything else, or the bare IP | nothing: the TLS handshake is refused | |
+
+Every name except `gate.` and `vault.` must also be a CNAME to `gate.songofeo.com` in Porkbun (5.5) before it works from outside.
 
 - [ ] `podman exec nginx nginx -t` says `syntax is ok` and `test is successful`
 - [ ] Each hostname loads with a valid padlock: `tv. music. books. comics. eelsmusic. rupaulradio. arcade. gaming. sessions. art. gate. docs. metube. home. status. vault.`

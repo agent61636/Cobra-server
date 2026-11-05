@@ -7,7 +7,7 @@ One bash script per app, using plain `podman run`. They build the same two pods 
 | SGIN, `cobra-stream` (10.6.9.20) | [`sgin/`](sgin/) | `stream` | `jellyfin.sh` (Quick Sync), `ersatztv.sh` (live TV channels + guide), `navidrome.sh` (one library per person), `audiobookshelf.sh`, `kavita.sh`, `romm.sh` (RomM + EmulatorJS + MariaDB), `radio.sh` (Icecast + Liquidsoap, part 8) |
 | Gate VM, `cobra-gate` (10.6.9.10) | [`gate/`](gate/) | `gate` | `vaultwarden.sh`, `paperless.sh` (Paperless + Postgres + Redis), `metube.sh`, `homepage.sh`, `hiscore.sh` (part 7), `eo-art.sh` (the station's pictures), plus the pieces the gate needs to be reachable: `nginx.sh`, `authelia.sh` (the station sign-in), `uptime-kuma.sh` |
 
-Each folder also has `up-all.sh`, which runs every script on that host in order.
+Each folder also has `up-all.sh`, which runs every script on that host in order. On the gate, one app that fails (say Paperless while the SGIN's share isn't mounted) doesn't stop the others: nginx and Authelia still start, and the failures are listed at the end. The gate also has `check.sh`, which tests every `*.songofeo.com` name (certificate, sign-in redirects, 2FA apps, apps answering) and says what to look at for each failure.
 
 ## Before you run them
 
@@ -33,6 +33,7 @@ Every script is safe to run again. It removes that app's container and starts a 
 |---|---|
 | Update one app to its newest image | `UPDATE=1 ./jellyfin.sh` |
 | Update everything on the host | `UPDATE=1 ./up-all.sh` (read the release notes for Authelia, Paperless and RomM first) |
+| Check every hostname on the gate | `./check.sh` on the gate (the view from outside the house: floors and admin apps must send you to the sign-in), or `./check.sh 10.6.9.10` from a LAN machine with this repo (floors open straight away) |
 | See logs | `podman logs -f jellyfin` |
 | Restart one app | `podman restart jellyfin` |
 | Add another person's music library | `MUSIC_USERS="eels rachel sam" ./navidrome.sh` (it makes `music/sam` on dock1a and prints the steps) |
