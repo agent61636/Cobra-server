@@ -38,6 +38,7 @@ probe() {
 app_answer() {
   case $CODE in
     502|504|TIMEOUT) fail "$1" "$CODE: nginx is fine, but the app behind it isn't answering ($2). Is it running? Can the gate reach it?" ;;
+    500)     fail "$1" "500: nginx couldn't ask Authelia (is it running? podman logs authelia)" ;;
     403)     fail "$1" "403: refused. Authelia has no access_control rule for $1 (default_policy: deny)" ;;
     000)     fail "$1" "no answer: nginx has no server block for this name (or nginx is down)" ;;
     *)       ok   "$1" "$CODE, the app answers ($2)" ;;
@@ -69,7 +70,7 @@ health=$(curl -sk -m 10 --resolve "gate.$DOMAIN:443:$TARGET" "https://gate.$DOMA
 [[ $health == *'"OK"'* ]] && ok "Authelia health" "$health" || fail "Authelia health" "${health:-no answer}"
 
 echo "== Admin apps (password + TOTP from everywhere, so always a redirect to the sign-in)"
-for pair in docs:Paperless metube:MeTube home:Homepage status:"Uptime Kuma"; do
+for pair in papers:Paperless metube:MeTube command:Homepage status:"Uptime Kuma"; do
   h=${pair%%:*}.$DOMAIN app=${pair#*:}
   probe "$h"
   if [ "$CODE" = 302 ] && [[ $LOC == "$PORTAL"* ]]; then ok "$h" "302 to the sign-in ($app)"
@@ -80,7 +81,7 @@ for pair in docs:Paperless metube:MeTube home:Homepage status:"Uptime Kuma"; do
 done
 
 echo "== The station's floors (sign-in from outside, open at home and over WireGuard)"
-for pair in tv:Jellyfin music:Navidrome eelsmusic:Navidrome rupaulradio:Navidrome books:Audiobookshelf \
+for pair in tv:Jellyfin music:Navidrome mustang:Navidrome books:Audiobookshelf \
             comics:Kavita arcade:RomM art:eo-art gaming:"holding page" sessions:"holding page" \
             scores:"hiscore, part 7" radio:"Icecast, part 8"; do
   h=${pair%%:*}.$DOMAIN app=${pair#*:}
