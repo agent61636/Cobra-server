@@ -8,5 +8,6 @@ Ideas and buying research that don't belong to any build stage yet. Nothing here
 | Wi-Fi access points | [wifi-access-points.md](wifi-access-points.md) | AP models to plug into the switch so wireless devices sit behind the same protection as wired ones |
 | Arcade GPU and refurbished towers | [arcade-gpu-and-towers.md](arcade-gpu-and-towers.md) | GPUs that fit the OptiPlex 7040 Mini Tower, the power-supply mod, and cheap refurbished towers that take a full-size NVIDIA card |
 | Container ideas | [../research/containers.md](../research/containers.md) | Better picks and new apps for the SGIN and the gate VM, not yet in part 3 or 5 |
+| Plugins, integrations and gaps | [../research/gaps-plugins-and-apps.md](../research/gaps-plugins-and-apps.md) | Third pass (Nov 2026): Jellyfin 12 heads-up, plugins inside the running apps, Authelia OIDC and passkeys, the public side, business and production apps, alerts and config backups |
 
 Prices, versions and performance figures in these files are as of October 2026 and drift quickly. Check them again before buying anything.
