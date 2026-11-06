@@ -856,7 +856,7 @@ table inet filter {
     ct state established,related accept
     iif lo accept
     ip protocol icmp accept
-    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } tcp dport { 22, 53, 80, 443, 445, 4533, 4534, 4535, 4536, 5000, 8007, 8080, 8096, 8409, 9090, 13378 } accept
+    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } tcp dport { 22, 53, 80, 443, 445, 4533, 4534, 4535, 4536, 4537-4549, 5000, 8007, 8080, 8096, 8409, 9090, 13378 } accept
     ip saddr { 10.6.9.0/24, 10.6.99.0/24 } udp dport 53 accept
   }
 }
@@ -893,6 +893,7 @@ PublishPort=4533:4533
 PublishPort=4534:4534
 PublishPort=4535:4535
 PublishPort=4536:4536
+PublishPort=4537-4549:4537-4549
 PublishPort=8080:8080
 [Install]
 WantedBy=default.target
@@ -1043,7 +1044,7 @@ podman ps                                     # stream-infra + 10 containers Up
 - [ ] Each container sees the drives that were mounted when it started. After plugging a drive back in, as podsvc: `systemctl --user restart stream-pod`, and only then scan libraries
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable H.264/HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), hardware encoding on, **Low-Power H.264/HEVC encoder on**, tone mapping on **and VPP tone mapping on**. Leave the transcode path on the internal SSD (the default). Users: hidden, Quick Connect off. If some movies stutter, see 3.8c
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
-- [ ] Navidrome: **one instance per person**, not one instance with several libraries. `navidrome` (`:4533`, `music.`) is Eels' and reads all of `dock1a/music`, so it sees everyone's music; `navidrome-rachel` (`:4535`, `mustang.`) reads only `dock1a/music/rachel`; `navidrome-comedy` (`:4534`, `comedy.`) reads `dock1a/comedy`; `navidrome-sessions` (`:4536`, `sessions.`) reads `dock1a/sessions`, your recorded podcasts. Someone new gets a folder `dock1a/music/<name>`, a copy of `navidrome-rachel.container` with the next free port (and that port added to `stream.pod` and the nftables line above), and a public name on the gate (part 5.4)
+- [ ] Navidrome: **one instance per person**, not one instance with several libraries. `navidrome` (`:4533`, `music.`) is Eels' and reads all of `dock1a/music`, so it sees everyone's music; `navidrome-rachel` (`:4535`, `mustang.`) reads only `dock1a/music/rachel`; `navidrome-comedy` (`:4534`, `comedy.`) reads `dock1a/comedy`; `navidrome-sessions` (`:4536`, `sessions.`) reads `dock1a/sessions`, your recorded podcasts. Someone new gets a **Cobra N.A.V.**: a block on the switchboard that switches genre, artist or album folders of the one shared `dock1a/music` on for them (read-only, nothing copied), built with `nav.sh` and walled off on the gate with `gate-nav.sh`. Ports 4537-4549 are the clone slots. See [`scripts/nav`](../../scripts/nav/README.md)
 - `ND_REVERSEPROXYWHITELIST=10.6.9.10/32`: Navidrome trusts the `Remote-User` header from the gate only, so someone the station's sign-in (part 5.4) already let in isn't asked again. Give each person the same username here as in Authelia's `users.yml`.
 - [ ] Each app: create its admin user now. Until you do, the first person to open the page becomes admin. First-run screens, all from the desktop's browser:
 
