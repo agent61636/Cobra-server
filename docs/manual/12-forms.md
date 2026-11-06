@@ -1,5 +1,7 @@
 # 12. Our own form service (forms.songofeo.com)
 
+**Inbox only (November 6, 2026):** use [12-forms-inbox-only.md](12-forms-inbox-only.md). No Gmail, and the gate bundle is built from this repository.
+
 **Result:** the website forms that used to go through FormSubmit now post to our own receiver on the gate, `https://forms.songofeo.com/f/<form>`. There are three: **Advocate Change** (`voices`) and **Demand Justice** (`help`) on songofeo.com/council, and the **Cobra enlistment** (`enlist`) on hailcobra.com. Each submission is **saved on the gate first**, so none is ever lost, and then **emailed to your Gmail**, with the enlistment's filecard art attached. You can also read every saved one at `https://forms.songofeo.com/inbox`, behind your sign-in and TOTP. It's free, and it keeps working for as long as the gate runs.
 
 **Needs:** part 5 (gate pod, nginx, Authelia, the wildcard cert, port 443 forwarded). About 30 minutes.
