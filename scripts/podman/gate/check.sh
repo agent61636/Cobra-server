@@ -118,6 +118,22 @@ elif [ "$CODE" = 000 ]; then note "vip.$DOMAIN" "no server block yet (part 5.4)"
 else fail "vip.$DOMAIN" "$CODE ${LOC:-}: should be a 302 to $PORTAL"
 fi
 
+echo "== Forms (the website's forms post here from anywhere; only the saved inbox asks for the sign-in)"
+h=forms.$DOMAIN
+code=$(curl -sk -m 10 -o /dev/null -w '%{http_code}' --resolve "$h:443:$TARGET" "https://$h/health" 2>/dev/null) || code=000
+case $code in
+  200) ok "$h/health" "200, cobra-forms answers" ;;
+  000) note "$h" "no server block yet (apps/forms/README.md)" ;;
+  *)   fail "$h/health" "$code: is the forms container running? podman logs forms" ;;
+esac
+if [ "$code" != 000 ]; then
+  out=$(curl -sk -m 10 -o /dev/null -w '%{http_code} %{redirect_url}' --resolve "$h:443:$TARGET" "https://$h/inbox/" 2>/dev/null) || out=000
+  [[ $out == "302 $PORTAL"* ]] && ok "$h/inbox" "302 to the sign-in" || fail "$h/inbox" "$out: the inbox must send strangers to the sign-in"
+  code=$(curl -sk -m 10 -o /dev/null -w '%{http_code}' --resolve "$h:443:$TARGET" -X POST -H 'Origin: https://evil.example' \
+         -d 'Petition=check.sh' "https://$h/f/voices" 2>/dev/null) || code=000
+  [ "$code" = 403 ] && ok "$h/f/ from another site" "403, refused" || fail "$h/f/ from another site" "$code (expected 403)"
+fi
+
 echo "== Vaultwarden (LAN and WireGuard only, never through the sign-in)"
 probe "vault.$DOMAIN"
 case $CODE in

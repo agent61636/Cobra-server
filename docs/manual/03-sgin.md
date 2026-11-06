@@ -1182,6 +1182,10 @@ Components: pbs-no-subscription
 Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
 EOF
 sudo apt update && sudo apt install -y proxmox-backup-server     # if a "Postfix Configuration" screen appears: "Local only", mail name `cobra-stream.home.arpa`
+# The package also drops its paid enterprise repo, which fails every apt update (and Cockpit's Software updates page) with 401 Unauthorized. Back it up, then switch it off:
+sudo cp -a /etc/apt/sources.list.d/pbs-enterprise.sources /root/pbs-enterprise.sources.bak
+sudo sed -i '0,/^Types:/s//Enabled: no\nTypes:/' /etc/apt/sources.list.d/pbs-enterprise.sources
+sudo apt update                                                  # no 401 and no enterprise.proxmox.com lines now
 # store1 (the VM backups) lives on the Seagate, mounted at /srv/storage/vault in 3.4; part 5.6 adds the library's backups next to it
 sudo proxmox-backup-manager datastore create store1 /srv/storage/vault/store1
 # Reinstall, and that folder already holds backups? Use this instead, which keeps them:

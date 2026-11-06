@@ -21,12 +21,15 @@ jobs:
       - name: cobra-breaks
         working-directory: apps/cobra-breaks
         run: python -m unittest discover -s tests -v
+      - name: cobra-forms
+        working-directory: apps/forms
+        run: python -m unittest discover -s tests -v
   scripts:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck the podman scripts
-        run: shellcheck scripts/podman/lib.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh scripts/oneshot/*.sh
+        run: shellcheck scripts/podman/lib.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh apps/forms/gate/*.sh
   agent:
     runs-on: windows-latest
     steps:

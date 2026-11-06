@@ -1,0 +1,32 @@
+{
+  "forms": {
+    "voices": {
+      "title": "Advocate Change",
+      "label": "[Song of Eo]",
+      "subject": "Advocate Change: a voice from the court",
+      "origins": ["https://songofeo.com", "https://www.songofeo.com"],
+      "next": "https://songofeo.com/council/?heard=advocate"
+    },
+    "help": {
+      "title": "Demand Justice",
+      "label": "[Song of Eo]",
+      "subject": "Demand Justice: a case before the Dais",
+      "origins": ["https://songofeo.com", "https://www.songofeo.com"],
+      "next": "https://songofeo.com/council/?heard=justice"
+    },
+    "enlist": {
+      "title": "Cobra enlistment",
+      "label": "[Hail Cobra]",
+      "subject": "New Cobra enlistment application",
+      "origins": ["https://hailcobra.com", "https://www.hailcobra.com"],
+      "next": "https://hailcobra.com/enlist-thanks.html",
+      "uploads": true,
+      "max_upload_mb": 6
+    }
+  },
+  "limits": {
+    "per_ip_per_hour": 6,
+    "all_per_hour": 120,
+    "max_links": 4
+  }
+}

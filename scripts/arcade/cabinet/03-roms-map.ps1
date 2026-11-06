@@ -8,10 +8,13 @@ if (-not (Test-Path 'D:\Roms')) { Die 'no D:\Roms' }
 $slugs = 'arcade','nes','famicom','fds','snes','n64','ngc','wii','gb','gbc','gba','nds','virtualboy','sms','gamegear',
   'genesis-slash-megadrive','segacd','sega32','saturn','dc','ps','ps2','psp','turbografx16--1','turbografx-16-slash-pc-engine-cd','atari2600','atari5200',
   'atari7800','lynx','jaguar','colecovision','intellivision','vectrex','neogeoaes','neogeomvs','neo-geo-cd','neo-geo-pocket','neo-geo-pocket-color',
-  'wonderswan','wonderswan-color','msx','c64','amiga','dos','3do','pc-fx','pokemon-mini'
+  'wonderswan','wonderswan-color','msx','c64','amiga','dos','3do','pc-fx','pokemon-mini','n3ds'
 # Common other names (LaunchBox, RetroArch, No-Intro, EmulationStation) -> slug. Lower-case, spaces/punctuation dropped.
 $alias = @{
   'mame'='arcade'; 'mame2003'='arcade'; 'mame2003plus'='arcade'; 'fbneo'='arcade'; 'finalburnneo'='arcade'; 'fba'='arcade'; 'cps1'='arcade'; 'cps2'='arcade'; 'cps3'='arcade'
+  'supernes'='snes'; 'nintendosnes'='snes'; 'supernintendosnes'='snes'; 'supernessnes'='snes'; 'nintendones'='nes'; 'famicomnes'='nes'
+  'segagenesismegadrive'='genesis-slash-megadrive'; 'genesismegadrive'='genesis-slash-megadrive'; 'megadrivegenesis'='genesis-slash-megadrive'
+  'nintendogamecubegc'='ngc'; 'nintendo3ds'='n3ds'; '3ds'='n3ds'; 'turbografx'='turbografx16--1'; 'arcademame'='arcade'; 'segamegacd'='segacd'; 'segacd32x'='sega32'
   'nintendoentertainmentsystem'='nes'; 'famicomdisksystem'='fds'
   'supernintendo'='snes'; 'supernintendoentertainmentsystem'='snes'; 'superfamicom'='snes'; 'sfc'='snes'
   'nintendo64'='n64'; 'gamecube'='ngc'; 'nintendogamecube'='ngc'; 'gc'='ngc'; 'nintendowii'='wii'
