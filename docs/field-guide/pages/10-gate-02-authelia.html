@@ -1,0 +1,279 @@
+<!-- WORLD 1 / Authelia: the BOSS GUIDE -->
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE" data-toc="Authelia|Boss Guide: the station sign-in" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-2 · BOSS GUIDE</div>
+      <h1>AUTHELIA</h1>
+      <div class="sub">The Bouncer: one sign-in for the whole station, TOTP for the admin rooms</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+...KKKKKKKKKK...
+..KYYYYYYYYYYK..
+.KYRRRRRRRRRRYK.
+.KYRRRRRRRRRRYK.
+.KYRRRRKKRRRRYK.
+.KYRRRKYYKRRRYK.
+.KYRRRKYYKRRRYK.
+.KYRRRRKKRRRRYK.
+.KYRRRRKKRRRRYK.
+..KYRRRKKRRRYK..
+..KYRRRRRRRRYK..
+...KYRRRRRRYK...
+....KYRRRRYK....
+.....KYYYYK.....
+......KKKK......
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Authelia is the bouncer nginx calls before letting anyone onto a floor. It owns the sign-in screen at gate.songofeo.com, checks your password, asks admins for a six-digit code, and hands out one cookie that works on every songofeo.com name for six hours.</p>
+      <p>Nobody visits Authelia on purpose. You tap the gold star <b>Sign in</b> on the station, or open <code>music.</code> from your phone on cellular, and nginx's side request comes back "not signed in". nginx then bounces you to <code>gate.songofeo.com</code> with your page attached as <code>?rd=</code>. Sign in once and you land back where you started.</p>
+      <p>It keeps its whole world in one folder, <code>/srv/gate/authelia</code>: the rules in <code>configuration.yml</code>, the people in <code>users.yml</code> (password <i>hashes</i> only, never the passwords), its database <code>db.sqlite3</code> with everyone's TOTP devices, and <code>notification.txt</code>, where it writes the "emails" it would send.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>This is the final boss of World 1, Commander. Beat it once (password plus TOTP on the-box) and every admin room on the island opens for six hours.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>authelia/authelia:latest</code></dd>
+          <dt>PORT</dt><dd>9091, on 127.0.0.1 only</dd>
+          <dt>URL</dt><dd>gate.songofeo.com</dd>
+          <dt>DATA</dt><dd><code>/srv/gate/authelia</code></dd>
+          <dt>USERS</dt><dd>eels, rachel (users.yml)</dd>
+          <dt>RUNS AS</dt><dd>podsvc, Quadlet <code>authelia.container</code></dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">6 HOURS PER SIGN-IN</div>
+    </div>
+  </div>
+  <div class="cols-3">
+    <div class="panel tint"><h3>WEAK POINT 1</h3><p><b>A password.</b> Hashed with argon2id in <code>users.yml</code>. Enough for every floor from outside the house.</p></div>
+    <div class="panel tint"><h3>WEAK POINT 2</h3><p><b>A TOTP code.</b> Six digits from your authenticator app. Needed for the four admin rooms, even at home.</p></div>
+    <div class="panel tint"><h3>WEAK POINT 3</h3><p><b>Being home.</b> On the LAN or WireGuard, the floors open with no sign-in at all. Admin rooms still ask.</p></div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>ROOM</th><th>NAMES</th><th>RULE (POLICY)</th></tr>
+    <tr><td><b>Admin rooms</b></td><td>papers. metube. command. status.</td><td><b>two_factor</b>: password + TOTP, from everywhere, even home</td></tr>
+    <tr><td><b>The floors</b></td><td>music. mustang. comedy. sessions. books. comics. arcade. gaming. art.</td><td><b>bypass</b> on network <code>home</code> (LAN + WireGuard), else <b>one_factor</b></td></tr>
+    <tr><td><b>Anything not listed</b></td><td>a new name you forgot to add</td><td><b>deny</b> (default_policy), even after signing in</td></tr>
+  </table>
+</section>
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>FIRST VISIT TO PAPERS. FROM ANYWHERE</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 BROWSER</b>opens papers.</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 NGINX</b>auth_request</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 AUTHELIA</b>no cookie: 401</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>4 302</b>gate.?rd=papers.</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>5 SIGN IN</b>password + TOTP</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>6 PAPERLESS</b>127.0.0.1:8000</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>THE COOKIE</h3>
+        <p>Signing in sets <code>authelia_session</code> for the domain <b>songofeo.com</b>, so the bare domain and every <code>*.songofeo.com</code> name share it. It's <b>Secure</b> (https only), <b>HttpOnly</b> (page scripts can't read it) and SameSite <b>Lax</b>.</p>
+        <p><code>expiration: 6h</code> and <code>inactivity: 6h</code>: six hours after you sign in, it asks again. There's no "remember me" box (<code>remember_me: -1</code>), so every sign-in lasts the same.</p>
+      </div>
+      <div class="intel"><h3>THE HOME BYPASS</h3>
+        <p><code>definitions.network.home</code> is 10.6.9.0/24 (the LAN) and 10.6.99.0/24 (WireGuard). On the floors, a visitor from <code>home</code> walks straight in, so the Navidrome and Audiobookshelf phone apps keep working. They still have their own logins.</p>
+        <p>It trusts the address nginx hands over, which is the real connection address (<code>X-Forwarded-For $remote_addr</code>). That only works because the pod's pasta networking keeps real visitor addresses.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>TWO SPECIAL CASES</h3>
+        <p><b>tv.</b> never asks Authelia. Friends' smart-TV, Roku and phone Jellyfin apps can't show a web sign-in page, so tv. has its own nginx block with no <code>auth_request</code>, and Jellyfin's own accounts are the lock.</p>
+        <p><b>vault.</b> never asks Authelia either. nginx simply refuses (403) anyone who isn't on the LAN or WireGuard.</p>
+      </div>
+      <div class="intel"><h3>THE LOCKOUT</h3>
+        <p><code>regulation</code>: <b>5 wrong passwords within 10 minutes locks that username for 1 hour</b>. It counts per username, so a stranger hammering "eels" locks eels out too. That's the price of keeping guessers out.</p>
+      </div>
+      <div class="intel"><h3>WHERE IT SENDS YOU BACK</h3>
+        <p>The <code>rd</code> address must be https and under songofeo.com. Anything else (say <code>example.com</code>) is ignored and you land on the station, <code>songofeo.com</code>. No one can use your sign-in page to bounce people to a fake site.</p>
+      </div>
+      <div class="intel"><h3>WHO NGINX SAYS YOU ARE</h3>
+        <p>On the floors, Authelia answers with your username, and nginx passes it on as <code>Remote-User</code>. That's why Music doesn't ask you twice.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>AUTHELIA ANSWERS</th><th>WHAT NGINX DOES</th><th>WHAT YOU SEE</th></tr>
+    <tr><td><b>200</b> allowed</td><td>Forwards the request to the app (with Remote-User on the floors)</td><td>The app, straight away</td></tr>
+    <tr><td><b>401</b> not signed in</td><td>Turns it into a <b>302</b> to gate.songofeo.com with <code>?rd=</code> your page</td><td>The dark sign-in screen</td></tr>
+    <tr><td><b>403</b> refused</td><td>Passes the 403 on</td><td>"Forbidden": no rule for that name, or not enough factors</td></tr>
+    <tr><td><b>no answer</b></td><td>Can't ask Authelia, gives up</td><td><b>500</b> on every guarded name: check <code>podman logs authelia</code></td></tr>
+  </table>
+</section>
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>BOSS FIGHT: THE TOTP GAUNTLET</span></div>
+  <p class="lede">Every person who opens papers., metube., command. or status. needs a TOTP device registered once. Do the whole fight on THE-BOX. The phone only scans the QR code and reads back six digits.</p>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="panel tint"><h3>THE MOVES</h3>
+        <ol class="moves">
+          <li><b>THE-BOX, browser:</b> open <code>https://papers.songofeo.com</code>. You get bounced to the dark sign-in screen at gate.</li>
+          <li>Sign in with your username and password. Authelia sees the room needs two factors and offers <b>Register device</b>. Pick <b>One-Time Password</b>.</li>
+          <li>It says a code was "sent by email". There is no email: the filesystem notifier wrote it into <code>notification.txt</code> on the gate. Read it in your Windows Terminal SSH tab (codes, right).</li>
+          <li>Type that code in the browser. A QR code appears on the-box's screen.</li>
+          <li><b>Phone:</b> scan the QR with an authenticator app (Aegis, 2FAS, Google Authenticator, or the Bitwarden app).</li>
+          <li><b>THE-BOX:</b> type the six digits the phone shows. You're in, and Paperless opens.</li>
+          <li>Empty the notification file so old codes don't sit around.</li>
+        </ol>
+      </div>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>The Commander beat this boss on 6 November at 01:14Z, on the-box, the right way. The first attempt on the phone was not a fun level. The-box first, always!</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">THE-BOX · Windows Terminal</span>
+        <code class="cmd">ssh eels@10.6.9.10</code>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">sudo machinectl shell podsvc@</code>
+        <span class="what">Prompt becomes podsvc@cobra-gate.</span>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">tail -n 20 /srv/gate/authelia/notification.txt</code>
+        <span class="what">The newest one-time code is at the bottom.</span>
+        <code class="cmd">: > /srv/gate/authelia/notification.txt</code>
+        <span class="what">Empties the file once you're registered.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: BACK UP THE SEED</h3>
+        <p>Aegis and 2FAS can export an encrypted backup of your codes. Do it right after registering, and keep it somewhere that isn't the phone. A lost phone with no backup means re-registering every room.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: PASSWORD RESETS</h3>
+        <p>"Forgot password?" works the same way: the reset link lands in <code>notification.txt</code>, not in an inbox. Read it with the same <code>tail</code> on the gate.</p>
+      </div>
+      <div class="stamp">ONE BOSS · FOUR ROOMS</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel"><h3>LETTERS FROM THE BARRACKS</h3>
+    <div class="qa cols-2">
+      <div>
+        <div class="q">Do I register again for metube. after doing papers.?</div>
+        <div class="a">No. One TOTP device covers every two_factor room. Register once, use it on all four.</div>
+        <div class="q">Rachel only listens to music. Does she need TOTP?</div>
+        <div class="a">No. The floors are one_factor from outside and open at home. TOTP is only for people who use the admin rooms.</div>
+      </div>
+      <div>
+        <div class="q">The code in notification.txt doesn't work.</div>
+        <div class="a">It's single-use and short-lived. Ask for a new one in the browser, then <code>tail</code> again and use the newest line at the bottom.</div>
+        <div class="q">New phone. Now what?</div>
+        <div class="a">Restore your authenticator backup on the new phone. No backup? Register a new device the same way, from THE-BOX.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: ADD A PLAYER</h3>
+        <p>New person? Hash their password and add a block to <code>users.yml</code> with <code>displayname</code>, <code>email</code> and the hash. Use the <b>same username</b> they'll have in Navidrome, so Music signs them in by itself. Then restart Authelia.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman run --rm -it docker.io/authelia/authelia:latest authelia crypto hash generate argon2</code>
+        <span class="what">Asks for the password without showing it and prints the argon2id digest. Paste only the digest.</span>
+        <code class="cmd">nano /srv/gate/authelia/users.yml</code>
+        <code class="cmd">systemctl --user restart authelia</code>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: KICK SOMEONE OUT</h3>
+        <p>Delete their block from <code>users.yml</code> and restart. Their session ends on the spot.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: SIGN OUT EVERYWHERE</h3>
+        <p><code>https://gate.songofeo.com/logout</code> ends your session on every name at once. Handy on a borrowed computer.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip blue"><h3>PRO TIP: HEALTH CHECK</h3>
+        <p>Authelia has a health page. <code>{"status":"OK"}</code> means it's alive and nginx can ask it.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">THE-BOX · PowerShell</span>
+        <code class="cmd">curl.exe -s https://gate.songofeo.com/api/health</code>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman logs --tail 30 authelia</code>
+        <span class="what">Every sign-in, failure and lockout is in here.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: INSPECT THE COOKIE</h3>
+        <p>On THE-BOX after signing in: F12, then Application (Chrome) or Storage (Firefox), Cookies, <code>https://gate.songofeo.com</code>. <code>authelia_session</code> should show Domain <code>.songofeo.com</code>, Secure, HttpOnly, SameSite Lax, and expire in six hours.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: TEST THE BYPASS</h3>
+        <p>In a private window on THE-BOX, <code>music.</code> opens straight away (you're home), while <code>papers.</code> still asks for the sign-in and the TOTP code. Same test on cellular: <code>music.</code> must ask first.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: LONGER SIGN-INS</h3>
+        <p>Want 12 hours? Change <code>expiration</code> and <code>inactivity</code> in <code>configuration.yml</code> together, then restart.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>FILE IN /SRV/GATE/AUTHELIA</th><th>WHAT'S IN IT</th><th>TOUCH IT?</th></tr>
+    <tr><td><code>configuration.yml</code></td><td>Rules, cookie, lockout, the three secrets. Mode 600.</td><td>Rules and times, yes. Secrets, never.</td></tr>
+    <tr><td><code>users.yml</code></td><td>One block per person: displayname, email, argon2id hash</td><td>Yes, to add or remove people</td></tr>
+    <tr><td><code>db.sqlite3</code></td><td>Registered TOTP devices, encrypted with the third secret</td><td>No. Backed up with the VM nightly.</td></tr>
+    <tr><td><code>notification.txt</code></td><td>The "emails": one-time codes and reset links</td><td>Read it, then empty it</td></tr>
+  </table>
+  <div class="tip blue"><h3>PRO TIP: CHECK BEFORE YOU RESTART</h3>
+    <p>After editing <code>users.yml</code>, count the hashes: <code>grep -c argon2id /srv/gate/authelia/users.yml</code> must equal the number of people. Zero means a hash didn't paste, and that person can't sign in.</p>
+  </div>
+</section>
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">Stepped on during the build, or flagged in manual part 5.4. This boss bites back.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE RESTART PURGE</h3>
+        <p>Sessions live in Authelia's memory. <b>Any</b> restart, even to add a user, signs <b>everyone</b> out. Not a bug, just everyone signs in again.<span class="fix">Restart when nobody's mid-movie on a floor from outside.</span></p>
+      </div>
+      <div class="trap"><h3>THE THIRD SECRET</h3>
+        <p><code>configuration.yml</code> holds three random secrets. Change the third one (the storage <code>encryption_key</code>) and Authelia can't read <code>db.sqlite3</code>: everyone's TOTP device is gone.<span class="fix">Never touch them. They're in the nightly VM backup with the rest of /srv/gate.</span></p>
+      </div>
+      <div class="trap"><h3>THE SELF-LOCKOUT</h3>
+        <p>Five wrong passwords in ten minutes locks that username for an hour, and a stranger can trigger it for you.<span class="fix">Wait the hour, or restart Authelia (which also signs everyone out).</span></p>
+      </div>
+      <div class="trap"><h3>THE PHONE FUMBLE</h3>
+        <p>Registering TOTP on the phone means reading codes off an SSH session on a tiny screen and copy-pasting between apps.<span class="fix">THE-BOX does the browser and the SSH tab; the phone only scans the QR.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE CODE PILE</h3>
+        <p><code>notification.txt</code> collects every one-time code and reset link ever sent.<span class="fix">Keep it mode 600 and empty it after registering (codes on the boss page).</span></p>
+      </div>
+      <div class="trap"><h3>THE OLD NAME</h3>
+        <p>The portal used to be <code>auth.songofeo.com</code>. That name has no DNS record and no server block any more. Old links to it just fail.<span class="fix">Station links point at <code>https://gate.songofeo.com/?rd=...</code>. Fix any leftover <code>auth.</code> in Project-Eo.</span></p>
+      </div>
+      <div class="trap"><h3>THE GATE CNAME</h3>
+        <p><code>gate</code> is the DDNS <b>A record</b> every other name points at. Adding a CNAME for <code>gate</code> in Porkbun would clash with it.<span class="fix">The portal needs no new DNS record. Ever.</span></p>
+      </div>
+      <div class="trap"><h3>THE OPEN GUEST LIST</h3>
+        <p>Every user in <code>users.yml</code> can open every floor, including <code>music.</code> (all the music) and <code>mustang.</code> (Rachel's). This was flagged on 6 November, with per-person rules proposed and waiting on the member list.<span class="fix">Until then, only add people you'd hand every floor to.</span></p>
+      </div>
+      <div class="trap"><h3>THE OLD SPELLING</h3>
+        <p>Authelia 4.38 moved named networks to <code>definitions.network</code>. The old <code>access_control.networks</code> only warns today.<span class="fix">Read the release notes before <code>podman auto-update</code> pulls a new Authelia.</span></p>
+      </div>
+    </div>
+  </div>
+</section>

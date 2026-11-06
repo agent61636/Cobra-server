@@ -1,0 +1,226 @@
+<!-- WORLD 2 / Kavita: the Comics shop -->
+
+<section class="page theme-sky" data-zone="WORLD 2 · THE STREAM" data-toc="Kavita|The Comics shop: comics, manga, graphic novels" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-5 · CHARACTER SELECT</div>
+      <h1>KAVITA</h1>
+      <div class="sub">The Comics Shop: comics, manga and graphic novels at comics.songofeo.com</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+...K....K....K..
+...KK..KYK..KK..
+....KYKYYYKYK...
+.KKKYYYYYYYYKKK.
+..KYYYYRRYYYYK..
+KKYYYYYRRYYYYYKK
+.KYYYYYRRYYYYYK.
+..KYYYYRRYYYYK..
+.KYYYYYYYYYYYYK.
+KKYYYYYRRYYYYYKK
+..KKYYYYYYYYKK..
+...KYKKYYKKYK...
+...KK..KK..KK...
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Kavita is the island's comic shop. It shelves your CBZ and CBR comic archives, manga and graphic novels by series, draws the covers, and opens a fast page-turning reader right in the browser, phone or tablet included.</p>
+      <p>It remembers where each reader stopped in every issue, shows what's next in a series, and speaks <b>OPDS</b>, the common catalog language that many reading apps understand. It reads EPUB and PDF too, so it can double as an e-book reader.</p>
+      <p>Kavita lives in the <code>stream</code> pod on port <b>5000</b>. Its database, covers and settings stay in <code>/srv/stream/kavita</code> on the SGIN's SSD; the comics come in read-only from <code>dock1a/comics</code>.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>KA-POW! Every issue from the footlockers, filed, sorted and readable from the couch. The Joes can keep their crumpled paper copies.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>jvmilazz0/kavita:latest</code></dd>
+          <dt>PORT</dt><dd>5000</dd>
+          <dt>URL</dt><dd><code>comics.songofeo.com</code></dd>
+          <dt>DATA</dt><dd><code>/srv/stream/kavita</code></dd>
+          <dt>LIBRARY</dt><dd><code>/media/dock1a/comics</code></dd>
+          <dt>SIGN-IN</dt><dd>Gate sign-in from outside + Kavita login</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">TURN EVERY PAGE!</div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>WHAT IT READS</h3>
+    <div class="cols-3">
+      <div><b>Comic archives:</b> <code>.cbz</code> (a ZIP of page images) and <code>.cbr</code> (a RAR). CBZ is the friendliest.</div>
+      <div><b>Books:</b> EPUB and PDF, with a reader for each.</div>
+      <div><b>Metadata:</b> a <code>ComicInfo.xml</code> inside the archive fills in series, number, writer and summary.</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="tip"><h3>PRO TIP: OPDS LINK</h3><p>OPDS is a catalog feed that reading apps understand. Each Kavita user finds their own OPDS link in their user settings.</p></div>
+    <div class="intel"><h3>ONE ADDRESS</h3><p><code>https://comics.songofeo.com</code> everywhere. At home it opens straight to Kavita's login; outside, the gate's sign-in comes first.</p></div>
+  </div>
+</section>
+
+<section class="page theme-sky" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>ISSUE #12 OPENS ON THE TABLET</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 TABLET</b>comics.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 GATE</b>nginx, sign-in from outside</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>3 KAVITA</b>10.6.9.20:5000 login</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>4 SERIES</b>covers, progress, next issue</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 PAGES</b>from the archive on dock1a</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>SERIES FOLDERS</h3>
+        <p>Kavita groups by <b>series</b>, and it expects the files inside folders under the library root, not loose in it. The safe layout is one folder per series:</p>
+        <p><code>comics / Series Name / Series Name 001.cbz</code></p>
+        <p>The folder and file names give Kavita its first guess; a <code>ComicInfo.xml</code> inside the archive, when there is one, gives it the real details.</p>
+      </div>
+      <div class="intel"><h3>THE LIBRARY TYPE MATTERS</h3>
+        <p>When you add a library, its <b>type</b> (Comic, Manga, Book and so on) tells Kavita how to read names and how to show the pages. The island's library is <code>Comics</code>, type <b>Comic</b>, on <code>/media/dock1a/comics</code>. Manga could get its own library of type Manga later.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>WHAT LIVES WHERE</h3>
+        <table class="board">
+          <tr><th>FOLDER</th><th>HOLDS</th></tr>
+          <tr><td><code>/srv/stream/kavita</code> (as <code>/kavita/config</code>)</td><td>Database, users, reading progress, cover images, logs</td></tr>
+          <tr><td><code>/media</code> (read-only)</td><td>Every drive; the library points at <code>dock1a/comics</code></td></tr>
+        </table>
+      </div>
+      <div class="intel"><h3>WATCHING FOR NEW ISSUES</h3>
+        <p>Kavita watches the library folder and notices new files on its own, and it also rescans on a schedule. Linux limits how many folders one user may watch; part 3.3 raised that limit for podsvc, because Kavita, Jellyfin, ABS and the Navidromes all watch at once.</p>
+      </div>
+      <div class="intel"><h3>THE ADMIN</h3>
+        <p>The first visit registers the admin account (the email can be anything local). After that, the admin adds or invites one user per reader.</p>
+      </div>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Comics, Library, Music, Arcade: each floor of the station is its own app on the SGIN, with its own door on the gate. Kavita's door is comics.</div>
+  </div>
+  <div class="panel"><h3>A TIDY RACK</h3>
+    <div class="cols-2">
+<pre class="vt" style="margin:0;font-size:17px;line-height:1.1;">comics/
+  Series Name/
+    Series Name 001.cbz
+    Series Name 002.cbz
+  Another Series (1990)/
+    Another Series (1990) 001.cbz</pre>
+      <p>One folder per series, and the issue number in each file name. Kavita then stacks them in order, shows the next unread issue, and tracks each reader's progress through the run.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-sky" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="panel"><h3>FIRST VISIT, 3 MOVES</h3>
+        <ol class="moves">
+          <li><b>the-box browser:</b> <code>http://10.6.9.20:5000</code> &#8594; register the admin account.</li>
+          <li>&#9881; &#8594; Libraries &#8594; Add: name <code>Comics</code>, type <b>Comic</b>, folder <code>/media/dock1a/comics</code> &#8594; Save &#8594; <b>Scan</b>.</li>
+          <li>Users &#8594; invite or add one per reader.</li>
+        </ol>
+      </div>
+      <div class="tip"><h3>PRO TIP: CBZ IS KING</h3>
+        <p>A CBZ is just a ZIP of page images renamed. Scans of your own comics can be zipped up on the-box and renamed <code>.cbz</code>, and Kavita reads them like any other issue.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: READING APPS</h3>
+        <p>Kavita's web reader works well on phones and tablets. For a dedicated app, look for one that supports <b>OPDS</b>; Kavita gives each user an OPDS link in their settings.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: READING LISTS</h3>
+        <p>Crossovers jump between series. A <b>reading list</b> puts issues from several series in the order you want to read them.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip pink"><h3>PRO TIP: WANT TO READ</h3>
+        <p>Mark series as "want to read" and use <b>collections</b> to group them ("Cobra classics", "Rachel's picks"). They're shelves on top of the folders, nothing moves on disk.</p>
+      </div>
+      <div class="tip"><h3>PRO TIP: ADDING ISSUES</h3>
+        <p>From the-box, copy into <code>\\cobra-stream\media\dock1a\comics\Series Name\</code>. Kavita picks it up; if you're impatient, the library's Scan button does it now.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman logs --tail 50 kavita</code>
+        <code class="cmd">podman restart kavita</code>
+        <span class="what">Safe: everything Kavita knows lives in /srv/stream/kavita.</span>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">ls /srv/storage/disks/dock1a/comics</code>
+        <span class="what">One folder per series is what you want to see.</span>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: E-BOOKS TOO</h3>
+        <p>Kavita reads EPUB nicely. If you like its reader better than ABS's, add a second library of type <b>Book</b> pointed at <code>/media/dock1a/books</code>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="tip lime"><h3>PRO TIP: READER SETTINGS</h3><p>In the reader, the settings menu sets reading direction, page fit and single or double pages. Manga reads right to left; set it once per library type.</p></div>
+    <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Read on the couch, pick up on the tablet in bed. Kavita remembers the page.</div>
+  </div>
+  </div>
+</section>
+
+<section class="page theme-sky" data-zone="WORLD 2 · THE STREAM">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">From manual 3.8 and the footlockers.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE ADMIN SNATCH</h3>
+        <p>Until someone registers, the first visitor gets the admin account.<span class="fix">Register from the-box the moment Kavita first starts.</span></p>
+      </div>
+      <div class="trap"><h3>THE LOOSE ISSUES</h3>
+        <p>Archives sitting directly in <code>comics/</code> with no series folder confuse Kavita's grouping, or get skipped.<span class="fix">One folder per series under the library root.</span></p>
+      </div>
+      <div class="trap"><h3>THE SPLIT SERIES</h3>
+        <p>"Batcave 01.cbz", "Bat-Cave #2.cbz" and "batcave_003.cbz" can turn one series into three.<span class="fix">Name files the same way, or add a ComicInfo.xml with the series name.</span></p>
+      </div>
+      <div class="trap"><h3>THE WRONG TYPE</h3>
+        <p>A Comic library pointed at manga reads names wrong and turns pages the wrong way round.<span class="fix">Manga in its own library of type Manga.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE GHOST DRIVE</h3>
+        <p>Replug dock1a while Kavita runs and it scans an empty folder: series vanish from the shelves.<span class="fix"><code>podman pod restart stream</code> first, scan after.</span></p>
+      </div>
+      <div class="trap"><h3>THE READ-ONLY SHELF</h3>
+        <p>Kavita can't rename, delete or fix files: the library is mounted read-only.<span class="fix">Tidy files on the-box over the share, then scan.</span></p>
+      </div>
+      <div class="trap"><h3>THE WATCHER CAP</h3>
+        <p>Too many apps watching too many folders, and new issues stop showing up until a scheduled scan.<span class="fix">Keep part 3.3's <code>/etc/sysctl.d/90-inotify.conf</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE PHONE-APP WALL</h3>
+        <p>An OPDS app on cellular hits the gate's sign-in page, which it can't show.<span class="fix">Turn WireGuard on first; the gate then lets it through to Kavita's own login.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>SHOPKEEPER'S CHECKLIST</h3>
+    <div class="cols-2">
+      <ul class="checks">
+        <li>Admin registered from the-box</li>
+        <li>Comics library, type Comic, scanned</li>
+      </ul>
+      <ul class="checks">
+        <li>One folder per series on dock1a</li>
+        <li>One Kavita user per reader</li>
+      </ul>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Name files the same way every time and Kavita rewards you with perfect series. Sloppy names are the Joes&#39; favourite trick.</div>
+  </div>
+</section>

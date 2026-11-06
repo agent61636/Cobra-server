@@ -22,6 +22,8 @@ Start with the overview, then follow the parts in order.
 
 Not in a stage yet (distro and desktop choices, Wi-Fi APs, arcade GPU and tower upgrades, container ideas): [docs/future-builds/](docs/future-builds/README.md).
 
+Every container explained, retro game-magazine style (how it works, tips, the traps we hit): [docs/field-guide/](docs/field-guide/README.md), *Claude-Viper's Visual Field Guides Present: You and Your Pod!* (PDF and HTML).
+
 Podman run scripts for every app (instead of the Quadlet files in parts 3, 5, 7 and 8): [scripts/podman/](scripts/podman/README.md).
 
 Apps built for this setup: [`apps/hiscore`](apps/hiscore) (score server), [`apps/hiscore-agent`](apps/hiscore-agent) (cabinet uploader), [`apps/cobra-breaks`](apps/cobra-breaks) (episode breaks), [`apps/site`](apps/site) (landing page), [`apps/radio`](apps/radio) (radio script).

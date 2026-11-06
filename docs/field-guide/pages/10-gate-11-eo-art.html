@@ -1,0 +1,216 @@
+<!-- WORLD 1 / eo-art -->
+
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE" data-toc="eo-art|The Gallery: live pictures for the station" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-11 · CHARACTER SELECT</div>
+      <h1>EO-ART</h1>
+      <div class="sub">The Gallery: one random picture at a time for the station's landing pages</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+KKKKKKKKKKKKKKKK
+KMMMMMMMMMMMMMMK
+KMKKKKKKKKKKKKMK
+KMKSSSSSSSYYSKMK
+KMKSSSSSSSYYSKMK
+KMKSSSSSSSSSSKMK
+KMKSSSGSSSSSSKMK
+KMKSSGGGSSSGSKMK
+KMKSGGGGGSGGGKMK
+KMKGGGGGGGGGGKMK
+KMKKKKKKKKKKKKMK
+KMMMMMMMMMMMMMMK
+KKKKKKKKKKKKKKKK
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">eo-art is the station's picture hanger. When someone opens a Song of Eo landing page, the page asks eo-art for a picture, and eo-art hands back one random image from the right folder: a movie backdrop for the Cinema, album covers for Music, book, comic and game-book covers for the Library, Comics and the Game Cellar.</p>
+      <p>It's a single standard-library Python file, <code>eo_art.py</code>, from the Project-Eo repository (<code>home/eo-art/eo_art.py</code>). The stock <code>python:3-slim</code> image runs it from <code>/srv/gate/eo-art</code>, mounted read-only, on 127.0.0.1:8790 inside the <code>gate</code> pod.</p>
+      <p>The pictures come from the SGIN over the CIFS mount: <code>dock1a/art</code>, with five flat folders of <code>.jpg</code> copies. eo-art only reads them, and rescans every two minutes. An empty folder simply means that page shows its own drawn artwork instead.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>This is the fun window bay the Commander wants back on the station's front. The Song of Eo exterior redesign is another crew's mission, but the pictures come from right here.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>python:3-slim</code></dd>
+          <dt>PORT</dt><dd>8790, 127.0.0.1</dd>
+          <dt>URL</dt><dd>art.songofeo.com (home only)</dd>
+          <dt>APP</dt><dd><code>/srv/gate/eo-art/eo_art.py</code></dd>
+          <dt>PICTURES</dt><dd><code>dock1a/art/*</code>, read-only</dd>
+          <dt>SIGN-IN</dt><dd>Like the floors: open at home, password outside</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">NEW PICTURE EVERY VISIT</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>FOLDER IN DOCK1A/ART</th><th>SETTING</th><th>FEEDS</th></tr>
+    <tr><td><code>movies</code></td><td><code>EO_ART_MOVIES</code></td><td>Cinema backdrops</td></tr>
+    <tr><td><code>albums</code></td><td><code>EO_ART_RADIO</code></td><td>Music and radio covers</td></tr>
+    <tr><td><code>books</code></td><td><code>EO_ART_BOOKS</code></td><td>Library covers</td></tr>
+    <tr><td><code>comics</code></td><td><code>EO_ART_COMICS</code></td><td>Comics covers</td></tr>
+    <tr><td><code>gaming</code></td><td><code>EO_ART_GAMING</code></td><td>Game Cellar game-book covers</td></tr>
+  </table>
+</section>
+
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>THE CINEMA PAGE ASKS FOR A BACKDROP</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 STATION</b>Cinema page</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 NGINX</b>art. floor block</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 AUTHELIA</b>home or signed in</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 EO-ART</b>/cinema/backdrop</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 PICTURE</b>random .jpg</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>A FLOOR, NOT A ROOM</h3>
+        <p><code>art.songofeo.com</code> is in nginx's <code>$station</code> map, next to music. and books., and in Authelia's floor rule. So it opens straight away at home and over WireGuard, and asks for one password elsewhere. Signed in on the station, the landing pages' pictures just load.</p>
+      </div>
+      <div class="intel"><h3>NO PUBLIC NAME (YET)</h3>
+        <p>Manual 5.5 gives <code>art</code> no Porkbun record for now. At home and over WireGuard the Pi-holes answer it; from outside it doesn't resolve, so visitors there see each page's drawn artwork instead of live pictures.</p>
+      </div>
+      <div class="intel"><h3>THE PLAYERS' CORS FILE</h3>
+        <p>The station's pages live on Porkbun's hosting and call the floors from there, so nginx answers them with CORS headers from <code>station-cors.inc</code>. That file came from Project-Eo (<code>home/nginx/station-cors.inc</code>) with eo_art.py.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>RESCANS ITSELF</h3>
+        <p>eo-art looks at its five folders every two minutes. Drop new pictures in and they join the rotation without a restart.</p>
+      </div>
+      <div class="intel"><h3>404 IS FINE</h3>
+        <p>An empty folder answers 404, and the page falls back to its drawn art. The run script's health check counts any HTTP answer, 404 included, as "up".</p>
+      </div>
+      <div class="intel"><h3>NO CURL INSIDE</h3>
+        <p><code>python:3-slim</code> has no curl or wget, so health checks ask with Python's <code>urllib</code> from inside the container.</p>
+      </div>
+      <div class="intel"><h3>READ-ONLY EVERYTHING</h3>
+        <p>The script folder is mounted <code>:ro</code> and the pictures are mounted read-only. eo-art can't change a single file, on the gate or on the SGIN.</p>
+      </div>
+    </div>
+  </div>
+    <table class="board">
+    <tr><th>EO-ART ANSWERS</th><th>THE PAGE SHOWS</th></tr>
+    <tr><td><b>A picture</b></td><td>Your picture, picked at random from that folder</td></tr>
+    <tr><td><b>404</b> (folder empty)</td><td>The page's own drawn artwork</td></tr>
+    <tr><td><b>Sign-in redirect</b> (outside, not signed in)</td><td>Drawn artwork until you sign in on the station</td></tr>
+    <tr><td><b>Nothing</b> (eo-art down)</td><td>Drawn artwork; nginx logs a 502</td></tr>
+  </table>
+<div class="spacer"></div>
+  <div class="panel dark"><h3>WHEN THE SGIN NAPS</h3>
+    <p>Like Paperless and MeTube, eo-art needs the SGIN's share. Its Quadlet has <code>Restart=on-failure</code> every 60 seconds, so it comes back once the share does, and <code>up-all.sh</code> lists it as "did not start" without holding up the rest of the gate.</p>
+  </div>
+</section>
+
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: HANG PICTURES</h3>
+        <p>On THE-BOX, open <code>\\cobra-stream\media\dock1a\art</code> in Explorer and copy <code>.jpg</code> files into the five folders. Copies, not your library: eo-art shows whatever's there.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: WIDE FOR CINEMA</h3>
+        <p>Backdrops fill a wide page: pick landscape pictures for <code>movies</code>. Covers for the other four can be portrait.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: SEE ONE NOW</h3>
+        <p>On THE-BOX's browser, open <code>https://art.songofeo.com/cinema/backdrop</code>. Reload for a new one. 404 means the movies folder is still empty.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: KEEP IT LIGHT</h3>
+        <p>Every visit downloads a picture. A few hundred KB each keeps the pages snappy on a phone; there's no need for 20 MB originals.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman logs --tail 30 eo-art</code>
+        <code class="cmd">systemctl --user restart eo-art</code>
+        <code class="cmd">ls /srv/storage/disks/dock1a/art/movies | head</code>
+        <span class="what">What it can see in one folder.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: UPDATE THE SCRIPT</h3>
+        <p>A new eo_art.py in Project-Eo? Copy it from THE-BOX, install it over the old one as podsvc's file, restart.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">THE-BOX · PowerShell</span>
+        <code class="cmd">scp .\Project-Eo-main\home\eo-art\eo_art.py eels@10.6.9.10:/tmp/</code>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">sudo install -o podsvc -m 644 /tmp/eo_art.py /srv/gate/eo-art/eo_art.py</code>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: CHECK THE NAME</h3>
+        <p>check.sh tests art. with the other floors. It failed on setup night only while eo-art was down.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="tip pink"><h3>PRO TIP: THEME NIGHTS</h3>
+      <p>Swap the <code>movies</code> folder's pictures for a theme (all monster movies in October) and the Cinema's mood changes within two minutes.</p>
+    </div>
+    <div class="tip lime"><h3>PRO TIP: NAME NOTHING</h3>
+      <p>File names don't matter to eo-art. <code>001.jpg</code> works as well as a title.</p>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel dark"><h3>THE FIVE FOLDERS</h3>
+    <p class="vt" style="font-size:18px;color:var(--phosphor);">\\cobra-stream\media\dock1a\art\ movies · albums · books · comics · gaming</p>
+    <p>Same folders on the gate at <code>/srv/storage/disks/dock1a/art</code>, and inside eo-art at <code>/art</code>. One path, three views: that's why the manual mounts the share at the same path as on the SGIN.</p>
+  </div>
+</section>
+
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">The gallery's empty frames, and how they got that way.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE MISSING SCRIPT</h3>
+        <p>eo_art.py lives in the Project-Eo repository, not in cobra-server, so the gate had no copy and eo-art wouldn't start. art. failed check.sh.<span class="fix">Copied from the Project-Eo ZIP on THE-BOX by scp on 6 Nov, 01:38Z. Same for station-cors.inc.</span></p>
+      </div>
+      <div class="trap"><h3>THE MISSING FOLDERS</h3>
+        <p>The run script stops if any of the five <code>art</code> folders doesn't exist.<span class="fix">As eels on the gate: <code>mkdir -p /srv/storage/disks/dock1a/art/{movies,albums,books,comics,gaming}</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE WRONG FORMAT</h3>
+        <p>The art folders are meant for flat sets of <code>.jpg</code> files. Subfolders or other formats may simply be skipped.<span class="fix">Flat folders of .jpg copies.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE BLANK OUTSIDE</h3>
+        <p>On cellular the landing pages show drawn art, not your pictures. That's because art. has no public DNS record yet.<span class="fix">Expected. Add a CNAME for <code>art</code> later if you want live pictures from outside.</span></p>
+      </div>
+      <div class="trap"><h3>THE LOST HEADER</h3>
+        <p><code>station-cors.inc</code> uses <code>add_header</code>, which can silently drop the HSTS header on the floors.<span class="fix">Test with <code>curl.exe -sI https://tv.songofeo.com/</code> and add the HSTS line to the .inc if it's missing (manual 5.4).</span></p>
+      </div>
+      <div class="trap"><h3>THE SHARE DOWN</h3>
+        <p>No SGIN share, no pictures, and eo-art restart-loops every minute.<span class="fix">Fix the CIFS mount first (<code>ls /srv/storage/disks</code> as eels).</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel tint"><h3>FIELD TEST</h3>
+    <ol class="moves">
+      <li>THE-BOX: copy three landscape .jpg files into <code>\\cobra-stream\media\dock1a\art\movies</code>.</li>
+      <li>Wait two minutes for the rescan.</li>
+      <li>Open <code>https://art.songofeo.com/cinema/backdrop</code> and reload a few times: the three take turns.</li>
+      <li>Open the station's Cinema page: the backdrop is yours.</li>
+    </ol>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>That's World 1 cleared, Commander! The gate is guarded, the vault is sealed, the archive files itself. Grab a power-up and warp to World 2: The Stream.</div>
+  </div>
+</section>

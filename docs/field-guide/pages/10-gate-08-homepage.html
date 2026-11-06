@@ -1,0 +1,215 @@
+<!-- WORLD 1 / Homepage -->
+
+<section class="page theme-purple" data-zone="WORLD 1 · THE GATE" data-toc="Homepage|Command: the island's dashboard" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-8 · CHARACTER SELECT</div>
+      <h1>HOMEPAGE</h1>
+      <div class="sub">Command: one screen, a tile for every app, a live dot on each</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+KKKKKKKKKKKKKKKK
+KDDDDDDDDDDDDDDK
+KDKKKKDKKKKDKKKK
+KDKSSKDKNNKDKYYK
+KDKSSKDKNNKDKYYK
+KDKKKKDKKKKDKKKK
+KDDDDDDDDDDDDDDK
+KDKKKKDKKKKDKKKK
+KDKLLKDKOOKDKRRK
+KDKLLKDKOOKDKRRK
+KDKKKKDKKKKDKKKK
+KDDDFDDDFDDDFDDK
+KKKKKKKKKKKKKKKK
+.....KKKKKK.....
+...KKKKKKKKKK...
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Homepage is the island's command console at command.songofeo.com: a dark dashboard with one tile per app, grouped into rows, each tile a link with a little dot that turns red the moment that app stops answering.</p>
+      <p>It's a single container in the <code>gate</code> pod on 127.0.0.1:3000, behind Authelia's two-factor sign-in. There's no database and no settings screen: the whole dashboard is two YAML text files in <code>/srv/gate/homepage</code>. Edit a file, save, and Homepage redraws by itself.</p>
+      <p>The name used to be <code>home.</code>, then <code>throne.</code>; the Commander settled on <b>command.</b> on 5 November. The research notes add a correction worth repeating: Homepage <i>shows</i> your apps and their status, but it doesn't start, stop or update containers.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Every villain's lair needs a wall of glowing screens. This is ours, and the dots really do glow red when something breaks.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>gethomepage/homepage:latest</code></dd>
+          <dt>PORT</dt><dd>3000, 127.0.0.1</dd>
+          <dt>URL</dt><dd>command.songofeo.com</dd>
+          <dt>CONFIG</dt><dd><code>/srv/gate/homepage</code></dd>
+          <dt>SIGN-IN</dt><dd>Authelia password + TOTP</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">LIVE DOTS ON EVERY TILE</div>
+    </div>
+  </div>
+    <div class="cols-3">
+    <div class="panel tint"><h3>SHOWS</h3><p>Every app as a tile, with a link and an up/down dot.</p></div>
+    <div class="panel tint"><h3>DOESN'T</h3><p>Start, stop or update containers. That's Cockpit or the command line.</p></div>
+    <div class="panel tint"><h3>LIVES IN</h3><p>Two YAML files. No database, nothing to migrate.</p></div>
+  </div>
+<div class="spacer"></div>
+  <table class="board">
+    <tr><th>ROW</th><th>TILES</th></tr>
+    <tr><td><b>Watch &amp; listen</b></td><td>Jellyfin, ErsatzTV, Music, Rachel's music, Comedy, Sessions</td></tr>
+    <tr><td><b>Read &amp; play</b></td><td>Audiobookshelf, Kavita, Arcade, High scores</td></tr>
+    <tr><td><b>Files</b></td><td>Paperless, MeTube, Vaultwarden</td></tr>
+    <tr><td><b>Admin</b></td><td>Proxmox, OPNsense, Backups (PBS), Pi-hole 1, Pi-hole 2, Status</td></tr>
+  </table>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>HOW A DOT GETS ITS COLOR</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 YAML</b>siteMonitor URL</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 HOMEPAGE</b>asks it</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 APP</b>answers or not</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 DOT</b>green or red</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>TWO FILES</h3>
+        <p><code>settings.yaml</code> is the look: title "Cobra", dark theme, slate color, and how many columns each row gets. <code>services.yaml</code> is the tiles: a name, the link (<code>href</code>), an icon, an optional description and the <code>siteMonitor</code> address to check.</p>
+      </div>
+      <div class="intel"><h3>BACKSTAGE ADDRESSES</h3>
+        <p>The link you click is the public name (<code>https://tv.songofeo.com</code>). The dot checks the app's back door directly: <code>http://10.6.9.20:8096</code> for Jellyfin, <code>http://127.0.0.1:8000</code> for Paperless. So a dot tests the app itself, not nginx or Authelia.</p>
+      </div>
+      <div class="intel"><h3>ALLOWED HOSTS</h3>
+        <p>Homepage only answers requests for the names it's told about: <code>HOMEPAGE_ALLOWED_HOSTS=command.songofeo.com</code>. That stops other sites from loading your dashboard by pointing a different name at it.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>NO DOT FOR THREE</h3>
+        <p>Proxmox, OPNsense and PBS use self-signed certificates, which Homepage's checker rejects. Their tiles are plain links. Uptime Kuma watches them instead, with "ignore TLS errors".</p>
+      </div>
+      <div class="intel"><h3>STARTER FILES</h3>
+        <p>The first run of <code>homepage.sh</code> copies the starter <code>settings.yaml</code> and <code>services.yaml</code> from the repo. Later runs see the files are there and keep your edits. The manual's part 5.7 writes the same two files by hand.</p>
+      </div>
+      <div class="intel"><h3>ICONS</h3>
+        <p>Names like <code>jellyfin.png</code> come from Homepage's built-in icon set; <code>mdi-trophy</code> is a Material Design icon. No image files to upload.</p>
+      </div>
+    </div>
+  </div>
+    <div class="panel"><h3>ASK CLAUDE-VIPER</h3>
+    <div class="qa cols-2">
+      <div><div class="q">Why does ErsatzTV's tile link to an address, not a name?</div><div class="a">ErsatzTV is LAN only and has no songofeo.com name. The tile goes straight to <code>http://10.6.9.20:8409</code>.</div></div>
+      <div><div class="q">Vaultwarden's tile won't open on cellular.</div><div class="a">Correct: vault. is LAN and WireGuard only. Turn WireGuard on.</div></div>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <div class="panel dark"><h3>ONE TILE, DECODED</h3>
+    <p class="vt" style="font-size:18px;color:var(--phosphor);">- Music: { href: "https://music.songofeo.com", icon: navidrome.png, siteMonitor: "http://10.6.9.20:4533" }</p>
+    <p>Name <b>Music</b>; click goes to the public name through the gate; icon from the built-in set; the dot asks Eels' Navidrome on the SGIN directly.</p>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: ADD A TILE</h3>
+        <p>Copy a line in <code>services.yaml</code>, change the name, link and siteMonitor, save. Homepage picks it up without a restart. Keep the two-space indents: YAML is picky.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">nano /srv/gate/homepage/services.yaml</code>
+        <code class="cmd">podman logs --tail 30 homepage</code>
+        <span class="what">A YAML mistake shows up here.</span>
+        <code class="cmd">systemctl --user restart homepage</code>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: MAKE IT START</h3>
+        <p>Set <code>https://command.songofeo.com</code> as the start page in THE-BOX's browser. Every morning starts with a glance at the dots.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: LIVE NUMBERS</h3>
+        <p>Homepage <b>widgets</b> can show Jellyfin's streams, Pi-hole's blocks or Proxmox's load right on a tile. Each needs that app's API key in <code>services.yaml</code>; Homepage's docs list the fields per service.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip lime"><h3>PRO TIP: CONTROL THE PODS</h3>
+        <p>Want start, stop and logs buttons? That's Cockpit, not Homepage. The research notes suggest the <code>cockpit-podman</code> package for the Cockpit already on the gate (port 9090, LAN and WireGuard only).</p>
+      </div>
+      <div class="tip"><h3>PRO TIP: BACK UP YOUR EDITS</h3>
+        <p>Copy the two files before a big edit. If the page goes blank, put the copy back.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">cp /srv/gate/homepage/services.yaml /srv/gate/homepage/services.yaml.bak</code>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: RED DOT DRILL</h3>
+        <p>A red dot? Click the tile. If the app opens, the dot's address is wrong. If it doesn't, check that app's chapter in this guide.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: HIGH SCORES</h3>
+        <p>The repo's starter file already has the High scores tile (<code>mdi-trophy</code>). It stays red until the hiscore board is running.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel dark"><h3>SETTINGS.YAML, DECODED</h3>
+    <p class="vt" style="font-size:18px;color:var(--phosphor);">title: Cobra · theme: dark · color: slate · headerStyle: clean</p>
+    <p class="vt" style="font-size:18px;color:var(--phosphor);">layout: Watch &amp; listen { style: row, columns: 4 }</p>
+    <p><b>title</b> is the browser tab and header. <b>theme</b> and <b>color</b> set the palette. <b>layout</b> gives each row of <code>services.yaml</code> its style and number of columns: add a column if a row wraps awkwardly.</p>
+  </div>
+  <div class="cols-2">
+    <div class="tip lime"><h3>PRO TIP: NEW ROW</h3><p>A new group in <code>services.yaml</code> becomes a new row. Give it a <code>layout</code> line in <code>settings.yaml</code> to control its columns.</p></div>
+    <div class="tip"><h3>PRO TIP: DESCRIPTIONS</h3><p>A short <code>description</code> under a tile ("LAN/VPN only", "Our podcasts") saves guessing later.</p></div>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">Small traps, but they make the whole dashboard go dark.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE WRONG NAME</h3>
+        <p>Opening Homepage by any name other than <code>command.songofeo.com</code> (an old <code>home.</code> bookmark, say) gets an error instead of the dashboard.<span class="fix">Use command. If you add a name, add it to <code>HOMEPAGE_ALLOWED_HOSTS</code> too.</span></p>
+      </div>
+      <div class="trap"><h3>THE TAB CHARACTER</h3>
+        <p>One tab or a wrong indent in a YAML file and Homepage shows an error instead of tiles.<span class="fix">Spaces only. Read <code>podman logs homepage</code> for the line number.</span></p>
+      </div>
+      <div class="trap"><h3>THE FOREVER-RED DOT</h3>
+        <p>Pointing a siteMonitor at a self-signed https address (Proxmox, OPNsense, PBS) keeps that dot red forever.<span class="fix">Leave those tiles without a dot and let Uptime Kuma watch them.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE OVERWRITE FEAR</h3>
+        <p>Running <code>homepage.sh</code> again does <b>not</b> overwrite your files: it only copies the starters when they're missing. But pasting the manual's 5.7 block again does overwrite.<span class="fix">After you've customised, don't re-paste 5.7. Make a .bak first.</span></p>
+      </div>
+      <div class="trap"><h3>THE LEAKY KEY</h3>
+        <p>Widget API keys sit in <code>services.yaml</code> in plain text.<span class="fix">Keep the file podsvc-only, and give widgets read-only keys where the app offers them.</span></p>
+      </div>
+      <div class="trap"><h3>THE "IT'S ALL GREEN" LIE</h3>
+        <p>A green dot means the app answered Homepage, from inside the gate. It doesn't prove the public name or the sign-in works.<span class="fix">That's what <code>check.sh</code> and Uptime Kuma's public-name monitors are for.</span></p>
+      </div>
+    </div>
+  </div>
+    <div class="cols-2">
+    <div class="trap"><h3>THE WRONG BACK DOOR</h3>
+      <p>A typo in a siteMonitor port (4353 for 4533) paints a healthy app red.<span class="fix">Compare with the port list in <code>scripts/podman/sgin/pod.sh</code> and <code>gate/pod.sh</code>.</span></p>
+    </div>
+    <div class="trap"><h3>THE STALE COPY</h3>
+      <p>The copies of the scripts in the project files are older than the repo. Their Homepage starters may miss tiles.<span class="fix">The repo is the source of truth.</span></p>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Homepage is the console, Uptime Kuma is the alarm. Next chapter: the snake that wakes you when something falls over.</div>
+  </div>
+</section>

@@ -1,0 +1,182 @@
+<!-- WORLD 2 / radio: the Liquidsoap AutoDJ -->
+
+<section class="page theme-orange" data-zone="WORLD 2 · THE STREAM" data-toc="radio|Liquidsoap, the AutoDJ" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-9 · CHARACTER SELECT</div>
+      <h1>RADIO</h1>
+      <div class="sub">The AutoDJ: Liquidsoap shuffles the music, all day, every day</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="6">
+....KKKKKKKKKK....
+...K..........K...
+KKKKKKKKKKKKKKKKKK
+KOOOOOOOOOOOOOOOOK
+KOOKKKKOOOOKKKKOOK
+KOKDDDDKOOKDDDDKOK
+KOKDEEDKFFKDEEDKOK
+KOKDEEDKFFKDEEDKOK
+KOKDDDDKOOKDDDDKOK
+KOOKKKKOOOOKKKKOOK
+KOOOOOOOOOOOOOOOOK
+KKKKKKKKKKKKKKKKKK
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Meet the DJ who never sleeps. The <b>radio</b> container runs Liquidsoap, a programming language made for radio. Its script, <code>apps/radio/radio.liq</code>, is fifteen lines long: shuffle the music folder, crossfade between songs, never go silent, send it to Icecast.</p>
+      <p>The container reads the music library read-only, at <code>/media/music</code>, which is <code>dock1a/music</code> on the SGIN, the same folder the Commander's Navidrome reads. It runs the script from <code>/srv/stream/radio/radio.liq</code> (mounted read-only too), encodes MP3 at 192 kb/s, and pushes it to Icecast at <code>127.0.0.1:8000</code>, mount <code>/stream</code>.</p>
+      <p>The station's name comes from the environment: <code>RADIO_NAME="Song of Eo Radio"</code>. The music folder can be changed the same way with <code>RADIO_MUSIC</code>.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>No playlists to build, no requests to take, no coffee breaks. Drop a song into the library and it joins the rotation by itself.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>savonet/liquidsoap:v2.4.x-latest</code></dd>
+          <dt>SCRIPT</dt><dd><code>/srv/stream/radio/radio.liq</code></dd>
+          <dt>MUSIC</dt><dd><code>dock1a/music</code> as <code>/media/music</code></dd>
+          <dt>OUTPUT</dt><dd>MP3 192 kb/s to Icecast <code>/stream</code></dd>
+          <dt>PORT</dt><dd>None of its own</dd>
+          <dt>NAME</dt><dd>Song of Eo Radio</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">24/7 SHUFFLE</div>
+    </div>
+  </div>
+  <div class="panel dark"><h3>THE WHOLE SCRIPT, DECODED</h3>
+    <table class="board" style="color:var(--ink);">
+      <tr><th>LINE</th><th>WHAT IT DOES</th></tr>
+      <tr><td><code>playlist(mode="randomize", reload_mode="watch", music_dir)</code></td><td>Shuffles every track under the folder and notices new files without a restart</td></tr>
+      <tr><td><code>crossfade(duration=4., music)</code></td><td>4-second smooth hand-off between songs</td></tr>
+      <tr><td><code>mksafe(radio)</code></td><td>Silence instead of a crash if a file is bad</td></tr>
+      <tr><td><code>output.icecast(%mp3(bitrate=192), ...)</code></td><td>Sends it to 127.0.0.1:8000, mount /stream, with the source password</td></tr>
+    </table>
+  </div>
+  <div class="cols-2">
+    <div class="tip"><h3>PRO TIP: STATION NAME</h3><p><code>RADIO_NAME</code> is what listeners' players show as the station. Change it in the container's settings, not in the script.</p></div>
+    <div class="intel"><h3>PINNED TO 2.4</h3><p>The image tag <code>v2.4.x-latest</code> follows Liquidsoap's 2.4 line, so updates bring fixes, not a new language version that could break radio.liq.</p></div>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A NEW SONG JOINS THE ROTATION</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 THE-BOX</b>copy to dock1a\music</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 WATCH</b>playlist sees the file</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>3 LIQUIDSOAP</b>shuffle + crossfade</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>4 ICECAST</b>/stream</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 LISTENERS</b>through radio.</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>STARTING ORDER</h3>
+        <p>The DJ needs the tower. With the scripts, <code>radio.sh</code> starts Icecast, waits for port 8000, then starts radio. With Quadlets, <code>radio.container</code> has <code>Requires=icecast.service</code> and <code>After=</code> it, plus <code>Restart=on-failure</code> every 10 seconds, so a radio that started too early just tries again.</p>
+      </div>
+      <div class="intel"><h3>THE ENTRYPOINT</h3>
+        <p>The Liquidsoap image needs to be told which program to run. The script mode passes <code>--entrypoint liquidsoap</code> and then <code>/radio/radio.liq</code>. In Quadlet mode, if the log says it can't run <code>/radio/radio.liq</code> as a command, the line must be <code>Exec=liquidsoap /radio/radio.liq</code>.</p>
+      </div>
+      <div class="intel"><h3>WHERE ITS SETTINGS COME FROM</h3>
+        <ul>
+          <li><code>RADIO_MUSIC</code>: folder to shuffle (default <code>/media/music</code>)</li>
+          <li><code>RADIO_NAME</code>: the station name listeners see</li>
+          <li><code>ICECAST_SOURCE_PASSWORD</code>: shared with Icecast</li>
+        </ul>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>WHAT IT PLAYS</h3>
+        <p>All of <code>dock1a/music</code>: the Commander's and Rachel's music both. Comedy and your recorded sessions live in their own folders, so they never get on the air.</p>
+      </div>
+      <div class="intel"><h3>WHAT IT DOESN'T DO (YET)</h3>
+        <p>No station IDs, no requests, no schedule. That's the whole point of the fifteen-line script: easy to read, easy to change. Liquidsoap can do all of those later if the Commander wants them.</p>
+      </div>
+      <div class="intel"><h3>UP-ALL SKIPS IT</h3>
+        <p><code>sgin/up-all.sh</code> runs <code>radio.sh</code> only if <code>/srv/stream/radio/radio.liq</code> exists. No script in place, no radio, and the rest of the pod still starts: "skipping the radio (no ... yet, part 8)".</p>
+      </div>
+      <div class="intel"><h3>NO PORT, NO DATA</h3>
+        <p>radio has no port of its own and writes nothing. Its only output goes over 127.0.0.1 to Icecast, inside the pod.</p>
+      </div>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Tower and DJ, two containers, one job each. If the music stops, ask the DJ (podman logs radio). If nobody can hear it, ask the tower.</div>
+  </div>
+  <div class="panel tint"><h3>THE HOUSE BAND</h3>
+    <div class="cols-3">
+      <div><b>radio.</b> streams the shuffle to anyone signed in at the gate.</div>
+      <div><b>music.</b> lets you pick songs yourself, from the same folder.</div>
+      <div><b>The website's players</b> on songofeo.com use the floors behind the gate's sign-in.</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: A STATION CRATE</h3>
+        <p>Want a playlist just for the radio? Make <code>\\cobra-stream\media\dock1a\radio</code>, copy songs in, then point the music mount and <code>RADIO_MUSIC</code> at that folder instead (manual 8.2).</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman logs --tail 30 radio</code>
+        <span class="what">Want: connected to Icecast, and a track starting.</span>
+        <code class="cmd">podman restart radio</code>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">sudo cp /srv/stream/radio/radio.liq /srv/stream/radio/radio.liq.bak</code>
+        <code class="cmd">sudo nano /srv/stream/radio/radio.liq</code>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip lime"><h3>PRO TIP: COPY, THEN EDIT</h3>
+        <p>The repo's <code>apps/radio/radio.liq</code> is the original. The live copy is <code>/srv/stream/radio/radio.liq</code>. Edit the live copy, and keep a backup next to it before big changes.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: CHANGE THE SOUND</h3>
+        <p>Longer fades? Change <code>duration=4.</code> in radio.liq. Better quality? Raise <code>bitrate=192</code>, and remember each listener uses more upload. Then restart radio.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="4"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE MISSING SCRIPT</h3>
+        <p><code>radio.sh</code> stops with "radio.liq is missing" if the script isn't in <code>/srv/stream/radio</code>.<span class="fix">Copy <code>apps/radio/radio.liq</code> there first, owned by podsvc (part 8.2).</span></p>
+      </div>
+      <div class="trap"><h3>THE NAMELESS PROGRAM</h3>
+        <p>Quadlet with <code>Exec=/radio/radio.liq</code>: the log says it can't run that as a command.<span class="fix"><code>Exec=liquidsoap /radio/radio.liq</code>, daemon-reload, restart radio.</span></p>
+      </div>
+      <div class="trap"><h3>THE WRONG PASSWORD</h3>
+        <p>radio and Icecast disagree on the source password: the DJ is refused and the station is dead air.<span class="fix">Same secret or value for both, then restart both.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE BAD FILE</h3>
+        <p>A broken MP3 in the library could crash a less careful DJ.<span class="fix"><code>mksafe</code> plays silence instead and the shuffle moves on. Find the file in the log and fix or remove it on the-box.</span></p>
+      </div>
+      <div class="trap"><h3>THE PUNCHLINE ON AIR</h3>
+        <p>A stand-up album copied into <code>music/</code> ends up in the rotation.<span class="fix">Comedy belongs in <code>dock1a/comedy</code>, which the radio never reads.</span></p>
+      </div>
+      <div class="trap"><h3>THE GHOST DRIVE</h3>
+        <p>dock1a replugged: the DJ shuffles an empty folder and goes quiet.<span class="fix"><code>podman pod restart stream</code>.</span></p>
+      </div>
+    </div>
+  </div>
+</section>

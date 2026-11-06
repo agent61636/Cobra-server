@@ -1,0 +1,220 @@
+<!-- WORLD 1 / Uptime Kuma -->
+
+<section class="page theme-sky" data-zone="WORLD 1 · THE GATE" data-toc="Uptime Kuma|Status: the island's alarm bell" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-9 · CHARACTER SELECT</div>
+      <h1 class="long">UPTIME KUMA</h1>
+      <div class="sub">Status: checks every app every minute, and shouts when one falls over</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+KKKKKKKKKKKKKKKK
+KDDDDDDDDDDDDDDK
+KDDDDDDDDDDDDDDK
+KDDDDDDFDDDDDDDK
+KDDDDDDFDDDDDDDK
+KDDDDDFDFDDDDDDK
+KFFFFFFDFDDFFFFK
+KDDDDDDDDFFDDDDK
+KDDDDDDDDFDDDDDK
+KDDDDDDDDDDDDDDK
+KKKKKKKKKKKKKKKK
+...KTTK..KTTK...
+..KKKKKKKKKKKK..
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Uptime Kuma is the island's sentry. Every minute or so it knocks on every app, every router and both Pi-holes. When one doesn't answer, it turns the monitor red and sends you a notification. When it comes back, it tells you that too.</p>
+      <p>It lives in the <code>gate</code> pod on 127.0.0.1:3001, behind Authelia's two-factor sign-in at <code>status.songofeo.com</code>, with its own admin login on top. Version 2 (the image is pinned to <code>uptime-kuma:2</code>). Everything it knows, monitors, history and settings, is in <code>/srv/gate/uptime-kuma</code>.</p>
+      <p><code>status.</code> has no public DNS record: from outside the house the name doesn't resolve at all. At home and over WireGuard the Pi-holes answer it, so you check it from THE-BOX or from the phone with WireGuard on.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Homepage's dots tell you when you look. Kuma tells you when you don't. That's the difference between a dashboard and an alarm.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>louislam/uptime-kuma:2</code></dd>
+          <dt>PORT</dt><dd>3001, 127.0.0.1</dd>
+          <dt>URL</dt><dd>status.songofeo.com (home only)</dd>
+          <dt>DATA</dt><dd><code>/srv/gate/uptime-kuma</code></dd>
+          <dt>SIGN-IN</dt><dd>Authelia password + TOTP, then its own admin</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      </div>
+      <div class="burst red" style="align-self:center;">RED MEANS WAKE UP!</div>
+    </div>
+  </div>
+    <div class="cols-3">
+    <div class="panel tint"><h3>CHECKS</h3><p>Web pages, raw ports, DNS answers, and certificates.</p></div>
+    <div class="panel tint"><h3>REMEMBERS</h3><p>Every heartbeat, so you see flaky apps, not just dead ones.</p></div>
+    <div class="panel tint"><h3>TELLS</h3><p>Your email or phone app, the moment something changes.</p></div>
+  </div>
+<div class="spacer"></div>
+  <table class="board">
+    <tr><th>MONITOR TYPE</th><th>WHAT TO WATCH (MANUAL 5.7)</th></tr>
+    <tr><td><b>HTTP</b></td><td>Every public hostname: tv. music. books. comics. mustang. comedy. arcade. papers. ...</td></tr>
+    <tr><td><b>HTTP, ignore TLS errors</b></td><td>Proxmox <code>https://10.6.9.2:8006</code>, OPNsense <code>https://10.6.9.1</code>, PBS <code>https://10.6.9.20:8007</code></td></tr>
+    <tr><td><b>DNS</b></td><td>Both Pi-holes, 10.6.9.3 and 10.6.9.20: resolve tv.songofeo.com, expect 10.6.9.10</td></tr>
+    <tr><td><b>TCP port</b></td><td>Samba on the SGIN, 10.6.9.20:445</td></tr>
+  </table>
+</section>
+
+<section class="page theme-sky" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A PUBLIC-NAME CHECK, FROM INSIDE THE GATE</h3>
+    <div class="levelmap">
+      <div class="node boss"><b>1 KUMA</b>check tv.</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 PI-HOLE</b>tv. = 10.6.9.10</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 NGINX</b>TLS, server block</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>4 JELLYFIN</b>10.6.9.20:8096</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>5 VERDICT</b>up or down</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>WHY PUBLIC NAMES WORK</h3>
+        <p>The gate's DNS servers are the two Pi-holes (set at install: 10.6.9.3 and 10.6.9.20). They answer every <code>*.songofeo.com</code> name with 10.6.9.10, so Kuma checking <code>https://tv.songofeo.com</code> goes through the gate's own nginx to the app. One monitor tests the certificate, nginx and the app together.</p>
+      </div>
+      <div class="intel"><h3>HEARTBEATS</h3>
+        <p>Each check is a "heartbeat": green bar for up, red for down. Kuma keeps the history, so you can see when something has been flaky all week, not just whether it's up right now.</p>
+      </div>
+      <div class="intel"><h3>WEBSOCKETS</h3>
+        <p>The dashboard updates live over a websocket. nginx keeps it open for an hour (<code>proxy_read_timeout 1h</code> in the admin block).</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>THE PROTECTED ROOMS</h3>
+        <p>A check on <code>papers.</code> from the gate gets Authelia's redirect to the sign-in, not Paperless. That still proves nginx and Authelia are up. To check the app behind it, point a monitor at its back door instead, like <code>http://127.0.0.1:8000</code>: Kuma is in the same pod.</p>
+      </div>
+      <div class="intel"><h3>NOTIFICATIONS</h3>
+        <p>Settings, Notifications: Kuma can send to email and many phone and chat services. Make one, then attach it to every monitor (there's a "default enabled" switch so new monitors get it too).</p>
+      </div>
+      <div class="intel"><h3>VERSION 2</h3>
+        <p>Uptime Kuma 2.0 went stable in October 2025. The image tag <code>:2</code> keeps you on 2.x updates without jumping to a future 3.</p>
+      </div>
+    </div>
+  </div>
+    <table class="board">
+    <tr><th>YOU SEE</th><th>IT MEANS</th><th>LOOK AT</th></tr>
+    <tr><td><b>One red monitor</b></td><td>That app stopped answering</td><td>Its chapter here, then <code>podman logs</code></td></tr>
+    <tr><td><b>All SGIN apps red</b></td><td>The SGIN or its network link is down</td><td>The SGIN itself (power, USB network adapter)</td></tr>
+    <tr><td><b>Everything red</b></td><td>DNS, or nginx</td><td>The DNS monitors first, then <code>podman logs nginx</code></td></tr>
+    <tr><td><b>Flickering</b></td><td>Up and down all day</td><td>The heartbeat bar's history; often a slow app timing out</td></tr>
+  </table>
+<div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>If BOTH Pi-holes go down, every public-name monitor turns red at once, even though the apps are fine. A wall of red usually means DNS, not twenty broken apps.</div>
+  </div>
+  <div class="tip lime"><h3>PRO TIP: RESPONSE TIMES</h3>
+    <p>Each HTTP monitor also graphs how long the app took to answer. A slowly climbing line warns you before the red ever shows up.</p>
+  </div>
+</section>
+
+<section class="page theme-sky" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: CLAIM IT FIRST</h3>
+        <p>Kuma's very first visit asks you to create the admin account. Do it on THE-BOX right away, with a generated password saved in Vaultwarden.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: MONITOR GROUPS</h3>
+        <p>Group monitors as World 1 (gate apps), World 2 (SGIN apps) and Network (Proxmox, OPNsense, Pi-holes). A whole group going red points straight at the machine.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: KEYWORD CHECKS</h3>
+        <p>An HTTP monitor can also look for a word on the page. Checking that <code>tv.</code> contains "Jellyfin" catches the case where nginx answers but serves the wrong thing.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: THE HISCORE BEAT</h3>
+        <p>When the hiscore board is live, add an HTTP monitor for <code>http://127.0.0.1:8090/healthz</code>. Same pod, so no sign-in in the way.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: QUIET HOURS</h3>
+        <p>Planning to reboot the SGIN? Pause its monitors, or set a maintenance window, so your phone doesn't buzz for every app on it.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: CERT WATCH</h3>
+        <p>HTTP monitors can warn before a certificate expires. Turn it on for one public name: the wildcard cert covers them all.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman logs --tail 30 uptime-kuma</code>
+        <code class="cmd">systemctl --user restart uptime-kuma</code>
+        <code class="cmd">du -sh /srv/gate/uptime-kuma</code>
+        <span class="what">Its history grows over time; this shows how much.</span>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: STATUS PAGE</h3>
+        <p>Kuma can publish a simple status page of chosen monitors. Handy to show Rachel "is the music server up?" Keep it behind the same gate.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>STARTER PACK MONITOR</th><th>TYPE</th><th>ADDRESS</th></tr>
+    <tr><td>Cinema</td><td>HTTP</td><td><code>https://tv.songofeo.com</code></td></tr>
+    <tr><td>Music (Eels)</td><td>HTTP</td><td><code>http://10.6.9.20:4533</code> (back door, skips sign-in)</td></tr>
+    <tr><td>Paperless</td><td>HTTP</td><td><code>http://127.0.0.1:8000</code></td></tr>
+    <tr><td>Pi-hole 1</td><td>DNS</td><td>10.6.9.3, resolve tv.songofeo.com, expect 10.6.9.10</td></tr>
+    <tr><td>Samba</td><td>TCP</td><td>10.6.9.20 port 445</td></tr>
+    <tr><td>Proxmox</td><td>HTTP, ignore TLS</td><td><code>https://10.6.9.2:8006</code></td></tr>
+  </table>
+  <div class="tip lime"><h3>PRO TIP: NAME THEM WELL</h3>
+    <p>Name monitors the way you'd say them out loud ("Music Eels", "Pi-hole 2"), so a 3 a.m. notification makes sense without opening anything.</p>
+  </div>
+</section>
+
+<section class="page theme-sky" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">The sentry can be fooled. Here's how.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE UNCLAIMED THRONE</h3>
+        <p>Until someone creates Kuma's admin, the first visitor who reaches it gets to. Authelia's TOTP keeps strangers out, but don't leave it unclaimed.<span class="fix">Claim it on THE-BOX on the first visit (on the 6 Nov to-do list).</span></p>
+      </div>
+      <div class="trap"><h3>THE DNS AVALANCHE</h3>
+        <p>Both Pi-holes down: every public-name monitor fails together.<span class="fix">Look at the two DNS monitors first. If they're red, fix DNS before anything else.</span></p>
+      </div>
+      <div class="trap"><h3>THE SILENT ALARM</h3>
+        <p>Monitors with no notification attached go red where nobody sees them.<span class="fix">Settings, Notifications, then attach to every monitor and tick "default enabled".</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE SELF-SIGNED RED</h3>
+        <p>Proxmox, OPNsense and PBS use self-signed certificates, so a normal HTTP check always fails.<span class="fix">Tick "Ignore TLS/SSL errors" on those three only.</span></p>
+      </div>
+      <div class="trap"><h3>THE WATCHER'S BLIND SPOT</h3>
+        <p>Kuma lives on the gate. If the gate itself is down, Kuma is down too, and can't tell you.<span class="fix">Proxmox's own notifications (manual 5.7, SMTP) cover the host. An outside check would be the next step.</span></p>
+      </div>
+      <div class="trap"><h3>THE OUTSIDE LOOK</h3>
+        <p>status. has no public record, so it won't load on cellular without WireGuard.<span class="fix">Turn WireGuard on, or check from THE-BOX.</span></p>
+      </div>
+    </div>
+  </div>
+    <div class="cols-2">
+    <div class="trap"><h3>THE SIGN-IN SMILE</h3>
+      <p>A check on <code>papers.</code> follows Authelia's redirect and reads green even if Paperless is down.<span class="fix">For admin apps, also watch the back door on 127.0.0.1.</span></p>
+    </div>
+    <div class="trap"><h3>THE TOO-EAGER BELL</h3>
+      <p>Checks every 20 seconds with no retries buzz your phone for every hiccup.<span class="fix">Give monitors a retry or two before they count as down.</span></p>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <div class="panel dark"><h3>FIELD TEST</h3>
+    <ol class="moves">
+      <li>THE-BOX: add an HTTP monitor for MeTube's back door, <code>http://127.0.0.1:8081</code>. Then GATE, podsvc: <code>systemctl --user stop metube</code>.</li>
+      <li>Within a minute or two that monitor goes red and your notification arrives.</li>
+      <li><code>systemctl --user start metube</code>: green again, and a "back up" notice.</li>
+    </ol>
+  </div>
+</section>

@@ -1,0 +1,215 @@
+<!-- WORLD 1 / hiscore -->
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE" data-toc="hiscore|The Scoreboard (coming soon)" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-10 · CHARACTER SELECT</div>
+      <h1>HISCORE</h1>
+      <div class="sub">The Scoreboard: every cabinet high score, newest first, kept forever</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+.KKKKKKKKKKKKKK.
+KYKYYYYYYYYYYKYK
+KYKYYWYYYYYYYKYK
+KYKYYWYYYYYYYKYK
+.KYKYYYYYYYYKYK.
+..KKYYYYYYYYKK..
+....KYYYYYYK....
+.....KYYYYK.....
+......KYYK......
+......KOOK......
+.....KOOOOK.....
+...KKKKKKKKKK...
+...KMMMMMMMMK...
+...KMMYYYYMMK...
+...KKKKKKKKKK...
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">hiscore is the island's own arcade scoreboard, written for Cobra Island and kept in this repo (apps/hiscore). Whenever a game on the cabinet saves a new high-score file, it's uploaded within seconds; the board at scores.songofeo.com lists every game, newest score first, and keeps every version byte for byte.</p>
+      <p>It's a small Python app that uses only Python's standard library, so there's no image to build: the stock <code>python:3.13-slim</code> image runs it straight from <code>/srv/gate/hiscore-app</code>. Its data, every <code>.hi</code> file ever received plus the index <code>hiscore.db</code>, lives in <code>/srv/gate/hiscore</code>.</p>
+      <p><b>Status:</b> part 7 of the manual is written and the app is tested, but the board isn't running on the gate yet. check.sh shows <code>scores.</code> as NOTE ("no server block yet"), and Homepage's High scores tile stays red until it is. It comes after the cabinet build.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Three letters, one score, eternal glory. Every Joe who ever set a record on our cabinet will be immortalised. Then beaten. By us.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>python:3.13-slim</code></dd>
+          <dt>PORT</dt><dd>8090, 127.0.0.1</dd>
+          <dt>URL</dt><dd>scores.songofeo.com</dd>
+          <dt>APP</dt><dd><code>/srv/gate/hiscore-app</code></dd>
+          <dt>DATA</dt><dd><code>/srv/gate/hiscore</code></dd>
+          <dt>SIGN-IN</dt><dd>Authelia password; cabinet uses an API key</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="stamp" style="align-self:center;">COMING SOON</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>PATH ON SCORES.</th><th>WHO GETS IN</th><th>WHAT IT IS</th></tr>
+    <tr><td><code>/</code></td><td>Signed in with Authelia (one_factor)</td><td>The board: cards per game, NEW badge for the last 24 hours</td></tr>
+    <tr><td><code>/upload/</code></td><td>The cabinet, with its API key (PUT only)</td><td>Where the agent and plugin send <code>.hi</code> files</td></tr>
+    <tr><td><code>/screen</code></td><td>Anyone (GET only)</td><td>The big attract-mode screen for songofeo.com/arcade</td></tr>
+    <tr><td><code>/public/</code></td><td>Anyone, only if <code>HISCORE_PUBLIC=1</code></td><td>Titles, initials and scores, nothing else</td></tr>
+  </table>
+  <div class="cols-3">
+    <div class="panel tint"><h3>KEEPS</h3><p>Every version of every <code>.hi</code> file, downloadable from its card.</p></div>
+    <div class="panel tint"><h3>IGNORES</h3><p>An upload identical to the last one, so quitting without a record bumps nothing.</p></div>
+    <div class="panel tint"><h3>SHOWS</h3><p>Rank, initials and score once something can read the file.</p></div>
+  </div>
+</section>
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A NEW RECORD ON THE CABINET</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 RETROARCH</b>writes galaga.hi</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 CABINET</b>plugin + agent</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 NGINX</b>PUT /upload/</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 HISCORE</b>127.0.0.1:8090</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 BOARD</b>NEW badge</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>TWO UPLOADERS</h3>
+        <p>The <b>LaunchBox plugin</b> uploads the moment a game closes and adds what only LaunchBox knows: the proper title and platform. The <b>hiscore agent</b> checks every 15 seconds, catches games started outside LaunchBox, and retries while the network is down. Both upload; the server ignores a file it already has.</p>
+      </div>
+      <div class="intel"><h3>THE API KEY</h3>
+        <p><code>python -m hiscore hash-key cabinet</code> prints a key and a line for <code>keys.txt</code>. The cabinet keeps the key; the server keeps only its <b>hash</b> in <code>/srv/gate/hiscore/keys.txt</code>. To replace a key, make a new one and swap the line.</p>
+      </div>
+      <div class="intel"><h3>WHAT'S IN A .HI FILE</h3>
+        <p>A copy of the game's memory, not text. Reading it needs a per-game definition: hi2txt on the cabinet through the plugin, or a decoder on the server (<code>HISCORE_DECODER</code>). Games nothing can read still list, as "Score table saved".</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>LOCKED-DOWN NGINX</h3>
+        <p>Its server block opens only three paths without Authelia: <code>/upload/</code> (PUT only, 256 KB max), <code>/public/</code> and <code>/screen</code> (GET only). Everything else, the board itself, needs the sign-in. Viewers need a password, not TOTP.</p>
+      </div>
+      <div class="intel"><h3>THE ARCADE SCREEN</h3>
+        <p><code>/screen</code> cycles through each game's top scores with a ticker of the latest. The server lets <code>songofeo.com</code> show it in a frame and no other site. Options: <code>?embed=1</code>, <code>?seconds=8</code>, <code>?game=galaga</code>, <code>?demo=1</code>.</p>
+      </div>
+      <div class="intel"><h3>PUBLIC OR NOT</h3>
+        <p>With <code>HISCORE_PUBLIC=1</code> (the Quadlet in part 7.3 sets it), anyone can read titles, initials and scores, so the screen on songofeo.com works for visitors. Without it, visitors see demo scores and only signed-in people see real ones.</p>
+      </div>
+    </div>
+  </div>
+    <table class="board">
+    <tr><th>CARD SHOWS</th><th>COMES FROM</th></tr>
+    <tr><td><b>Game title</b></td><td>LaunchBox, through the plugin; or <code>titles.tsv</code>; or the ROM name until then</td></tr>
+    <tr><td><b>System</b></td><td>The RetroArch core folder, e.g. <code>fbneo</code></td></tr>
+    <tr><td><b>Last updated</b></td><td>When the server received a changed file</td></tr>
+    <tr><td><b>Versions + download</b></td><td>Every distinct upload, kept in <code>raw/</code></td></tr>
+    <tr><td><b>Score table</b></td><td>hi2txt on the cabinet, or a server decoder</td></tr>
+  </table>
+<div class="spacer"></div>
+  <div class="panel dark"><h3>THE PUBLIC BOARD, ONE ENTRY</h3>
+    <p class="vt" style="font-size:18px;color:var(--phosphor);">{"game": "galaga", "title": "Galaga", "system": "fbneo", "scores": [{"rank": "1", "score": "52310", "name": "EEL"}]}</p>
+    <p><code>/public/v1/board</code>: newest first, up to 100 games (<code>?limit=</code> up to 500), at most 10 scores each.</p>
+  </div>
+</section>
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">      <div class="tip lime"><h3>PRO TIP: ONE GAME ONLY</h3>
+        <p><code>/screen?game=galaga</code> shows a single game's table: perfect for a tournament night on the marquee.</p>
+      </div>
+
+      <div class="tip"><h3>PRO TIP: IS IT ALIVE?</h3>
+        <p><code>/healthz</code> answers <code>{"ok": true}</code>. The image has no curl, so ask with Python from inside.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec hiscore python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8090/healthz').read())"</code>
+        <code class="cmd">podman logs --tail 30 hiscore</code>
+        <code class="cmd">systemctl --user restart hiscore</code>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: REAL TITLES</h3>
+        <p>Put a <code>titles.tsv</code> in <code>/srv/gate/hiscore/</code>, one <code>romname</code>, tab, <code>Title</code> line per game, and restart. ROM names become proper names even without the plugin.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: TRY THE SCREEN</h3>
+        <p>On THE-BOX, open <code>https://scores.songofeo.com/screen?demo=1</code> to see attract mode with made-up games before any real score exists.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip lime"><h3>PRO TIP: A NEW KEY</h3>
+        <p>Run the hash-key command from the app folder. It prints the key (into Vaultwarden it goes) and the line for <code>keys.txt</code>.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">cd /srv/gate/hiscore-app</code>
+        <code class="cmd">podman run --rm -v "$PWD":/app:ro,Z -w /app docker.io/library/python:3.13-slim python -m hiscore hash-key cabinet</code>
+      </div>
+      <div class="tip"><h3>PRO TIP: UPDATE THE APP</h3>
+        <p>New version in the repo? Copy <code>apps/hiscore/hiscore</code> to the gate (scp from THE-BOX), replace <code>/srv/gate/hiscore-app/hiscore</code>, restart. With the run scripts, <code>hiscore.sh</code> copies it from a repo checkout by itself.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: DOWNLOAD A RECORD</h3>
+        <p>Every card has a download link for each version. Lost the cabinet's disk? Your scores aren't lost.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: SCORE THE CHECK</h3>
+        <p>A bad key must get 401: <code>curl -X PUT -H "Authorization: Bearer wrong" --data-binary x https://scores.songofeo.com/upload/test/x.hi</code> from THE-BOX.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel dark"><h3>WHERE THE FILES LAND</h3>
+    <p class="vt" style="font-size:18px;color:var(--phosphor);">/srv/gate/hiscore/raw/fbneo/galaga.hi/&lt;time&gt;-&lt;hash&gt;.hi</p>
+    <p>One folder per system and game, one file per version, named by when it arrived and its fingerprint. <code>hiscore.db</code> next to <code>raw/</code> is the index of titles and tables. All of it is inside VM 110, so the nightly backup to PBS covers every score ever set.</p>
+  </div>
+</section>
+
+<section class="page theme-red" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">The board isn't live yet, so these are the traps waiting for launch day.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE MISSING KEY FILE</h3>
+        <p>No <code>keys.txt</code>, or a wrong line in it, and every cabinet upload gets 401. The board stays empty.<span class="fix">One line: <code>cabinet</code>, a space, the hash. Mode 600. The script warns when the file is empty.</span></p>
+      </div>
+      <div class="trap"><h3>THE DEMO-ONLY SCREEN</h3>
+        <p><code>hiscore.sh</code> doesn't set <code>HISCORE_PUBLIC</code>; the part 7.3 Quadlet does. Run by script and visitors see demo scores on songofeo.com/arcade.<span class="fix">Script mode: put <code>HISCORE_PUBLIC=1</code> in <code>~/.config/cobra/hiscore.env</code> and rerun.</span></p>
+      </div>
+      <div class="trap"><h3>THE FORGOTTEN RULE</h3>
+        <p>Add the nginx block but not Authelia's rule, and scores. answers 403: default deny.<span class="fix">Add <code>scores.songofeo.com</code> with <code>policy: one_factor</code>, then restart nginx and authelia.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE NO-DNS NAME</h3>
+        <p>Without a Porkbun CNAME, scores. works at home (the Pi-holes answer every name) but not from outside.<span class="fix">CNAME <code>scores</code> to <code>gate.songofeo.com</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE BIG UPLOAD</h3>
+        <p>nginx caps <code>/upload/</code> at 256 KB, matching the server's default. Some odd file bigger than that is refused.<span class="fix">That's on purpose: .hi files are tiny. Raise both limits only if a real game needs it.</span></p>
+      </div>
+      <div class="trap"><h3>THE UNREADABLE CARD</h3>
+        <p>A card says "Score table saved" but shows no initials. Nothing can read that game's file yet.<span class="fix">hi2txt on the cabinet (7.6) or a server decoder (7.8). The file is kept either way.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel dark"><h3>LAUNCH DAY CHECKLIST</h3>
+    <ul class="checks">
+      <li>App in <code>/srv/gate/hiscore-app</code>, key line in <code>keys.txt</code></li>
+      <li>Container up, <code>/healthz</code> says ok</li>
+      <li>nginx block, Authelia rule, Porkbun CNAME</li>
+      <li>Cabinet agent log says <code>uploaded fbneo/&lt;game&gt;.hi (201)</code></li>
+      <li>Uptime Kuma monitor and Homepage tile go green</li>
+    </ul>
+  </div>
+</section>

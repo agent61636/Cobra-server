@@ -1,0 +1,181 @@
+<!-- WORLD 1 / Postgres -->
+
+<section class="page theme-steel" data-zone="WORLD 1 · THE GATE" data-toc="Postgres|The Filing Cabinet behind Paperless" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-5 · CHARACTER SELECT</div>
+      <h1>POSTGRES</h1>
+      <div class="sub">The Filing Cabinet: Paperless's memory, one table at a time</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+...KKKKKKKKKK...
+.KKSSSSSSSSSSKK.
+KSSWWSSSSSSSSSSK
+KKSSSSSSSSSSSSKK
+KTKKKKKKKKKKKKTK
+KTTTTTTTTTTTTTTK
+KTTFTTTTTTTTTTTK
+KKTTTTTTTTTTTTKK
+KTKKKKKKKKKKKKTK
+KTTTTTTTTTTTTTTK
+KTTFTTTTTTTTTTTK
+KKTTTTTTTTTTTTKK
+.KKTTTTTTTTTTKK.
+...KKKKKKKKKK...
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Postgres is the database Paperless keeps its brain in: every document's title, date, tags, correspondent, owner and notes, plus the users and settings. You never open it. You'd only notice it if it stopped, because then Paperless stops too.</p>
+      <p>It runs in its own container in the <code>gate</code> pod, listening on 127.0.0.1:5432 where only its neighbours can reach it. Its whole world is one folder, <code>/srv/gate/postgres</code>, mounted into the container as <code>/var/lib/postgresql/data</code>. The database is called <code>paperless</code>, and so is its user.</p>
+      <p>The image is pinned to <b>version 16</b> (<code>postgres:16</code>). <code>AutoUpdate=registry</code> pulls new 16.x releases (bug and security fixes), but never jumps to 17 by itself, and that's on purpose: a database folder made by 16 can't be opened by 17 without an upgrade step.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>The scanned files themselves aren't in here. They sit in Paperless's media folder. Postgres holds the card catalogue that says what each one is.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>postgres:16</code></dd>
+          <dt>PORT</dt><dd>5432, 127.0.0.1 only</dd>
+          <dt>URL</dt><dd>none: no web page</dd>
+          <dt>DATA</dt><dd><code>/srv/gate/postgres</code></dd>
+          <dt>DB / USER</dt><dd>paperless / paperless</dd>
+          <dt>INSIDE AS</dt><dd>user 999 (postgres)</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">PINNED TO 16</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="cols-3">
+    <div class="panel tint"><h3>STORES</h3><p>Documents' details, tags, correspondents, document types, saved views, users and permissions.</p></div>
+    <div class="panel tint"><h3>DOESN'T STORE</h3><p>The scans themselves (Paperless media) or the search index (Paperless data).</p></div>
+    <div class="panel tint"><h3>SERVES</h3><p>Paperless only. RomM on the SGIN has its own database: MariaDB, World 2.</p></div>
+  </div>
+  <div class="panel"><h3>ASK CLAUDE-VIPER</h3>
+    <div class="qa cols-2">
+      <div>
+        <div class="q">Can I open Postgres in a browser?</div>
+        <div class="a">No. It has no web page and nothing outside the pod can reach it. Use <code>psql</code> through <code>podman exec</code> (codes, page 3).</div>
+      </div>
+      <div>
+        <div class="q">Paperless says it can't connect to the database.</div>
+        <div class="a">Is postgres running (<code>podman ps</code>)? Then read its log: a permission error points straight at the chown trap.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-steel" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>YOU OPEN A DOCUMENT IN PAPERLESS</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 BROWSER</b>papers.</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 NGINX</b>+ Authelia</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 PAPERLESS</b>127.0.0.1:8000</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 POSTGRES</b>127.0.0.1:5432</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 MEDIA</b>the PDF itself</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>THE PASSWORD HANDSHAKE</h3>
+        <p>Postgres sets the <code>paperless</code> user's password <b>once</b>, the first time it starts with an empty folder. Paperless must then use the same one. The manual generated it as <code>PGPW</code> and wrote it into both Quadlet files; the scripts keep it as the podman secret <code>paperless-db-password</code>.</p>
+        <p>Change it later in one place only and Paperless can't log in. Moving from Quadlets to scripts? Hand the old value to <code>paperless.sh</code> once, as <code>PAPERLESS_DB_PASSWORD=...</code>.</p>
+      </div>
+      <div class="intel"><h3>WHO OWNS THE FILES</h3>
+        <p>Inside the container Postgres runs as user 999. Rootless podman maps that to a high "sub-UID" on the gate, not to podsvc. So on the gate, <code>ls -ln /srv/gate/postgres</code> shows a big number as owner. That's correct, and it's exactly what <code>chown -R</code> wrecks.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>READY OR NOT</h3>
+        <p><code>pg_isready</code> is Postgres's own "are you up?" check. <code>paperless.sh</code> waits on it for up to two minutes before starting Paperless. With Quadlets, <code>After=postgres.service</code> orders the start, and Paperless retries on its own.</p>
+      </div>
+      <div class="intel"><h3>BACKUP</h3>
+        <p><code>/srv/gate/postgres</code> is inside VM 110, so the nightly snapshot backup to PBS carries it. Paperless's own exporter (previous chapter) is the app-level copy. A <code>pg_dump</code> gives a third, plain-SQL copy.</p>
+      </div>
+      <div class="intel"><h3>WHY NOT SQLITE?</h3>
+        <p>Paperless could use a single SQLite file, but its background workers write at the same time as the web page. Postgres handles that crowd without locking up.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>SETTING</th><th>VALUE</th><th>WHY</th></tr>
+    <tr><td><code>POSTGRES_DB</code></td><td>paperless</td><td>The database made on first start</td></tr>
+    <tr><td><code>POSTGRES_USER</code></td><td>paperless</td><td>Its owner, the login Paperless uses</td></tr>
+    <tr><td><code>POSTGRES_PASSWORD</code></td><td>generated once, never printed</td><td>Must match <code>PAPERLESS_DBPASS</code></td></tr>
+  </table>
+  <div class="cols-2">
+    <div class="panel tint"><h3>HEALTH CHECKLIST</h3>
+      <ul class="checks">
+        <li><code>podman ps</code> says postgres is Up</li>
+        <li><code>pg_isready</code> says accepting connections</li>
+        <li>Its log has no "Permission denied"</li>
+        <li>Paperless's dashboard loads</li>
+      </ul>
+    </div>
+    <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+      <div class="bubble"><span class="who">CLAUDE-VIPER</span>Quiet is good. A healthy Postgres logs almost nothing after it starts. A chatty one is telling you something.</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-steel" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRAPS</span><small>CODES + SABOTAGE</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec postgres pg_isready -U paperless</code>
+        <span class="what">"accepting connections" = healthy.</span>
+        <code class="cmd">podman logs --tail 30 postgres</code>
+        <code class="cmd">podman exec -it postgres psql -U paperless</code>
+        <span class="what">A SQL prompt. \dt lists tables, \q quits. Look, don't touch.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: A SQL BACKUP</h3>
+        <p><code>pg_dump</code> writes the whole database as one SQL file. Put it in Paperless's export folder so it sits with the rest.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec postgres pg_dump -U paperless -f /tmp/paperless.sql paperless</code>
+        <code class="cmd">podman cp postgres:/tmp/paperless.sql /srv/gate/paperless/export/</code>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: SEE THE OWNER</h3>
+        <p><code>podman unshare ls -ln /srv/gate/postgres</code> shows ownership as the container sees it: it should say 999.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE CHOWN DISASTER</h3>
+        <p>The manual's <code>chown -R podsvc: /srv/gate</code> is for the first setup only. Re-run later, it handed Postgres's files to podsvc, and Postgres (999) could no longer read <code>global/pg_filenode.map</code>.<span class="fix"><code>podman unshare chown -R 999:999 /srv/gate/postgres</code>, then restart postgres and paperless.</span></p>
+      </div>
+      <div class="trap"><h3>THE BIG JUMP</h3>
+        <p>Changing the image to <code>postgres:17</code> on an existing folder makes Postgres refuse to start: the data was written by 16.<span class="fix">Stay on 16. A major upgrade means a dump, a fresh folder, and a restore. Plan it, don't stumble into it.</span></p>
+      </div>
+      <div class="trap"><h3>THE PASSWORD SPLIT</h3>
+        <p>Postgres only reads <code>POSTGRES_PASSWORD</code> on an empty folder. Editing it later changes nothing inside the database, but Paperless starts using the new one.<span class="fix">Leave both values alone.</span></p>
+      </div>
+      <div class="trap"><h3>THE EXPOSED PORT</h3>
+        <p>5432 must never appear in the gate's listening ports.<span class="fix"><code>ss -tlnH</code> as eels: only 22, 80, 443 and 9090.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel dark"><h3>THE BIG-JUMP PLAYBOOK</h3>
+    <p>Someday Postgres 16 will be old. The safe shape of a major upgrade, for when that day comes (read Paperless's and Postgres's notes first):</p>
+    <ol class="moves">
+      <li>Run Paperless's document exporter <b>and</b> a <code>pg_dump</code>. Two copies.</li>
+      <li>Stop paperless, then postgres.</li>
+      <li>Move <code>/srv/gate/postgres</code> aside (never delete it) and make an empty folder.</li>
+      <li>Change the image tag, start postgres on the empty folder, restore the dump, start paperless.</li>
+    </ol>
+  </div>
+</section>
