@@ -321,6 +321,7 @@ AutoUpdate=registry
 Environment=EO_ART_ADDR=127.0.0.1:8790 EO_ART_MOVIES=/art/movies EO_ART_RADIO=/art/albums EO_ART_BOOKS=/art/books EO_ART_COMICS=/art/comics EO_ART_GAMING=/art/gaming
 Volume=/srv/gate/eo-art:/app:ro,Z
 Volume=/srv/storage/disks/dock1a/art:/art:ro
+Volume=/srv/storage/disks/dock1a:/media/dock1a:ro
 Exec=python3 /app/eo_art.py
 [Service]
 Restart=on-failure
@@ -343,7 +344,24 @@ sudo install -o podsvc -m 644 /tmp/eo_art.py /srv/gate/eo-art/eo_art.py
 mkdir -p /srv/storage/disks/dock1a/art/{movies,albums,books,comics,gaming}
 ```
 
-Each `art/` folder is a flat set of `.jpg` files (copies, not the library itself) that you fill however you like; eo-art rescans them every two minutes. Until a folder has pictures, that page shows its own drawn artwork instead.
+Then tell it which folders feed which wall, in `/srv/gate/eo-art/folders.json` (as eels, `sudo -u podsvc nano /srv/gate/eo-art/folders.json`):
+
+```json
+{
+  "rescan_hours": 6,
+  "walls": {
+    "cinema/poster":     [ { "path": "/art/movies", "patterns": ["poster*.jpg", "folder.jpg", "cover.jpg"] } ],
+    "cinema/backdrop":   [ { "path": "/art/movies" } ],
+    "radio/cover":       [ { "path": "/art/albums" } ],
+    "books/audio/cover": [ { "path": "/art/books" } ],
+    "comics/cover":      [ { "path": "/art/comics" } ],
+    "gaming/cover":      [ { "path": "/art/gaming" } ],
+    "comedy/cover":      [ { "path": "/media/dock1a/comedy", "patterns": ["folder.jpg", "cover.jpg"] } ]
+  }
+}
+```
+
+`/art` is `dock1a/art` (copies you pick) and `/media/dock1a` is the whole dock1a drive, read-only, so a wall can point straight at a library: the Comedy Bay uses every album's `folder.jpg` or `cover.jpg` under `dock1a/comedy`. Every folder is searched with all its sub-folders. eo-art rescans every 6 hours (add `"rescan_at": "04:00"` to do it once a night instead) and at once when `folders.json` changes. Until a wall has pictures, that page shows its own drawn artwork instead.
 
 Where the gate's apps keep their files:
 
@@ -351,7 +369,7 @@ Where the gate's apps keep their files:
 |---|---|---|
 | Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `dock1a/scans`. Drop a PDF or photo into `\\cobra-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
 | MeTube | queue and history: `/srv/gate/metube` | **Finished videos:** `wd2/youtube`, on the Seagate's spare space, so Jellyfin can show them (add `/media/wd2/youtube` as a Home Videos library) |
-| eo-art | just its script: `/srv/gate/eo-art` | **Pictures for the station:** `dock1a/art/movies`, `albums`, `books`, `comics`, `gaming` (read-only) |
+| eo-art | its script and `folders.json`: `/srv/gate/eo-art` | **Pictures for the station:** `dock1a/art/movies`, `albums`, `books`, `comics`, `gaming`, and the album covers under `dock1a/comedy` (all of dock1a, read-only) |
 
 `Restart=on-failure`: if the gate boots while the SGIN is off, those three can't find their shared folder and fail. systemd retries every minute until the SGIN is back.
 
