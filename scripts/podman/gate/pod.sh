@@ -8,7 +8,8 @@ GATE_PORTS=(80:80 443:443)
 GATE_DATA=${COBRA_DATA:-/srv/gate}
 
 gate_pod() {
-  [ "$(sysctl -n net.ipv4.ip_unprivileged_port_start 2>/dev/null || echo 1024)" -le 80 ] \
+  # Read /proc directly: sysctl lives in /usr/sbin, which isn't on podsvc's PATH on Debian.
+  [ "$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start 2>/dev/null || echo 1024)" -le 80 ] \
     || die "rootless podman can't bind 80/443 yet. As eels (part 5.2):
        echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/90-ports.conf && sudo sysctl --system"
   ensure_pod "$GATE_POD" "${GATE_PORTS[@]}"
