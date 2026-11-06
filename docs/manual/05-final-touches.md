@@ -561,6 +561,8 @@ server {
     auth_request /internal/authelia/authz;
     auth_request_set $redirection_url $upstream_http_location;
     auth_request_set $signed_in_user $upstream_http_remote_user;
+    auth_request_set $signed_in_name $upstream_http_remote_name;
+    auth_request_set $signed_in_groups $upstream_http_remote_groups;
     error_page 401 =302 $redirection_url;
     limit_req zone=media burst=300 nodelay;
     proxy_buffering off;              # stream video/audio/ROM downloads straight through, don't spool to the gate's disk
@@ -574,6 +576,7 @@ server {
     # Who Authelia signed in. Navidrome trusts it from the gate only (part 3.8); empty at home, and a
     # visitor's own Remote-User header is always replaced, never passed on.
     proxy_set_header Remote-User $signed_in_user;
+    proxy_set_header Remote-Name $signed_in_name;  proxy_set_header Remote-Groups $signed_in_groups;
     proxy_pass $station;
   }
 }
