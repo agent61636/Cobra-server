@@ -18,7 +18,7 @@ TS=$(date +%Y%m%d-%H%M%S)
 asp() { sudo -u $PU XDG_RUNTIME_DIR=/run/user/"$(id -u $PU)" "$@"; }
 
 sudo -v
-[ -f "$SRC/eo_art.py" ] && [ -f "$J" ] || die "eo_art.py (Project-Eo home/eo-art) and folders.json must sit next to this script in $SRC"
+if [ ! -f "$SRC/eo_art.py" ] || [ ! -f "$J" ]; then die "eo_art.py (Project-Eo home/eo-art) and folders.json must sit next to this script in $SRC"; fi
 sudo test -f "$C" || die "no $C (the manual's Quadlet). Send Claude: sudo ls $Q"
 python3 -c 'import ast,sys; ast.parse(open(sys.argv[1]).read())' "$SRC/eo_art.py" || die "eo_art.py didn't copy whole; scp it again"
 python3 -m json.tool "$J" >/dev/null || die "folders.json isn't valid JSON"

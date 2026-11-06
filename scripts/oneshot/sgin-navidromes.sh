@@ -83,7 +83,7 @@ say "5/5 Waiting for the four Navidromes"
 for p in 4533 4534 4535 4536; do
   command -v curl >/dev/null || { echo "  (no curl, skipped :$p)"; continue; }
   ok=; for _ in $(seq 60); do curl -fs -o /dev/null "http://127.0.0.1:$p/ping" && { ok=1; break; }; sleep 2; done
-  [ -n "$ok" ] && echo "  OK    :$p" || echo "  FAIL  :$p  (journalctl --user -u navidrome... as podsvc)"
+  if [ -n "$ok" ]; then echo "  OK    :$p"; else echo "  FAIL  :$p  (journalctl --user -u navidrome... as podsvc)"; fi
 done
 asp podman ps --format 'table {{.Names}}\t{{.Status}}'
 say "Done. First visit to each new one (http://10.6.9.20:4534, :4535, :4536 from the-box) creates its admin."

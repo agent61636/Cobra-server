@@ -9,7 +9,7 @@ TS=$(date +%Y%m%d-%H%M%S)
 say() { printf '\033[1;32m==> %s\033[0m\n' "$*"; }
 die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 [ "$(id -un)" = podsvc ] || [ -n "${TEST:-}" ] || die "run this as podsvc (sudo machinectl shell podsvc@)"
-[ -f "$NG" ] && [ -f "$AU" ] || die "missing $NG or $AU"
+if [ ! -f "$NG" ] || [ ! -f "$AU" ]; then die "missing $NG or $AU"; fi
 
 cp -p "$NG" "$NG.bak-$TS"; cp -p "$AU" "$AU.bak-$TS"
 say "Backups: $NG.bak-$TS and $AU.bak-$TS"

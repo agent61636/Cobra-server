@@ -34,7 +34,7 @@ case $rc in
 esac
 grep -q 'vip\.songofeo\.com' "$AU.new" || sed -i 's#- domain: &station \[#- domain: \&station [vip.songofeo.com, #' "$AU.new"
 cat "$AU.new" > "$AU"; rm -f "$AU.new"
-grep -q 'policy: bypass' "$AU" && echo "  note: a bypass rule is still there (Home Assistant's ha. keeps its own, part 10)" || true
+if grep -q 'policy: bypass' "$AU"; then echo "  note: a bypass rule is still there (Home Assistant's ha. keeps its own, part 10)"; fi
 diff "$AU.bak-$TS" "$AU" || true
 
 [ -n "${TEST:-}" ] && { say "TEST mode: file edited, nothing restarted"; exit 0; }
