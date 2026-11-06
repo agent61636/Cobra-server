@@ -100,6 +100,13 @@ for pair in music:Navidrome mustang:"Rachel's Navidrome" comedy:"comedy Navidrom
   fi
 done
 
+echo "== VIP keypad (always the sign-in, even at home: it needs to know who you are)"
+probe "vip.$DOMAIN"
+if [ "$CODE" = 302 ] && [[ $LOC == "$PORTAL"* ]]; then ok "vip.$DOMAIN" "302 to the sign-in"
+elif [ "$CODE" = 000 ]; then note "vip.$DOMAIN" "no server block yet (part 5.4)"
+else fail "vip.$DOMAIN" "$CODE ${LOC:-}: should be a 302 to $PORTAL"
+fi
+
 echo "== Vaultwarden (LAN and WireGuard only, never through the sign-in)"
 probe "vault.$DOMAIN"
 case $CODE in

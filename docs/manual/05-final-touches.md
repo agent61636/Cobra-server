@@ -321,6 +321,7 @@ AutoUpdate=registry
 Environment=EO_ART_ADDR=127.0.0.1:8790 EO_ART_MOVIES=/art/movies EO_ART_RADIO=/art/albums EO_ART_BOOKS=/art/books EO_ART_COMICS=/art/comics EO_ART_GAMING=/art/gaming
 Volume=/srv/gate/eo-art:/app:ro,Z
 Volume=/srv/storage/disks/dock1a/art:/art:ro
+Volume=/srv/storage/disks/dock1a:/media/dock1a:ro
 Exec=python3 /app/eo_art.py
 [Service]
 Restart=on-failure
@@ -343,7 +344,24 @@ sudo install -o podsvc -m 644 /tmp/eo_art.py /srv/gate/eo-art/eo_art.py
 mkdir -p /srv/storage/disks/dock1a/art/{movies,albums,books,comics,gaming}
 ```
 
-Each `art/` folder is a flat set of `.jpg` files (copies, not the library itself) that you fill however you like; eo-art rescans them every two minutes. Until a folder has pictures, that page shows its own drawn artwork instead.
+Then tell it which folders feed which wall, in `/srv/gate/eo-art/folders.json` (as eels, `sudo -u podsvc nano /srv/gate/eo-art/folders.json`):
+
+```json
+{
+  "rescan_hours": 6,
+  "walls": {
+    "cinema/poster":     [ { "path": "/art/movies", "patterns": ["poster*.jpg", "folder.jpg", "cover.jpg"] } ],
+    "cinema/backdrop":   [ { "path": "/art/movies" } ],
+    "radio/cover":       [ { "path": "/art/albums" } ],
+    "books/audio/cover": [ { "path": "/art/books" } ],
+    "comics/cover":      [ { "path": "/art/comics" } ],
+    "gaming/cover":      [ { "path": "/art/gaming" } ],
+    "comedy/cover":      [ { "path": "/media/dock1a/comedy", "patterns": ["folder.jpg", "cover.jpg"] } ]
+  }
+}
+```
+
+`/art` is `dock1a/art` (copies you pick) and `/media/dock1a` is the whole dock1a drive, read-only, so a wall can point straight at a library: the Comedy Bay uses every album's `folder.jpg` or `cover.jpg` under `dock1a/comedy`. Every folder is searched with all its sub-folders. eo-art rescans every 6 hours (add `"rescan_at": "04:00"` to do it once a night instead) and at once when `folders.json` changes. Until a wall has pictures, that page shows its own drawn artwork instead.
 
 Where the gate's apps keep their files:
 
@@ -351,7 +369,7 @@ Where the gate's apps keep their files:
 |---|---|---|
 | Paperless | database, search index, the archived originals: `/srv/gate/paperless`, `/srv/gate/postgres` | **Inbox:** `dock1a/scans`. Drop a PDF or photo into `\\cobra-stream\scans` from any machine; within a minute Paperless files it and removes it from the inbox. Polling is on because change notifications don't cross SMB. |
 | MeTube | queue and history: `/srv/gate/metube` | **Finished videos:** `wd2/youtube`, on the Seagate's spare space, so Jellyfin can show them (add `/media/wd2/youtube` as a Home Videos library) |
-| eo-art | just its script: `/srv/gate/eo-art` | **Pictures for the station:** `dock1a/art/movies`, `albums`, `books`, `comics`, `gaming` (read-only) |
+| eo-art | its script and `folders.json`: `/srv/gate/eo-art` | **Pictures for the station:** `dock1a/art/movies`, `albums`, `books`, `comics`, `gaming`, and the album covers under `dock1a/comedy` (all of dock1a, read-only) |
 
 `Restart=on-failure`: if the gate boots while the SGIN is off, those three can't find their shared folder and fail. systemd retries every minute until the SGIN is back.
 
@@ -383,6 +401,9 @@ access_control:
     # admin apps: password + TOTP, from anywhere
     - domain: [papers.songofeo.com, metube.songofeo.com, command.songofeo.com, status.songofeo.com]
       policy: two_factor
+    # the Music Bay's VIP keypad: always signed in (even at home), because it needs to know who you are
+    - domain: vip.songofeo.com
+      policy: one_factor
     # the station's floors and its pictures: open at home, one password everywhere else
     - domain: &station [music.songofeo.com, mustang.songofeo.com, comedy.songofeo.com,
                         books.songofeo.com, comics.songofeo.com, arcade.songofeo.com, gaming.songofeo.com,
@@ -554,6 +575,44 @@ server {
   }
 }
 
+# --- vip.: the Music Bay's VIP keypad sends each signed-in person to their own Navidrome ---
+map $vip_user $vip_station {
+  eels    https://music.songofeo.com/;
+  rachel  https://mustang.songofeo.com/;
+  default "";                            # no personal station: the holding page
+}
+server {
+  listen 443 ssl; http2 on; server_name vip.songofeo.com;
+  location /internal/authelia/authz {
+    internal;
+    proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
+    proxy_set_header X-Original-Method $request_method;
+    proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header Content-Length ""; proxy_set_header Connection "";
+    proxy_pass_request_body off;
+  }
+  location / {
+    auth_request /internal/authelia/authz;
+    auth_request_set $redirection_url $upstream_http_location;
+    auth_request_set $vip_user $upstream_http_remote_user;
+    error_page 401 =302 $redirection_url;
+    limit_req zone=perip burst=50 nodelay;
+    # The username only exists after the sign-in check, and nginx's `if`/`return` run before it, so the
+    # redirect is made one hop later, by the small internal server below. An empty value isn't sent at all,
+    # so a visitor can't slip in their own X-Vip-Station header.
+    proxy_set_header X-Vip-Station $vip_station;
+    proxy_pass http://127.0.0.1:8099;
+  }
+}
+server {   # internal only (never published): turns X-Vip-Station into the redirect
+  listen 127.0.0.1:8099;
+  location / {
+    if ($http_x_vip_station) { return 302 $http_x_vip_station; }
+    root /etc/nginx/conf.d/soon;  try_files /index.html =404;
+  }
+}
+
 # --- Game Cellar: no app yet, so signed-in visitors get a holding page ---
 server {
   listen 443 ssl; http2 on; server_name gaming.songofeo.com;
@@ -662,6 +721,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 | `music.` `mustang.` `comedy.` `sessions.` `books.` `comics.` `arcade.` | Navidrome `:4533` (Eels), `:4535` (Rachel), `:4534` (comedy), `:4536` (sessions, your podcasts), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
 | `art.` | eo-art `127.0.0.1:8790` on the gate | same as the floors |
 | `gaming.` | the holding page (`conf.d/soon`) | same as the floors |
+| `vip.` | a redirect to the signed-in person's own Navidrome (`eels` → `music.`, `rachel` → `mustang.`; anyone else gets the holding page). Someone new with their own Navidrome: add a line to the `$vip_station` map | **always** (no home bypass: it needs the username) |
 | `papers.` `metube.` `command.` `status.` | Paperless `:8000`, MeTube `:8081`, Homepage `:3000`, Uptime Kuma `:3001` on the gate | password + TOTP, everywhere |
 | `vault.` | Vaultwarden `:8222` on the gate | none; LAN and WireGuard only, 403 elsewhere |
 | `scores.` (part 7) | hiscore `127.0.0.1:8090` | password (except `/upload/`, `/public/`, `/screen`) |
@@ -671,7 +731,7 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME to `gate.songofeo.com` in Porkbun (5.5) before it works from outside; those four are home and WireGuard only (`gate.` is the A record itself).
 
 - [ ] `podman exec nginx nginx -t` says `syntax is ok` and `test is successful`
-- [ ] Each hostname loads with a valid padlock: `tv. music. books. comics. mustang. comedy. arcade. gaming. sessions. art. gate. papers. metube. command. status. vault.`
+- [ ] Each hostname loads with a valid padlock: `tv. music. books. comics. mustang. comedy. vip. arcade. gaming. sessions. art. gate. papers. metube. command. status. vault.`
 - [ ] `papers.` and `metube.` bounce you to `gate.` first, then back
 - [ ] `https://gate.songofeo.com` shows the dark sign-in screen; signing in there lands on the station (`songofeo.com`)
 - [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
@@ -692,7 +752,7 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 
 ## 5.5 Go public
 
-- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv music books comics mustang comedy arcade gaming sessions papers metube command`, plus `vpn` for WireGuard (2.10) (not `vault`, which stays LAN/VPN-only, and not `gate`, which is already the A record). `status` and `art` get no public record for now: they still work at home and over WireGuard, where the Pi-holes answer every `*.songofeo.com` name, but from outside they don't resolve (so the station's landing pages show their drawn artwork instead of live pictures there). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` and `www` records alone: they belong to Porkbun's static hosting (the station). Make sure Porkbun's **URL Forwarding** has nothing for these names.
+- [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv music books comics mustang comedy arcade gaming sessions vip papers metube command`, plus `vpn` for WireGuard (2.10) (not `vault`, which stays LAN/VPN-only, and not `gate`, which is already the A record). `status` and `art` get no public record for now: they still work at home and over WireGuard, where the Pi-holes answer every `*.songofeo.com` name, but from outside they don't resolve (so the station's landing pages show their drawn artwork instead of live pictures there). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` and `www` records alone: they belong to Porkbun's static hosting (the station). Make sure Porkbun's **URL Forwarding** has nothing for these names.
 - [ ] **Before the 443 forward below:** the station's **Sign in** button and every floor's Log In (Project-Eo, live on Porkbun's hosting) must point at `https://gate.songofeo.com/?rd=...`, not `auth.songofeo.com`. Open `https://songofeo.com`, hover Sign in, and check the address in the browser's status bar. Fix them in Project-Eo and redeploy the site if they don't match
 - [ ] OPNsense → Firewall → NAT → **Destination NAT** (called Port Forward in older versions) → **+**: Interface WAN, IPv4, TCP, Source **any**, Destination **WAN address** port HTTPS (443), Redirect target **`10.6.9.10`** port HTTPS (443), description `WAN 443 to gate` → Save → **Apply**. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
 - [ ] Its **Firewall rule** field defaults to *Manual*, which adds no pass rule, so the forward is blocked. Add one: Firewall → Rules → **WAN** → **+**: Pass, In, IPv4, TCP, Source any, Destination **Single host `10.6.9.10`** (not WAN address: rules see the address after the forward rewrote it), port HTTPS (443), description `Allow 443 to gate` → Save → **Apply**
