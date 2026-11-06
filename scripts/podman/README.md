@@ -4,7 +4,7 @@ One bash script per app, using plain `podman run`. They build the same two pods 
 
 | Host | Folder | Pod | Scripts |
 |---|---|---|---|
-| SGIN, `cobra-stream` (10.6.9.20) | [`sgin/`](sgin/) | `stream` | `jellyfin.sh` (Quick Sync), `ersatztv.sh` (live TV channels + guide), `navidrome.sh` (one library per person), `audiobookshelf.sh`, `kavita.sh`, `romm.sh` (RomM + EmulatorJS + MariaDB), `radio.sh` (Icecast + Liquidsoap, part 8) |
+| SGIN, `cobra-stream` (10.6.9.20) | [`sgin/`](sgin/) | `stream` | `jellyfin.sh` (Quick Sync), `ersatztv.sh` (live TV channels + guide), `navidrome.sh` (one Navidrome per person, plus one for comedy), `audiobookshelf.sh`, `kavita.sh`, `romm.sh` (RomM + EmulatorJS + MariaDB), `radio.sh` (Icecast + Liquidsoap, part 8) |
 | Gate VM, `cobra-gate` (10.6.9.10) | [`gate/`](gate/) | `gate` | `vaultwarden.sh`, `paperless.sh` (Paperless + Postgres + Redis), `metube.sh`, `homepage.sh`, `hiscore.sh` (part 7), `eo-art.sh` (the station's pictures), plus the pieces the gate needs to be reachable: `nginx.sh`, `authelia.sh` (the station sign-in), `uptime-kuma.sh` |
 
 Each folder also has `up-all.sh`, which runs every script on that host in order. On the gate, one app that fails (say Paperless while the SGIN's share isn't mounted) doesn't stop the others: nginx and Authelia still start, and the failures are listed at the end. The gate also has `check.sh`, which tests every `*.songofeo.com` name (certificate, sign-in redirects, 2FA apps, apps answering) and says what to look at for each failure.
@@ -36,7 +36,7 @@ Every script is safe to run again. It removes that app's container and starts a 
 | Check every hostname on the gate | `./check.sh` on the gate (the view from outside the house: floors and admin apps must send you to the sign-in), or `./check.sh 10.6.9.10` from a LAN machine with this repo (floors open straight away) |
 | See logs | `podman logs -f jellyfin` |
 | Restart one app | `podman restart jellyfin` |
-| Add another person's music library | `MUSIC_USERS="eels rachel sam" ./navidrome.sh` (it makes `music/sam` on dock1a and prints the steps) |
+| Add another person's music server | `./navidrome.sh sam 4537` (their own Navidrome on `music/sam`; add the port to `pod.sh` first, see the script's header) |
 | Give one app extra settings | put `KEY=value` lines in `~/.config/cobra/<container>.env` and rerun its script, e.g. RomM's metadata keys in `romm.env` |
 | Change a pod's ports | edit `sgin/pod.sh` or `gate/pod.sh`, then `RECREATE_POD=1 ./up-all.sh` |
 | Read a generated password | `podman secret ls`, then `podman secret inspect --showsecret --format '{{.SecretData}}' romm-db-password` |
