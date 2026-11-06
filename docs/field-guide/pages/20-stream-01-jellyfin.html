@@ -1,0 +1,312 @@
+<!-- WORLD 2 / Jellyfin: the Cinema -->
+
+<section class="page theme-purple" data-zone="WORLD 2 · THE STREAM" data-toc="Jellyfin|The Cinema, with Quick Sync turbo" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-1 · CHARACTER SELECT</div>
+      <h1>JELLYFIN</h1>
+      <div class="sub">The Cinema: movies, shows and Live TV at tv.songofeo.com</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+....KKKKKK....
+..KKPPPPPPKK..
+.KPPNNPPPPPPK.
+KPPNNPPPPPPPPK
+KPPPPPWPPPPPPK
+KPPPPPWWPPPPPK
+KPPPPPWWWPPPPK
+KPPPPPWWPPPPPK
+KPPPPPWPPPPPPK
+KKKKKKKKKKKKKK
+.KP.KP.KP.KP..
+..KP.KP.KP.KP.
+.KP.KP.KP.KP..
+..K..K..K..K..
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Jellyfin is the headliner of World 2. It reads every movie and show on the drives, dresses them up with posters and descriptions, and plays them on the TVs, phones and browsers of everyone you let in. When a screen can't play a file as it is, Jellyfin re-encodes it on the fly with the SGIN's Intel GPU.</p>
+      <p>It lives in the <code>stream</code> pod on <code>cobra-stream</code> (10.6.9.20) and answers on port 8096. Its own files, the database, posters and watch history, sit on the SGIN's internal SSD under <code>/srv/stream/jellyfin</code>. The movies themselves come in <b>read-only</b> from <code>/srv/storage/disks</code>, which the container sees as <code>/media</code>. Jellyfin can look at your library all day long; it can never delete a frame of it.</p>
+      <p>From outside, it's <code>tv.songofeo.com</code>, and it is the one floor that <b>skips the gate's sign-in</b>. Friends' Roku, Apple TV and phone apps can't show Authelia's login page, so tv. has its own nginx block with no <code>auth_request</code>, and Jellyfin's own login does the guarding.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Because tv. has no gate sign-in in front of it, Jellyfin's own passwords are the only lock on that door. Give every friend their own account, and make the passwords real ones, Commander.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>jellyfin/jellyfin:latest</code></dd>
+          <dt>PORT</dt><dd>8096 (LAN + WireGuard)</dd>
+          <dt>URL</dt><dd><code>tv.songofeo.com</code></dd>
+          <dt>DATA</dt><dd><code>/srv/stream/jellyfin/config</code> and <code>/cache</code></dd>
+          <dt>LIBRARY</dt><dd><code>/media/video/movies</code>, <code>/media/video/series</code></dd>
+          <dt>GPU</dt><dd><code>/dev/dri/renderD128</code> (Quick Sync)</dd>
+          <dt>SIGN-IN</dt><dd>Jellyfin's own login only</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">THE ONLY FLOOR WITH NO GATE SIGN-IN</div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>SCREENS THAT PLAY IT</h3>
+    <div class="cols-3">
+      <div><b>TVs:</b> the Roku app, the Android TV / Fire TV app, and Swiftfin or Infuse on Apple TV. The Android TV app plays HEVC 10-bit itself, so it rarely transcodes.</div>
+      <div><b>Computers:</b> Jellyfin Media Player, or any browser at tv.songofeo.com. Chrome and Edge play more formats than Firefox.</div>
+      <div><b>Phones:</b> the Jellyfin app on Android and iPhone, or Swiftfin and Infuse on iPhone. Downloads for the plane, if you allow them for that user.</div>
+    </div>
+  </div>
+  <table class="board">
+    <tr><th>LIBRARY</th><th>FOLDER IN JELLYFIN</th><th>ON THE DRIVES</th></tr>
+    <tr><td><b>Movies</b></td><td><code>/media/video/movies</code></td><td>wd1 + wd2 pooled (mergerfs), wd1 fills first</td></tr>
+    <tr><td><b>Shows</b></td><td><code>/media/video/series</code></td><td>Same pool. The folder is <b>series</b>, not "shows"</td></tr>
+    <tr><td><b>Filler</b></td><td><code>/media/wd1/filler</code></td><td>Short break videos for ErsatzTV and cobra-breaks</td></tr>
+    <tr><td><b>YouTube</b></td><td><code>/media/wd2/youtube</code></td><td>MeTube's downloads from the gate, as Home Videos</td></tr>
+  </table>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A FRIEND PRESSES PLAY</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 TV APP</b>server: https://tv.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 OPNSENSE</b>WAN 443 to the gate</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 NGINX</b>tv. block, no Authelia</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 JELLYFIN</b>10.6.9.20:8096 login</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 DRIVES</b>/media/video read-only</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>THE VIDEO POOL</h3>
+        <p>wd1 (the WD 6 TB) and wd2 (a folder on the Seagate 24 TB) are joined by <b>mergerfs</b> into one folder, <code>/srv/storage/disks/video</code>. It's only a view: every file sits whole on one drive, and either drive reads fine on its own.</p>
+        <p>New files land on <b>wd1 first</b> (<code>category.create=ff</code>) and spill onto wd2 only once wd1 is down to 100 GB free. That matters, because wd2 lives on the backup drive itself and has no second copy. Keep wd2 for things you could download again.</p>
+        <p>wd1 and wd2 are the <b>only</b> drives that are ever pooled. Music, books and the rest stay one-drive-one-job, so you always know where a file lives.</p>
+      </div>
+      <div class="intel"><h3>THE THREE WAYS TO PLAY</h3>
+        <p><b>Direct Play:</b> the screen plays the file as it is. Zero work for the SGIN. <b>Direct Stream:</b> only the wrapper or audio changes. Cheap. <b>Transcode:</b> the video is decoded and re-encoded live, which is where Quick Sync earns its keep (next page).</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>HOW THE CONTAINER IS WIRED</h3>
+        <ul>
+          <li><b>/dev/dri</b> is handed in, and <code>keep-groups</code> lets the container keep podsvc's <code>render</code> group, so it may open the GPU</li>
+          <li><b>/media</b> is <code>ro,rbind</code>: read-only, and <code>rbind</code> carries each drive's own mount in, so <code>/media/wd1</code> is really wd1</li>
+          <li><b>No :Z</b> on the library, because Samba shares the same folders</li>
+          <li><b>/transcode-ram</b>: a 4 GB RAM scratch area (scripts only), if you ever want transcodes off the SSD</li>
+          <li><b>JELLYFIN_PublishedServerUrl</b> tells apps the address is <code>https://tv.songofeo.com</code></li>
+        </ul>
+      </div>
+      <div class="intel"><h3>WHO IS WATCHING?</h3>
+        <p>Every remote viewer arrives through the gate, so without help Jellyfin would think they're all one LAN client called 10.6.9.10. Setting <b>Known proxies: 10.6.9.10</b> makes Jellyfin read the real address from nginx's <code>X-Forwarded-For</code>. Then remote bitrate limits work, and Dashboard &#8594; Activity shows who's really there.</p>
+      </div>
+      <div class="intel"><h3>FRIENDS IN THE PIPE</h3>
+        <p>ErsatzTV's channels show up under <b>Live TV</b>, and the cobra-breaks helper builds "with breaks" playlists. Both talk to Jellyfin over 127.0.0.1 inside the pod (chapter 2-2 and the tips page).</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel"><h3>FIRST-RUN WIZARD</h3>
+    <ol class="moves">
+      <li><b>the-box, browser:</b> <code>http://10.6.9.20:8096</code> &#8594; language &#8594; admin user <code>eels</code> and a strong password (save it in Vaultwarden).</li>
+      <li><b>Add Media Library:</b> Movies &#8594; <code>/media/video/movies</code>; again for Shows &#8594; <code>/media/video/series</code>. Music and books skip Jellyfin: they live in Navidrome and Audiobookshelf.</li>
+      <li><b>Allow remote connections: on.</b> Newer Jellyfin has no automatic port mapping, which is exactly what we want: the gate is the only way in.</li>
+      <li>Then the Transcoding settings (next page) and <b>Known proxies: 10.6.9.10</b>.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>QUICK SYNC TURBO MODE</span><small>HIDDEN POWER</small></div>
+  <p class="lede">The SGIN's Celeron N5095A is a small chip with a big secret: an Intel GPU with Quick Sync, a block of silicon built only for decoding and encoding video. With it switched on, one tiny laptop board can turn a 4K HEVC movie into 1080p H.264 for a phone without breaking a sweat.</p>
+  <div class="panel"><h3>INSIDE A TRANSCODE</h3>
+    <div class="levelmap">
+      <div class="node"><b>FILE</b>HEVC 10-bit HDR</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>DECODE</b>QSV hardware</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>TONE MAP</b>VPP: HDR to SDR</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>ENCODE</b>low-power H.264</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>SCREEN</b>plays smoothly</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>THE HUC KEY</h3>
+        <p>Jasper Lake can <b>only</b> encode in low-power mode, and low-power mode needs the <b>HuC firmware</b> loaded into the GPU. On Debian 13 that firmware moved into its own package, <code>firmware-intel-graphics</code>, and the driver option <code>enable_guc=2</code> in <code>/etc/modprobe.d/i915.conf</code> tells i915 to load it.</p>
+        <p>Without it, decoding still works, so everything <i>looks</i> fine, but every transcode fails. The Quick Sync media driver itself, <code>intel-media-va-driver-non-free</code>, lives in Debian's <code>non-free</code> section, which the installer leaves switched off.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">sudo dmesg | grep -i -E 'guc|huc'</code>
+        <span class="what">Want "HuC ... authenticated". No FAIL or ERROR.</span>
+        <code class="cmd">sudo vainfo --display drm --device /dev/dri/renderD128 | grep -i hevc</code>
+        <span class="what">Want HEVC Main10 decode lines and EncSliceLP lines.</span>
+      </div>
+    </div>
+    <div class="stack">
+      <table class="board">
+        <tr><th>DASHBOARD &#8594; PLAYBACK &#8594; TRANSCODING</th><th>SET</th></tr>
+        <tr><td>Hardware acceleration</td><td><b>Intel QuickSync (QSV)</b></td></tr>
+        <tr><td>Device</td><td><code>/dev/dri/renderD128</code></td></tr>
+        <tr><td>Hardware decoding</td><td>H264, HEVC, HEVC 10bit, VP9</td></tr>
+        <tr><td>AV1 decoding</td><td><b>OFF</b> (no AV1 on Jasper Lake)</td></tr>
+        <tr><td>Hardware encoding</td><td>On</td></tr>
+        <tr><td>Low-Power H.264 / HEVC encoders</td><td><b>On</b></td></tr>
+        <tr><td>Tone mapping + VPP tone mapping</td><td>Both on</td></tr>
+        <tr><td>Transcode path</td><td>Leave the default (internal SSD)</td></tr>
+      </table>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman exec jellyfin /usr/lib/jellyfin-ffmpeg/vainfo --display drm --device /dev/dri/renderD128</code>
+        <span class="what">Same test from inside the container. HEVC lines = the container sees the GPU. jellyfin.sh runs this check for you.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: WATCH THE ENGINE</h3>
+        <p>While a movie transcodes, <code>sudo intel_gpu_top</code> (as eels) shows the <b>Video</b> row busy. At 0% while <code>htop</code> shows ffmpeg eating the CPU, the transcode is in software. <code>q</code> quits.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: ONE PER FRIEND</h3>
+        <p>Dashboard &#8594; Users &#8594; <b>+</b>. Per user you choose which libraries they see, whether they may download, and a remote bitrate cap. The manual sets users <b>hidden</b> (no name list on the login screen) and <b>Quick Connect off</b>, so nobody can pair a TV to an account without a password.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: APP ADDRESS</h3>
+        <p>In any Jellyfin app, the server is <code>https://tv.songofeo.com</code> with <b>no port</b>. Same address at home, on cellular and on WireGuard; at home the Pi-holes send it straight to the gate inside the house.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: EPISODE BREAKS</h3>
+        <p>Jellyfin apps only ask for intros before <b>movies</b>, never episodes, and the Roku and Apple TV apps ignore web plugins. So <b>cobra-breaks</b> (manual part 6) builds a playlist per show and person, "&lt;Show&gt; — with breaks": episode, filler, episode. It starts at each person's next unwatched episode and rebuilds every day at 4:00.</p>
+        <p>Every break must be a different video (Jellyfin drops repeats from a playlist), so 40 episodes need <b>39+ filler videos</b> of 3 minutes or less in <code>wd1/filler</code>.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman exec cobra-breaks python -m cobra_breaks run --config /config/breaks.toml</code>
+        <span class="what">Rebuild the playlists now, after editing breaks.toml or adding filler.</span>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: LIVE TV</h3>
+        <p>Jellyfin &#8594; <b>Live TV</b> shows ErsatzTV's channels with a real program guide, on every app, at home and away. Remote viewers watch through Jellyfin; ErsatzTV itself never leaves the LAN.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip pink"><h3>PRO TIP: MOVIE PRE-ROLLS</h3>
+        <p>Movies get their intro from the <b>Local Intros</b> plugin, fed from <code>wd1/pre-rolls</code>. Live TV channels get breaks from ErsatzTV. Three kinds of break, three different tools, and every app plays all of them.</p>
+      </div>
+      <div class="tip"><h3>PRO TIP: WHY TRANSCODE?</h3>
+        <p>In the web player, &#9881; &#8594; <b>Playback Info</b>, or Dashboard &#8594; Activity, names the play method and the <b>reason</b>. That one word tells you which fix on the next page to use.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman logs --tail 50 jellyfin</code>
+        <code class="cmd">podman restart jellyfin</code>
+        <span class="what">Restart is safe: config and watch history live in /srv/stream/jellyfin.</span>
+        <code class="cmd">podman pod restart stream</code>
+        <span class="what">After plugging a drive back in: every app gets the new mount.</span>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: API KEYS</h3>
+        <p>Dashboard &#8594; <b>API Keys</b> &#8594; <b>+</b>. Make one key per helper (<code>ersatztv</code>, <code>cobra-breaks</code>) so you can revoke one without breaking the others.</p>
+      </div>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>New movies? Drop them in <code>\\cobra-stream\media\video\movies</code> from the-box. The pool picks the drive.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner alt"><span>STUTTER BUSTERS</span><small>MANUAL 3.8C</small></div>
+  <div class="cols-21">
+    <p class="lede">"Only some movies stutter" is almost never the file size. A 4 GB two-hour movie averages about 4.5 Mbps, which anything here handles easily. The big files are usually HEVC 10-bit or HDR, often with PGS or ASS subtitles, and when the screen can't play those, Jellyfin transcodes. The stutter comes from that transcode.</p>
+    <div class="burst red" style="align-self:center;justify-self:center;">FIND THE REASON FIRST!</div>
+  </div>
+  <table class="board">
+    <tr><th>REASON SHOWN</th><th>FIX</th></tr>
+    <tr><td><b>Subtitle codec not supported</b></td><td>The subtitles are being burned in. Turn them off and retest; then pick an SRT track, or set the user's subtitle mode to <i>Smart</i> with image subtitles off by default. The single most common cause.</td></tr>
+    <tr><td><b>Video codec not supported</b></td><td>Use a client that plays HEVC 10-bit itself: the Android TV / Fire TV app, Jellyfin Media Player, Swiftfin or Infuse. In a browser, Chrome or Edge rather than Firefox.</td></tr>
+    <tr><td><b>Bitrate exceeds limit</b></td><td>Client app &#8594; Maximum streaming quality &#8594; Auto or highest. Over WireGuard, Dashboard &#8594; Playback &#8594; Streaming &#8594; raise the remote limit.</td></tr>
+    <tr><td><b>Audio codec not supported</b></td><td>Cheap, rarely the stutter. Allow passthrough, or pick the AC3 track.</td></tr>
+  </table>
+  <div class="cols-3">
+    <div class="intel"><h3>STILL STUTTERS?</h3>
+      <p>Dashboard &#8594; Logs &#8594; newest <code>FFmpeg.Transcode-…log</code>. The encoder must be <code>h264_qsv</code> or <code>hevc_qsv</code>. <b>libx264</b> or <b>libx265</b> means the CPU is doing it: recheck the HuC page.</p>
+    </div>
+    <div class="intel"><h3>SMOOTH BUT JERKY</h3>
+      <p>Never buffers, but pans judder? That's a 24 fps film on a 60 Hz TV. Turn on <b>match frame rate</b> (refresh rate switching) in the TV's app.</p>
+    </div>
+    <div class="intel"><h3>WIRED VS WI-FI</h3>
+      <p>Retest once with the TV on Ethernet. Smooth wired but not on Wi-Fi means the Wi-Fi is the problem, not Jellyfin. From outside, Xfinity's upload speed is the cap.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="codes"><h3>CODES</h3>
+      <span class="where">SGIN · eels</span>
+      <code class="cmd">sudo dmesg -T | grep -i -E 'uas|reset|i/o error' | tail -20</code>
+      <code class="cmd">lsusb -t</code>
+      <span class="what">Every drive at 5000M. 480M = it fell back to USB 2.</span>
+    </div>
+    <div class="tip"><h3>PRO TIP: FOREVER FIX</h3>
+      <p>The best transcode is the one that never happens. A better app on the one TV that keeps transcoding fixes the whole library at once.</p>
+    </div>
+  </div>
+  <div class="panel"><h3>THE STUTTER SPEEDRUN</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 PLAY</b>the bad movie</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 INFO</b>Playback Info: the reason</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 FIX</b>the table above</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>4 LOG</b>h264_qsv or libx264?</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>5 GPU</b>vainfo + intel_gpu_top</div>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Is the SGIN the right box for this? Yes. With Quick Sync working end to end it handles several 4K-to-1080p transcodes at once. Moving Jellyfin to the Latitude wouldn't fix a stutter; finding the reason does.</div>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="WORLD 2 · THE STREAM">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">Pulled from the footlockers, manual parts 3.3 to 3.8c, and the build itself.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE MISSING HUC</h3>
+        <p>Decode works, the movie list loads, the first transcode dies. Debian 13 moved the GPU firmware out of <code>firmware-misc-nonfree</code>.<span class="fix">Install <code>firmware-intel-graphics</code>, keep <code>enable_guc=2</code>, rebuild the initramfs, reboot, and look for EncSliceLP in vainfo.</span></p>
+      </div>
+      <div class="trap"><h3>THE AV1 TICKBOX</h3>
+        <p>Ticking AV1 under hardware decoding looks harmless. Jasper Lake has no AV1 decoder, so AV1 files then fail outright.<span class="fix">Leave AV1 unticked; Jellyfin decodes those few files in software.</span></p>
+      </div>
+      <div class="trap"><h3>THE LOCKED GPU DOOR</h3>
+        <p>podsvc not in <code>render</code>, or the container started without <code>keep-groups</code>: the container can't open <code>/dev/dri</code> and everything falls back to the CPU.<span class="fix">As eels: <code>sudo usermod -aG render,video podsvc</code>, then log podsvc in again and rerun jellyfin.sh. Its QSV check says pass or fail.</span></p>
+      </div>
+      <div class="trap"><h3>THE GHOST DRIVE</h3>
+        <p>A container sees the drives that were mounted <b>when it started</b>. Replug wd1 and Jellyfin keeps looking at an empty folder, and a scan then marks everything missing.<span class="fix"><code>podman pod restart stream</code> first, scan after.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>EVERYONE IS THE GATE</h3>
+        <p>Without Known proxies, every remote viewer looks like 10.6.9.10 on the LAN. Remote bitrate limits never kick in and the logs are useless.<span class="fix">Dashboard &#8594; Networking &#8594; Known proxies: <code>10.6.9.10</code>. Check: play from the-box, Activity shows the-box's address.</span></p>
+      </div>
+      <div class="trap"><h3>THE FIRST-VISITOR CROWN</h3>
+        <p>Until the setup wizard is finished, whoever opens the page first becomes admin.<span class="fix">Finish the wizard on the-box right after the container first starts (admin <code>eels</code>).</span></p>
+      </div>
+      <div class="trap"><h3>THE "SHOWS" MIX-UP</h3>
+        <p>The TV folder on wd1 and wd2 is called <b>series</b>. Point a library at <code>/media/video/shows</code> and it stays empty forever.<span class="fix">Shows library = <code>/media/video/series</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE POWER-SAVER AMBUSH</h3>
+        <p>Laptop guides say "install TLP" or "run powertop --auto-tune". On the SGIN both switch on USB autosuspend, which drops the hub, every drive <b>and the network adapter</b>, its only link.<span class="fix">Never install TLP or auto-tune here. Looking with powertop is fine.</span></p>
+      </div>
+      <div class="trap"><h3>THE :Z RELABEL</h3>
+        <p><code>:Z</code> on <code>/srv/storage/disks</code> would relabel the whole library for one container, and Samba shares those folders too.<span class="fix">App data gets <code>:Z</code>; the library never does.</span></p>
+      </div>
+    </div>
+  </div>
+</section>

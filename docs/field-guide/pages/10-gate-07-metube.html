@@ -1,0 +1,223 @@
+<!-- WORLD 1 / MeTube -->
+
+<section class="page theme-pink" data-zone="WORLD 1 · THE GATE" data-toc="MeTube|The Tape Deck: paste a link, keep the video" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-7 · CHARACTER SELECT</div>
+      <h1>METUBE</h1>
+      <div class="sub">The Tape Deck: paste a video link, it lands in your Jellyfin library</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+KKKKKKKKKKKKKKKK
+KDDDDDDDDDDDDDDK
+KDWWWWWWWWWWWWDK
+KDWKKKWWWWKKKWDK
+KDWKEKWWWWKEKWDK
+KDWKKKWNNWKKKWDK
+KDWWWWWWWWWWWWDK
+KDDDDDDDDDDDDDDK
+KDDDKKKKKKKKDDDK
+KDDKDDDDDDDDKDDK
+KKKKKKKKKKKKKKKK
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">MeTube is a web page with one box: paste a video link, pick a quality, press Add. Behind it, the famous downloader yt-dlp fetches the video and saves it into the library's youtube folder, where Jellyfin can show it on every TV in the house.</p>
+      <p>It runs in the <code>gate</code> pod on 127.0.0.1:8081, behind nginx and Authelia's two-factor sign-in at <code>metube.songofeo.com</code>. It's an admin room: anyone who could reach it could fill your drives.</p>
+      <p>The finished videos don't stay on the gate. They go over the CIFS mount to the SGIN's <code>wd2/youtube</code>, a folder on the Seagate's spare space that appears as <code>/media/wd2/youtube</code> to Jellyfin. MeTube's own queue, history and half-finished downloads stay on the gate in <code>/srv/gate/metube</code>, so a big download doesn't trickle over the network a piece at a time.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>The Joes had VHS tapes in their footlockers. We have a tape deck that never runs out of tape. Well, until the Seagate fills up.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>alexta69/metube:latest</code></dd>
+          <dt>PORT</dt><dd>8081, 127.0.0.1</dd>
+          <dt>URL</dt><dd>metube.songofeo.com</dd>
+          <dt>STATE</dt><dd><code>/srv/gate/metube</code></dd>
+          <dt>VIDEOS</dt><dd><code>wd2/youtube</code> on the SGIN</dd>
+          <dt>SIGN-IN</dt><dd>Authelia password + TOTP</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">PASTE · ADD · WATCH</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>SETTING</th><th>VALUE</th><th>MEANS</th></tr>
+    <tr><td><code>DOWNLOAD_DIR</code></td><td>/downloads = <code>wd2/youtube</code></td><td>Finished videos, on the SGIN, for Jellyfin</td></tr>
+    <tr><td><code>STATE_DIR</code></td><td>/state = <code>/srv/gate/metube</code></td><td>The queue and download history</td></tr>
+    <tr><td><code>TEMP_DIR</code></td><td>/state/tmp</td><td>Partial downloads, on the gate's own disk</td></tr>
+  </table>
+  <div class="cols-3">
+    <div class="panel tint"><h3>GRABS</h3><p>Single videos, whole playlists, or audio only, from YouTube and the many sites yt-dlp knows.</p></div>
+    <div class="panel tint"><h3>SAVES</h3><p>Into one folder, with the video's title as the file name.</p></div>
+    <div class="panel tint"><h3>SHOWS</h3><p>In Jellyfin once you add the folder as a library.</p></div>
+  </div>
+</section>
+
+<section class="page theme-pink" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>FROM LINK TO LIVING ROOM TV</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 THE-BOX</b>paste link</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 METUBE</b>queues it</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 YT-DLP</b>downloads to tmp</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>4 CIFS</b>to wd2/youtube</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>5 JELLYFIN</b>library scan</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>YT-DLP INSIDE</h3>
+        <p>MeTube is a friendly face on <b>yt-dlp</b>, the command-line downloader. yt-dlp does the real work: finds the video's streams, picks the quality you asked for, downloads, and joins sound and picture into one file.</p>
+      </div>
+      <div class="intel"><h3>WHY IT AGES FAST</h3>
+        <p>Video sites change their pages often, and yt-dlp ships fixes to keep up. A MeTube image a few weeks old can suddenly fail on every link. The cure is a newer image: that's why the run script ends with "yt-dlp ages fast".</p>
+      </div>
+      <div class="intel"><h3>WEBSOCKETS</h3>
+        <p>The progress bars update live over a websocket. nginx keeps those open (<code>proxy_read_timeout 1h</code> on the admin block), so a long download doesn't freeze the page.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>WHEN THE SGIN IS OFF</h3>
+        <p>No SGIN, no <code>wd2/youtube</code>, and MeTube can't start. Its Quadlet has <code>Restart=on-failure</code> every 60 seconds, so it comes back by itself once the share does. <code>up-all.sh</code> also lists it as "did not start" without stopping the other apps.</p>
+      </div>
+      <div class="intel"><h3>THE WRITE PERMISSION</h3>
+        <p>MeTube runs as a non-root user inside its container, an unnamed ID on the gate. The CIFS mount uses <code>file_mode=0666,dir_mode=0777</code> so that user may write. On the SGIN, the files still land as user <code>gate</code>, group <code>media</code>.</p>
+      </div>
+      <div class="intel"><h3>NOT BACKED UP</h3>
+        <p>The Seagate's <code>wd2</code> folder is spare space lent to the library. It's on the same drive as the backups, so it isn't backed up. Fine for videos you could download again.</p>
+      </div>
+    </div>
+  </div>
+    <table class="board">
+    <tr><th>YOU PASTE</th><th>METUBE DOES</th></tr>
+    <tr><td>A single video link</td><td>Downloads that one video at the quality you picked</td></tr>
+    <tr><td>A playlist link</td><td>Queues every video in it, one after another</td></tr>
+    <tr><td>A link from another site</td><td>Works if yt-dlp supports that site (it knows a great many)</td></tr>
+    <tr><td>A link with "audio" chosen</td><td>Saves just the sound</td></tr>
+  </table>
+  <div class="panel"><h3>ASK CLAUDE-VIPER</h3>
+    <div class="qa cols-2">
+      <div><div class="q">Can Rachel use it?</div><div class="a">Only with TOTP registered, since it's an admin room. Easier: send her links to the Commander.</div></div>
+      <div><div class="q">Where do downloads go at first?</div><div class="a"><code>/state/tmp</code> on the gate's disk, then the finished file moves to wd2/youtube on the SGIN.</div></div>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Only grab what you have the right to keep, Commander. Even Cobra respects a creator's terms. Mostly.</div>
+  </div>
+</section>
+
+<section class="page theme-pink" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">      <div class="tip"><h3>PRO TIP: QUEUE IS SAFE</h3>
+        <p>The queue and history live in <code>/srv/gate/metube</code>. Restart the container mid-download and the queue is still there afterwards.</p>
+      </div>
+
+      <div class="tip"><h3>PRO TIP: JELLYFIN SHELF</h3>
+        <p>In Jellyfin (THE-BOX, browser): Dashboard, Libraries, Add. Type <b>Home Videos and Photos</b>, folder <code>/media/wd2/youtube</code>. New downloads show up after the next library scan.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: AUDIO ONLY</h3>
+        <p>Pick an audio format in the quality menu to grab just the sound: talks, live sets, a podcast episode. Then move the file somewhere a Navidrome can see it.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: WHOLE PLAYLISTS</h3>
+        <p>Paste a playlist link and MeTube queues every video in it. Big playlists take a while; the queue survives a restart.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: THE BOOKMARKLET</h3>
+        <p>MeTube's project README has a bookmarklet. Add it to THE-BOX's bookmarks bar (with your metube. address) and one click sends the video you're watching to the queue.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: FIX "IT STOPPED"</h3>
+        <p>Every link failing at once? It's almost always an old yt-dlp. Pull the newest image and restart.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman pull ghcr.io/alexta69/metube:latest</code>
+        <code class="cmd">systemctl --user restart metube</code>
+        <code class="cmd">podman logs --tail 40 metube</code>
+        <span class="what">yt-dlp's errors say what went wrong.</span>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: WATCH THE SPACE</h3>
+        <p>Videos add up fast. Check how full the Seagate is before a playlist binge.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">df -h /srv/storage/disks/wd2</code>
+        <code class="cmd">du -sh /srv/storage/disks/wd2/youtube</code>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: CHANNELS?</h3>
+        <p>MeTube is for one-off grabs. To follow channels automatically, the research notes point at a different app (Pinchflat).</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel dark"><h3>KEEP IT FRESH</h3>
+    <p>The weekly routine from manual 5.7 covers MeTube: as podsvc, <code>podman auto-update --dry-run</code> lists images with a newer version, and <code>podman auto-update</code> pulls them and restarts those containers, rolling back if one fails to start. MeTube's Quadlet has <code>AutoUpdate=registry</code>, so it's included.</p>
+  </div>
+  <div class="tip lime"><h3>PRO TIP: SORT INTO SHOWS</h3>
+    <p>A channel you grab often can get its own subfolder in <code>wd2/youtube</code> (make it in Explorer on THE-BOX, then move the files in). Jellyfin's Home Videos library shows each folder as its own shelf.</p>
+  </div>
+</section>
+
+<section class="page theme-pink" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">The tape deck jams in a few predictable ways.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE STALE DOWNLOADER</h3>
+        <p>Weeks without an update and every download fails with an extraction error.<span class="fix">Pull and restart (codes, previous page). The weekly <code>podman auto-update</code> catches it too.</span></p>
+      </div>
+      <div class="trap"><h3>THE MISSING SHARE</h3>
+        <p>The SGIN reboots or the gate's Samba password is wrong: MeTube can't find <code>wd2/youtube</code> and keeps restarting.<span class="fix">As eels: <code>ls /srv/storage/disks/wd2</code>. Empty or an error means fix the CIFS mount first.</span></p>
+      </div>
+      <div class="trap"><h3>THE STACKED FSTAB</h3>
+        <p>The CIFS mount line got pasted eight times into <code>/etc/fstab</code> on setup night.<span class="fix">One line only: <code>grep -n srv/storage/disks /etc/fstab</code> must show exactly one.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE FULL DRIVE</h3>
+        <p>A runaway playlist can fill the Seagate, which also holds the PBS backups.<span class="fix">Check <code>df -h</code> before big grabs and prune old videos.</span></p>
+      </div>
+      <div class="trap"><h3>THE INVISIBLE VIDEOS</h3>
+        <p>Downloads finished but Jellyfin shows nothing: no library points at the folder yet, or no scan has run.<span class="fix">Add the Home Videos library, then Scan All Libraries.</span></p>
+      </div>
+      <div class="trap"><h3>THE OPEN DECK</h3>
+        <p>MeTube has no login of its own. Without Authelia in front, anyone could fill your drives.<span class="fix">metube. stays in the two_factor rule and its server block keeps <code>auth_request</code>.</span></p>
+      </div>
+    </div>
+  </div>
+    <div class="cols-2">
+    <div class="trap"><h3>THE GATE DISK SQUEEZE</h3>
+      <p>Partial downloads sit on the gate's 64 GB disk until they finish. A giant 4K grab can crowd it.<span class="fix">Grab huge files one at a time, and check <code>df -h /srv/gate</code>.</span></p>
+    </div>
+    <div class="trap"><h3>THE ODD FILE NAMES</h3>
+      <p>Video titles become file names, emoji and all. Jellyfin copes, but sorting can look messy.<span class="fix">Rename in Explorer on THE-BOX via <code>\\cobra-stream</code> if it bothers you.</span></p>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <div class="panel dark"><h3>FIELD TEST</h3>
+    <ol class="moves">
+      <li>THE-BOX: open <code>https://metube.songofeo.com</code>, sign in with password and TOTP.</li>
+      <li>Paste a short video link, press Add, watch the bar fill.</li>
+      <li>As eels on the gate: <code>ls /srv/storage/disks/wd2/youtube</code> shows the file.</li>
+    </ol>
+  </div>
+</section>

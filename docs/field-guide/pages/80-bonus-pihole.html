@@ -1,0 +1,165 @@
+<!-- BONUS STAGE: the two Pi-holes. Not containers in either pod, but every name in this guide goes through them. -->
+
+<section class="page theme-purple" data-zone="BONUS STAGE" data-toc="Pi-hole x2|Bonus stage: the island's phone book" data-tocgroup="bonus">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">BONUS STAGE · NOT IN ANY POD</div>
+      <h1>PI-HOLE ×2</h1>
+      <div class="sub">The island's phone book, and the ad blocker in front of it</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="6">
+.....KKKKKKK.....
+...KKPPPPPPPKK...
+..KPPPPPPPPPPPK..
+.KPPPKKKKKKKPPPK.
+.KPPK.......KPPK.
+KPPK..KKKKK..KPPK
+KPPK.KRRRRRK.KPPK
+KPPK.KRWWWRK.KPPK
+KPPK.KRRRRRK.KPPK
+KPPK..KKKKK..KPPK
+.KPPK.......KPPK.
+.KPPPKKKKKKKPPPK.
+..KPPPPPPPPPPPK..
+...KKPPPPPPPKK...
+.....KKKKKKK.....
+</pre>
+    </div>
+  </div>
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Before your browser can knock on the gate, it has to ask "where is music.songofeo.com?" On Cobra Island, two Pi-holes answer that question for every machine, block the ad and tracker names, and send the rest up to OPNsense.</p>
+      <p>Neither Pi-hole is a container in this guide's pods. <b>Pi-hole #1</b> is a small Proxmox container, CT 101 <code>cobra-pihole-1</code> at 10.6.9.3 on the Latitude. <b>Pi-hole #2</b> is installed natively on the SGIN at 10.6.9.20, right beside the stream pod. OPNsense's DHCP hands every machine both addresses, so if one goes down for an update, the other keeps answering.</p>
+      <p>Their best trick is the <b>wildcard</b>: any name under songofeo.com gets answered with <b>10.6.9.10</b>, the gate. At home your phone never goes out to the internet and back to reach your own server; it walks straight down the hall. That's why the floors open without the sign-in at home: the gate sees a 10.6.9.x address, and Authelia lets home addresses through.</p>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>#1</dt><dd>CT 101 on cobra-command, <code>10.6.9.3</code></dd>
+          <dt>#2</dt><dd>native on cobra-stream, <code>10.6.9.20</code></dd>
+          <dt>ADMIN</dt><dd><code>http://10.6.9.3/admin</code> and <code>http://10.6.9.20/admin</code></dd>
+          <dt>UPSTREAM</dt><dd>OPNsense <code>10.6.9.1</code> (Unbound, DNS over TLS)</dd>
+          <dt>LISTEN</dt><dd><code>ALL</code>, so WireGuard clients get answers</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      </div>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>DNS trouble looks like every other kind of trouble. When "nothing works", ask the phone book first.</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel"><h3>LEVEL MAP: WHO ANSWERS WHAT</h3>
+    <div class="levelmap">
+      <div class="node"><b>ASK</b>tv.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>WILDCARD</b>10.6.9.10, the gate</div>
+      <div class="arrow">|</div>
+      <div class="node"><b>ASK</b>songofeo.com, www.</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>PASS UP</b>Porkbun's site</div>
+      <div class="arrow">|</div>
+      <div class="node"><b>ASK</b>vpn.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>PASS UP</b>your public IP</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="BONUS STAGE">
+  <div class="banner"><span>HOW IT WORKS</span><small>THREE MAGIC LINES</small></div>
+  <div class="intel"><h3>THE DNSMASQ LINES (SAME ON BOTH)</h3>
+    <ul>
+      <li><code>address=/*.songofeo.com/10.6.9.10</code>: every name <i>under</i> songofeo.com goes to the gate. The <code>*.</code> leaves the bare <code>songofeo.com</code> alone, so the station on Porkbun's hosting still loads at home.</li>
+      <li><code>server=/www.songofeo.com/#</code>: www is the station too, so it's passed up to the real DNS.</li>
+      <li><code>server=/vpn.songofeo.com/#</code>: the WireGuard endpoint. It must be your <b>public</b> address even at home, or a laptop that sets up its tunnel at home would point it at the gate.</li>
+    </ul>
+  </div>
+  <div class="cols-2">
+    <div class="intel"><h3>SHORT NAMES</h3>
+      <p>Both Pi-holes carry the same 8 host entries, each with a full and a short name: <code>cobra-firewall</code> .1, <code>cobra-command</code> .2, <code>cobra-pihole-1</code> .3, <code>cobra-switch</code> .5, <code>cobra-ap</code> .6, <code>cobra-gate</code> .10, <code>cobra-stream</code> .20, <code>cobra-arcade</code> .30.</p>
+      <p>The short ones matter over WireGuard: a VPN client doesn't get the <code>home.arpa</code> search suffix, so <code>\\cobra-stream</code> would otherwise not resolve.</p>
+    </div>
+    <div class="intel"><h3>WHY "ALL" IS SAFE HERE</h3>
+      <p>Pi-hole's default <b>LOCAL</b> mode ignores clients on subnets it has no interface on, and WireGuard's 10.6.99.0/24 is one of those. So both run <code>listeningMode ALL</code>. That's safe because nothing outside reaches them: CT 101 sits only on the LAN, and the SGIN's nftables lets port 53 in from the LAN and WireGuard only.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="intel"><h3>HOW MACHINES FIND THEM</h3>
+      <p>OPNsense runs <b>Dnsmasq DNS &amp; DHCP</b>. Its DHCP option 6 (DNS servers) hands out <code>10.6.9.3, 10.6.9.20</code>, with the domain <code>home.arpa</code>. A machine that renews its lease gets both.</p>
+    </div>
+    <div class="intel"><h3>WHERE THE REST GOES</h3>
+      <p>Names that aren't blocked and aren't local go up to OPNsense at 10.6.9.1, whose Unbound resolver sends them out over DNS over TLS. Your ISP sees an encrypted stream, not your lookups.</p>
+    </div>
+  </div>
+  <div class="codes"><h3>CODES: ASK THE PHONE BOOK</h3>
+    <span class="where">THE-BOX · PowerShell</span>
+    <code class="cmd">nslookup tv.songofeo.com 10.6.9.3</code>
+    <span class="what">Must answer 10.6.9.10.</span>
+    <code class="cmd">nslookup tv.songofeo.com 10.6.9.20</code>
+    <span class="what">Same answer from Pi-hole #2.</span>
+    <code class="cmd">nslookup vpn.songofeo.com 10.6.9.3</code>
+    <span class="what">Must be your public IP, never 10.6.9.10.</span>
+    <code class="cmd">nslookup songofeo.com 10.6.9.3</code>
+    <span class="what">Porkbun's address: the station has to load at home too.</span>
+  </div>
+</section>
+
+<section class="page theme-purple" data-zone="BONUS STAGE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: SYNC THE TWINS</h3>
+        <p>Change blocklists on Pi-hole #1, then copy them across: #1 → Settings → <b>Teleporter</b> → Export, and #2 → Teleporter → Import. Do it on the-box.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: SITE BROKEN?</h3>
+        <p><b>Query Log</b> on either admin page, filter by your machine, reload the site. Blocked names show in red.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">THE-BOX · PowerShell</span>
+        <code class="cmd">ipconfig /renew</code>
+        <code class="cmd">ipconfig /all</code>
+        <span class="what">DNS Servers must list 10.6.9.3 and 10.6.9.20, suffix home.arpa.</span>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">pihole status</code>
+        <code class="cmd">sudo pihole -up</code>
+        <span class="what">Update #2, check it answers, then do #1 (pct enter 101 on cobra-command). While one restarts, machines ask the other.</span>
+        <code class="cmd">sudo pihole setpassword</code>
+        <span class="what">Forgot the admin password? Set a new one.</span>
+      </div>
+
+      <div class="tip pink"><h3>PRO TIP: XFINITY WI-FI</h3>
+        <p>Xfinity's router has no NAT loopback, so songofeo names don't load from the Xfinity Wi-Fi. Use the WireGuard <b>home</b> profile (endpoint <code>10.0.0.2:51820</code>) until the cobra access point arrives.</p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="5"></pre>
+    <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE GREEDY WILDCARD</h3>
+        <p>The wildcard also grabbed <code>vpn.</code>, which must stay public for WireGuard.<span class="fix">The <code>server=/vpn.songofeo.com/#</code> line on both Pi-holes passes it up.</span></p>
+      </div>
+      <div class="trap"><h3>THE SILENT DHCP</h3>
+        <p>OPNsense's Dnsmasq had no DNS option at all, so every machine got 10.6.9.1 and skipped the Pi-holes.<span class="fix">DHCP option 6 = 10.6.9.3, 10.6.9.20.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE STATIC DESKTOP</h3>
+        <p>the-box had a hand-typed IP with one DNS server and no suffix, so short names never resolved.<span class="fix">Switched to DHCP with a reservation at .50.</span></p>
+      </div>
+      <div class="trap"><h3>THE VPN THAT EATS DNS</h3>
+        <p>PIA VPN on the-box takes over DNS and reconnects by itself, so lookups skip the Pi-holes.<span class="fix">Disconnect PIA before testing anything DNS.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="trap"><h3>THE MISSING TWIN ENTRIES</h3>
+    <p>Pi-hole #1 was missing <code>cobra-switch</code> and <code>cobra-ap</code> while #2 had all 8, so a name worked or failed depending on which twin your machine asked.<span class="fix">Both now carry the same 8 hosts. Change one, change the other the same day (Settings → Local DNS Records, or Teleporter).</span></p>
+  </div>
+</section>

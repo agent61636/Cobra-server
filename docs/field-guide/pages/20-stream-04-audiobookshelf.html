@@ -1,0 +1,229 @@
+<!-- WORLD 2 / Audiobookshelf: the Library -->
+
+<section class="page theme-green" data-zone="WORLD 2 · THE STREAM" data-toc="Audiobookshelf|The Library: audiobooks and e-books" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-4 · CHARACTER SELECT</div>
+      <h1 class="long">AUDIOBOOK&shy;SHELF</h1>
+      <div class="sub">The Library: audiobooks and e-books at books.songofeo.com</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+...KKKKKKKKKK...
+..KTK......KTK..
+.KTK........KTK.
+.KTK........KTK.
+KKKKKKK..KKKKKKK
+KGWWWWWKKWWWWWGK
+KGWEEEWKKWEEEWGK
+KGWWWWWKKWWWWWGK
+KGWEEEWKKWEEEWGK
+KGWWWWWKKWWWWWGK
+KGWEEEWKKWEEEWGK
+KGGGGGGKKGGGGGGK
+.KKKKKKKKKKKKKK.
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Audiobookshelf (ABS to its friends) is the Library floor. It turns folders of audiobook files into a proper bookshelf with covers, chapters, series and narrators, and remembers exactly where every listener stopped, down to the second, across every device.</p>
+      <p>It also shelves e-books in a second library, with a reader in the browser. Audiobooks are where it shines: nothing else self-hosted comes close for audio, and its phone app can download books for offline listening on a long drive.</p>
+      <p>ABS lives in the <code>stream</code> pod on port <b>13378</b>. Its own settings and its database sit in <code>/srv/stream/abs/config</code>, and the covers and caches it makes in <code>/srv/stream/abs/metadata</code>, both on the SGIN's SSD. The books come in read-only from dock1a.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Start a book on the S21 on the drive home, keep going on the-box at your desk. ABS hands over your place in the story like a relay baton.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>ghcr.io/advplyr/audiobookshelf</code></dd>
+          <dt>PORT</dt><dd>13378</dd>
+          <dt>URL</dt><dd><code>books.songofeo.com</code></dd>
+          <dt>DATA</dt><dd><code>/srv/stream/abs/config</code>, <code>/metadata</code></dd>
+          <dt>LIBRARY</dt><dd><code>dock1a/audiobooks</code>, <code>dock1a/books</code></dd>
+          <dt>SIGN-IN</dt><dd>Gate sign-in from outside + ABS login</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">NEVER LOSE YOUR PAGE</div>
+    </div>
+  </div>
+  <table class="board">
+    <tr><th>LIBRARY</th><th>TYPE</th><th>FOLDER IN ABS</th><th>ON THE SHARE</th></tr>
+    <tr><td><b>Audiobooks</b></td><td>Book</td><td><code>/media/dock1a/audiobooks</code></td><td><code>\\cobra-stream\media\dock1a\audiobooks</code></td></tr>
+    <tr><td><b>Books</b></td><td>Book (e-books)</td><td><code>/media/dock1a/books</code></td><td><code>\\cobra-stream\media\dock1a\books</code></td></tr>
+  </table>
+  <div class="cols-2">
+    <div class="tip"><h3>PRO TIP: ONE ADDRESS</h3><p><code>https://books.songofeo.com</code> works at home, on WireGuard and on cellular. At home the Pi-holes send it to the gate inside the house, and the gate skips its sign-in.</p></div>
+    <div class="intel"><h3>FRESH SHELVES</h3><p>dock1a was wiped and reloaded in the build, from the Commander's own backups of the audiobooks and e-books. ABS only had to scan them.</p></div>
+  </div>
+</section>
+
+<section class="page theme-green" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>CHAPTER 7 RESUMES ON THE PHONE</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 ABS APP</b>books.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 GATE</b>nginx, sign-in from outside</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>3 ABS</b>10.6.9.20:13378</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>4 PROGRESS</b>last position, from the DB</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 STREAM</b>audio from dock1a</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>WHY PORT 13378?</h3>
+        <p>On its own, ABS listens on port 80. Inside a pod every container shares <b>one</b> network, so two apps can't both have the same port, and a rootless container can't have 80 anyway. The container is started with <code>PORT=13378</code>, and the pod publishes 13378 to the LAN.</p>
+      </div>
+      <div class="intel"><h3>HOW IT READS A BOOK</h3>
+        <p>ABS treats <b>each folder as one book</b>. A tidy layout is <code>Author / Book Title / files</code>, with a series folder in between if you like: <code>Author / Series / Book 1 Title / files</code>. One file or fifty MP3 parts, it's all one book to ABS, and chapters come from the file or the parts.</p>
+        <p>It then looks up covers, descriptions and narrators from online sources and saves what it finds in its own metadata folder, because the library is read-only.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>WHAT LIVES WHERE</h3>
+        <table class="board">
+          <tr><th>FOLDER</th><th>HOLDS</th></tr>
+          <tr><td><code>/srv/stream/abs/config</code></td><td>Database: users, libraries, listening progress, bookmarks</td></tr>
+          <tr><td><code>/srv/stream/abs/metadata</code></td><td>Covers, cached items, ABS's own backups</td></tr>
+          <tr><td><code>/media</code> (read-only)</td><td>Every drive, so libraries can point anywhere on them</td></tr>
+        </table>
+      </div>
+      <div class="intel"><h3>THE TWO LOCKS</h3>
+        <p>From outside, books. is a station floor: the gate's sign-in first, then ABS's own login. At home and over WireGuard the gate skips its sign-in, and you meet ABS's login directly. The ABS login is what keeps each listener's progress their own.</p>
+      </div>
+      <div class="intel"><h3>WHO'S THE ROOT?</h3>
+        <p>The very first visit creates the <b>root</b> user, the top admin. Everyone else gets a normal user under Settings &#8594; Users.</p>
+      </div>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>The books are never touched. ABS only reads them and writes its notes in its own folders on the SSD. Wipe ABS and the library is still sitting there, safe on dock1a.</div>
+  </div>
+  <div class="panel"><h3>A TIDY SHELF</h3>
+    <div class="cols-2">
+<pre class="vt" style="margin:0;font-size:17px;line-height:1.1;">audiobooks/
+  Author Name/
+    Standalone Title/
+      book.m4b
+    Series Name/
+      Book 1 - First Title/
+        01.mp3  02.mp3  03.mp3</pre>
+      <p>One folder per book, under its author, with an optional series folder. A single <code>.m4b</code> with built-in chapters or a pile of numbered MP3s: both are one book to ABS.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-green" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="panel"><h3>FIRST VISIT, 4 MOVES</h3>
+        <ol class="moves">
+          <li><b>the-box browser:</b> <code>http://10.6.9.20:13378</code> &#8594; create the <b>root</b> user and a strong password.</li>
+          <li>Settings &#8594; Libraries &#8594; Add: <code>Audiobooks</code>, type <b>Book</b>, folder <code>/media/dock1a/audiobooks</code>.</li>
+          <li>Again: <code>Books</code>, folder <code>/media/dock1a/books</code>, for e-books.</li>
+          <li>Settings &#8594; Users: one user per listener.</li>
+        </ol>
+      </div>
+      <div class="tip"><h3>PRO TIP: THE PHONE APP</h3>
+        <p>Install the Audiobookshelf app, server <code>https://books.songofeo.com</code>, your ABS user. Away from home, turn WireGuard on first: phone apps can't show the gate's sign-in page. Downloaded books play offline anywhere.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: ADDING BOOKS</h3>
+        <p>From the-box, copy the book's folder into <code>\\cobra-stream\media\dock1a\audiobooks\Author\</code>. ABS spots it and shelves it. If not, the library's menu has a scan button.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip lime"><h3>PRO TIP: FIX A COVER</h3>
+        <p>Wrong cover or blurb? Open the book &#8594; edit (pencil) &#8594; Match, and pick the right edition. The fix is stored in ABS's metadata, not the files.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: SERIES ORDER</h3>
+        <p>Put the series name and number in the book's details (or in the folder name, like <code>Book 1 - Title</code>) and ABS lines the series up in reading order on its own shelf.</p>
+      </div>
+      <div class="tip"><h3>PRO TIP: SLEEP TIMER</h3>
+        <p>The player has a playback-speed control and a sleep timer. Bedtime stories, Cobra style.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman logs --tail 50 audiobookshelf</code>
+        <code class="cmd">podman restart audiobookshelf</code>
+        <span class="what">Safe: progress and users live in /srv/stream/abs.</span>
+        <span class="where">THE-BOX · browser</span>
+        <code class="cmd">http://10.6.9.20:13378</code>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: E-BOOK READERS</h3>
+        <p>ABS reads EPUBs in the browser, but its e-reader sync is basic. Kavita (next chapter) also reads EPUB well if you prefer its reader.</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>WHICH SCREEN FOR WHAT</h3>
+    <div class="cols-3">
+      <div><b>the-box browser:</b> setting up libraries, users, fixing covers and matches. Always do admin here.</div>
+      <div><b>Phone app:</b> listening, downloads for offline, the sleep timer in bed.</div>
+      <div><b>Any browser:</b> listening or reading an e-book anywhere you're signed in.</div>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Admin from the-box, listening from anywhere. That's the Cobra way of doing books.</div>
+  </div>
+</section>
+
+<section class="page theme-green" data-zone="WORLD 2 · THE STREAM">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">From manual 3.8 and the stream pod's wiring.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE ROOT GRAB</h3>
+        <p>The first person to open ABS becomes <b>root</b>. Leave it unclaimed and that could be anyone on the LAN.<span class="fix">Create root from the-box as soon as the container first starts.</span></p>
+      </div>
+      <div class="trap"><h3>THE PORT 80 HABIT</h3>
+        <p>Guides on the internet run ABS on port 80. In the shared pod, and rootless, it can't have 80.<span class="fix">Keep <code>PORT=13378</code> in the container and 13378 in pod.sh and nftables.</span></p>
+      </div>
+      <div class="trap"><h3>THE UPLOAD WALL</h3>
+        <p>The library is mounted <b>read-only</b>, so anything that writes into the book folders, like the web Upload page or saving covers next to the files, can't.<span class="fix">Add books by copying them over the share from the-box. ABS keeps its own covers in its metadata folder.</span></p>
+      </div>
+      <div class="trap"><h3>THE LOOSE FILES</h3>
+        <p>Fifty MP3s dumped straight into <code>audiobooks/</code> become fifty "books", or one mess.<span class="fix">One folder per book: <code>Author / Title / files</code>.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE GHOST DRIVE</h3>
+        <p>dock1a unplugged and plugged back: ABS still sees the empty folder from before, and its library looks gone.<span class="fix"><code>podman pod restart stream</code>, then scan the library.</span></p>
+      </div>
+      <div class="trap"><h3>THE WRONG TYPE</h3>
+        <p>ABS libraries are either <b>Book</b> or <b>Podcast</b>. Pick Podcast for audiobooks and nothing lines up.<span class="fix">Both libraries here are type Book.</span></p>
+      </div>
+      <div class="trap"><h3>THE SHARED ACCOUNT</h3>
+        <p>Two people on one ABS user overwrite each other's progress: you'll resume at chapter 20 of a book you were on chapter 3 of.<span class="fix">One ABS user per listener.</span></p>
+      </div>
+      <div class="trap"><h3>THE DOUBLE LOGIN SURPRISE</h3>
+        <p>From outside you sign in at the gate, then ABS asks again. That's normal: ABS doesn't read the gate's sign-in the way Navidrome does.<span class="fix">Nothing to fix in the browser. For the phone app away from home, use WireGuard, which skips the gate&#39;s sign-in.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>LIBRARIAN'S CHECKLIST</h3>
+    <div class="cols-2">
+      <ul class="checks">
+        <li>root user made from the-box</li>
+        <li>Audiobooks library on <code>/media/dock1a/audiobooks</code></li>
+      </ul>
+      <ul class="checks">
+        <li>Books library on <code>/media/dock1a/books</code></li>
+        <li>One user per listener, app on each phone</li>
+      </ul>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Most ABS trouble is folders, not software. Get the shelf tidy and the rest takes care of itself.</div>
+  </div>
+</section>

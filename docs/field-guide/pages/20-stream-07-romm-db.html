@@ -1,0 +1,163 @@
+<!-- WORLD 2 / romm-db: MariaDB behind the arcade -->
+
+<section class="page theme-steel" data-zone="WORLD 2 · THE STREAM" data-toc="romm-db|MariaDB, the Arcade's memory" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-7 · CHARACTER SELECT</div>
+      <h1>ROMM-DB</h1>
+      <div class="sub">The Arcade's memory: a MariaDB database only RomM talks to</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+..KKKKKKKK..
+.KEEEEEEEEK.
+KEEEEEEEEEEK
+KTEEEEEEEETK
+KTTTTTTTTTTK
+KTTTFTTTTTTK
+KETTTTTTTTEK
+KTEEEEEEEETK
+KTTTTTTTTTTK
+KTTTFTTTTTTK
+KETTTTTTTTEK
+KTEEEEEEEETK
+KTTTTTTTTTTK
+.KTTTTTTTTK.
+..KKKKKKKK..
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Every arcade needs someone keeping the books. romm-db is a MariaDB database server, and it remembers everything RomM knows: which games exist on which platform, their titles and metadata, the users, and who played what.</p>
+      <p>It has no web page and no public name. It sits in the <code>stream</code> pod, listening on MariaDB's port 3306 on <code>127.0.0.1</code>, which only containers inside the pod can reach. That port is <b>not</b> in the pod's published list, so nothing on the LAN can talk to it, let alone the internet.</p>
+      <p>Its files live in <code>/srv/stream/romm/db</code> on the SGIN's SSD. The ROMs themselves aren't in it: the database holds the catalog, the drive holds the games.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>The quiet operative. No page, no port to the LAN, no fame. Just a perfect memory. Every good Cobra unit needs one.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>library/mariadb:11</code></dd>
+          <dt>PORT</dt><dd>3306, inside the pod only</dd>
+          <dt>DATABASE</dt><dd><code>romm</code>, user <code>romm</code></dd>
+          <dt>DATA</dt><dd><code>/srv/stream/romm/db</code></dd>
+          <dt>SECRETS</dt><dd><code>romm-db-password</code>, <code>romm-db-root-password</code></dd>
+          <dt>SIGN-IN</dt><dd>Password, RomM only</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">NO PAGE NO PORT NO FAME</div>
+    </div>
+  </div>
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A RomM SCAN WRITES TO THE BOOKS</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 ROMM</b>finds roms/snes/*.sfc</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 127.0.0.1</b>:3306, inside the pod</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>3 ROMM-DB</b>user romm, db romm</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>4 DISK</b>/srv/stream/romm/db</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-steel" data-zone="WORLD 2 · THE STREAM">
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>HOW IT GETS ITS PASSWORDS</h3>
+        <p>On the very first start, with an empty <code>db</code> folder, MariaDB creates the <code>romm</code> database and user with the password it's given (<code>MARIADB_PASSWORD</code>) and sets the root password. After that, the password is <b>stored inside the database files</b>. Changing the variable later doesn't change it.</p>
+        <p>With the scripts, the passwords come from podman secrets, handed in as environment variables only inside the container. With the manual's Quadlets, they're written into <code>romm-db.container</code>, which is <code>chmod 600</code>.</p>
+      </div>
+      <div class="intel"><h3>THE HEALTH CHECK</h3>
+        <p>The script gives the container a health check (<code>healthcheck.sh --connect --innodb_initialized</code>) and waits for <b>healthy</b> before starting RomM. In Quadlet mode, <code>romm.container</code> says <code>Requires=romm-db.service</code> and <code>After=</code> it instead, so systemd starts the database first.</p>
+      </div>
+      <div class="intel"><h3>WHY NOT THE GATE'S DB?</h3>
+        <p>The gate's Postgres belongs to Paperless and lives on another machine. RomM wants MariaDB or MySQL, and keeping its database next to it in the same pod means the arcade never depends on the gate being up.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="banner"><span>TIPS &amp; TRICKS</span></div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman ps --filter name=romm</code>
+        <span class="what">romm-db and romm, both Up.</span>
+        <code class="cmd">podman logs --tail 30 romm-db</code>
+        <code class="cmd">podman secret ls</code>
+        <span class="what">Scripts mode: lists the secret names, never the values.</span>
+        <code class="cmd">podman secret inspect --showsecret --format '{{.SecretData}}' romm-db-password</code>
+        <span class="what">Prints the password. Only when you need it, and not on a shared screen.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: A SPARE COPY</h3>
+        <p>A dump is a plain-text copy of the whole database you can restore from. Inside the container the password is already in the environment, so the dump command doesn't need you to type it:</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman exec romm-db sh -c 'mariadb-dump -u romm -p"$MARIADB_PASSWORD" romm' &gt; ~/romm-db.sql</code>
+        <span class="what">Writes ~/romm-db.sql in podsvc's home. Move it to dock1a/backups if you want it kept.</span>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: IT'S IN THE BACKUP</h3>
+        <p><code>/srv/stream</code> is the SGIN's app data. Back it up with RomM stopped (or use a dump), so the database files are consistent.</p>
+      </div>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Lose the database and RomM forgets its users and saves list, but not a single ROM: those sit safe on dock1b, and a rescan rebuilds the catalog.</div>
+  </div>
+</section>
+
+<section class="page theme-steel" data-zone="WORLD 2 · THE STREAM">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">Includes a trap that hit the gate's Postgres for real on 6 November 2026.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE CHOWN DISASTER</h3>
+        <p>On the gate, re-running a <code>chown -R podsvc: /srv/gate</code> after Postgres had made its files broke them ("pg_filenode.map: Permission denied"). Rootless database files belong to a mapped user ID inside the container, not podsvc. The same move on <code>/srv/stream</code> would break romm-db.<span class="fix">Never <code>chown -R</code> a database folder. If it happened, repair from podsvc with <code>podman unshare chown -R</code> to the database's own user (999:999 for these official images).</span></p>
+      </div>
+      <div class="trap"><h3>THE NEW-PASSWORD TRAP</h3>
+        <p>Rebuild RomM with fresh random passwords while <code>romm/db</code> still holds the old database: the database keeps the old password, RomM sends the new one, and gets "access denied".<span class="fix">Reuse the old values (<code>ROMM_DB_PASSWORD=... ./romm.sh</code>), read from the old <code>romm.container</code> or the saved secret.</span></p>
+      </div>
+      <div class="trap"><h3>THE PERMISSION LOOP</h3>
+        <p>A container that keeps restarting with <code>Permission denied</code> in its log: the image switched to a non-root user inside, and its folder belongs to someone else.<span class="fix">Manual 3.8's last bullet: find the user with <code>podman exec &lt;name&gt; id</code> and add <code>UserNS=keep-id:uid=...,gid=...</code>.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE BIG-JUMP UPGRADE</h3>
+        <p>The image is pinned to <code>mariadb:11</code>, so updates stay within MariaDB 11. Changing the tag to a new major version blindly can leave the files needing an upgrade step.<span class="fix">Dump first, read the release notes, then change the tag.</span></p>
+      </div>
+      <div class="trap"><h3>THE PUBLISHED DATABASE</h3>
+        <p>Adding 3306 to the pod's published ports "to look at it from the-box" would put a database on the LAN.<span class="fix">Leave it out. Use <code>podman exec -it romm-db mariadb -u romm -p romm</code> on the SGIN instead.</span></p>
+      </div>
+      <div class="trap"><h3>THE IMPATIENT START</h3>
+        <p>RomM started before the database was ready fails its first connection. Usually it just retries.<span class="fix">The script waits for healthy; in Quadlet mode systemd's <code>After=</code> orders them. Still stuck: <code>podman logs romm-db</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE PASSWORD ON SCREEN</h3>
+        <p><code>--showsecret</code> prints the real password in the terminal and in scrollback.<span class="fix">Run it only when needed, then clear the screen. Keep a copy in Vaultwarden.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>DATABASE KEEPER'S CHECKLIST</h3>
+    <div class="cols-2">
+      <ul class="checks">
+        <li>romm-db Up, before romm</li>
+        <li>Password saved in Vaultwarden</li>
+      </ul>
+      <ul class="checks">
+        <li>3306 never published</li>
+        <li>No <code>chown -R</code> on /srv/stream/romm/db, ever</li>
+      </ul>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Treat the database folder like the vault: look, don&#39;t touch. podman exec is the only key you need.</div>
+  </div>
+</section>

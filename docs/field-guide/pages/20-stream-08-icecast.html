@@ -1,0 +1,175 @@
+<!-- WORLD 2 / Icecast: the transmitter -->
+
+<section class="page theme-yellow" data-zone="WORLD 2 · THE STREAM" data-toc="Icecast|The Transmitter for Song of Eo Radio" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-8 · CHARACTER SELECT</div>
+      <h1>ICECAST</h1>
+      <div class="sub">The Transmitter: the tower every radio listener tunes in to</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+.......R.......
+......KRK......
+...K..KKK..K...
+..K..K.K.K..K..
+.K..K..K..K..K.
+......KYK......
+......KYK......
+.....KYKYK.....
+.....KYKYK.....
+....KYK.KYK....
+....KYKKKYK....
+...KYK...KYK...
+...KYKKKKKYK...
+..KYK.....KYK..
+.KKKK.....KKKK.
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Icecast is the radio tower of Song of Eo Radio. It doesn't pick songs and it doesn't play anything by itself. It takes one live audio stream in from the DJ and hands copies out to every listener who tunes in.</p>
+      <p>The DJ is the next chapter's container, <b>radio</b> (Liquidsoap), which connects to Icecast with a <b>source password</b> and pushes an endless MP3 stream to the mount point <code>/stream</code>. Listeners open <code>http://10.6.9.20:8000/stream</code> at home, or <code>https://radio.songofeo.com/stream</code> through the gate, in a browser, VLC or a radio app.</p>
+      <p>Icecast is part of manual part 8, the landing site and radio. It joins the <code>stream</code> pod on port <b>8000</b>, which needs adding to the pod's published ports and to the SGIN's nftables list. It keeps no data folder at all: everything it knows comes from its settings.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>This is Cobra Island broadcasting on all frequencies! Well, on one mount point, to at most 50 listeners, behind a login. Still counts.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>libretime/icecast:latest</code></dd>
+          <dt>PORT</dt><dd>8000</dd>
+          <dt>MOUNT</dt><dd><code>/stream</code> (MP3, 192 kb/s)</dd>
+          <dt>URL</dt><dd><code>radio.songofeo.com</code></dd>
+          <dt>LISTENERS</dt><dd>50 max</dd>
+          <dt>DATA</dt><dd>None, settings only</dd>
+          <dt>SIGN-IN</dt><dd>Gate sign-in; <code>/admin</code> LAN + WG only</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">ON THE AIR!</div>
+    </div>
+  </div>
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A SONG REACHES A LISTENER</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 RADIO</b>Liquidsoap picks a song</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 SOURCE</b>127.0.0.1:8000 + password</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>3 ICECAST</b>mount /stream</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>4 GATE</b>radio. + sign-in</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 LISTENER</b>browser or VLC</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-yellow" data-zone="WORLD 2 · THE STREAM">
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>THREE PASSWORDS</h3>
+        <ul>
+          <li><b>Source:</b> what the DJ uses to push audio in. The radio container gets the same one.</li>
+          <li><b>Admin:</b> for Icecast's admin pages (listeners, kicking a source).</li>
+          <li><b>Relay:</b> for other Icecast servers relaying this one. Unused here, but set.</li>
+        </ul>
+        <p>With the scripts they're generated once as podman secrets (<code>icecast-source-password</code> and friends). With the manual's Quadlets they're random values written into <code>icecast.container</code>, <code>chmod 600</code>.</p>
+      </div>
+      <div class="intel"><h3>THROUGH THE GATE</h3>
+        <p>Manual 8.3 gives radio. its own nginx server block. <code>location /</code> asks Authelia (password only, <code>one_factor</code>), turns buffering off so audio flows straight through, and allows a listener to stay tuned for 24 hours. <code>location /admin</code> allows only 10.6.9.0/24 and 10.6.99.0/24.</p>
+      </div>
+      <div class="intel"><h3>WHY BEHIND A LOGIN?</h3>
+        <p>Streaming music you don't hold the rights to, to anyone on the internet, needs public-performance licences, even for a tiny station. So radio. stays behind the gate's sign-in for you and the people you add. Fully public only with music you have rights to: your own, Creative Commons or royalty-free (manual 8.4).</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="banner"><span>TIPS &amp; TRICKS</span></div>
+      <div class="tip"><h3>PRO TIP: LAN TEST</h3>
+        <p>On the-box, open <code>http://10.6.9.20:8000/stream</code> in VLC (Media &#8594; Open Network Stream) or the browser. Music = Icecast and the DJ both work. Silence or 404 = the DJ isn't connected.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: THE STATUS PAGE</h3>
+        <p><code>http://10.6.9.20:8000/</code> shows Icecast's status page: the mount, what's playing and how many are listening.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman logs --tail 30 icecast</code>
+        <code class="cmd">podman restart icecast</code>
+        <span class="what">The DJ reconnects by itself.</span>
+        <code class="cmd">podman secret inspect --showsecret --format '{{.SecretData}}' icecast-admin-password</code>
+        <span class="what">Scripts mode: the admin password, for /admin.</span>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">sudo nft list ruleset | grep 8000</code>
+        <span class="what">8000 must be in the LAN/VPN port list, or the gate can't reach Icecast.</span>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: UPLOAD MATH</h3>
+        <p>Each listener at 192 kb/s uses about 0.2 Mb/s of Xfinity upload. Ten listeners, about 2 Mb/s.</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>WAYS TO TUNE IN</h3>
+    <div class="cols-3">
+      <div><b>Browser:</b> <code>https://radio.songofeo.com/stream</code>, signed in at the gate. Plays right in the tab.</div>
+      <div><b>VLC on the-box:</b> <code>http://10.6.9.20:8000/stream</code> on the LAN, no sign-in needed.</div>
+      <div><b>Phone player apps:</b> they can't show the gate's sign-in, so use the LAN address with WireGuard on.</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-yellow" data-zone="WORLD 2 · THE STREAM">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">From manual part 8 and the stream pod's port rules.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE PIRATE STATION</h3>
+        <p>Removing the sign-in from radio. turns a private jukebox into a public broadcast of music you may not have the rights to stream.<span class="fix">Keep the Authelia rule unless every track is yours, Creative Commons or royalty-free.</span></p>
+      </div>
+      <div class="trap"><h3>THE CLOSED FIREWALL</h3>
+        <p>Icecast plays fine on the SGIN itself, but radio. through the gate times out. Port 8000 isn't in nftables' list.<span class="fix">Part 8.2's sed line adds 8000, then <code>sudo systemctl reload nftables</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE UNPUBLISHED PORT</h3>
+        <p>Quadlet mode: forget <code>PublishPort=8000:8000</code> in <code>stream.pod</code> and the LAN can't reach Icecast at all. (pod.sh already has 8000.)<span class="fix">Add it under <code>[Pod]</code>, daemon-reload, restart stream-pod.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE OPEN CONTROL ROOM</h3>
+        <p>Icecast's <code>/admin</code> pages can kick the DJ off the air.<span class="fix">nginx allows <code>/admin</code> only from the LAN and WireGuard. Test: from the S21 on cellular, <code>radio.songofeo.com/admin/</code> must be refused.</span></p>
+      </div>
+      <div class="trap"><h3>THE PASSWORD MISMATCH</h3>
+        <p>Change Icecast's source password but not the radio container's, and the DJ is locked out: dead air.<span class="fix">Both read the same secret (scripts) or the same value (Quadlets). Change both, restart both.</span></p>
+      </div>
+      <div class="trap"><h3>THE FULL HOUSE</h3>
+        <p>Listener 51 gets turned away: <code>ICECAST_MAX_CLIENTS=50</code>. Your upload speed runs out long before that matters.<span class="fix">Raise it only if the upload can carry it.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>TRANSMITTER CHECKLIST</h3>
+    <div class="cols-2">
+      <ul class="checks">
+        <li>8000 published in the pod and open in nftables</li>
+        <li><code>http://10.6.9.20:8000/stream</code> plays on the-box</li>
+      </ul>
+      <ul class="checks">
+        <li><code>radio.songofeo.com/stream</code> asks for the sign-in once</li>
+        <li><code>/admin</code> refused from cellular</li>
+      </ul>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>check.sh on the gate shows radio. as a NOTE until part 8.3's server block exists. A NOTE there isn't a failure, just a floor still under construction.</div>
+  </div>
+  <table class="board">
+    <tr><th>SAME RADIO, TWO WAYS</th><th>SCRIPTS (radio.sh)</th><th>MANUAL QUADLETS</th></tr>
+    <tr><td><b>Passwords</b></td><td>podman secrets</td><td>random values in the 600 files</td></tr>
+    <tr><td><b>Port 8000</b></td><td>already in pod.sh</td><td>sed adds it to stream.pod</td></tr>
+    <tr><td><b>Start order</b></td><td>waits for :8000</td><td>Requires= and After=</td></tr>
+  </table>
+</section>

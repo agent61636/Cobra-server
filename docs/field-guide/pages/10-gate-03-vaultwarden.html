@@ -1,0 +1,219 @@
+<!-- WORLD 1 / Vaultwarden -->
+
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE" data-toc="Vaultwarden|The Vault: passwords, home only" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-3 · CHARACTER SELECT</div>
+      <h1 class="long">VAULTWARDEN</h1>
+      <div class="sub">The Vault: every password on the island, behind a door only home can open</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+KKKKKKKKKKKKKKKK
+KTTTTTTTTTTTTTTK
+KTEEEEEEEEEEEETK
+KTEKKKKKEEEEEETK
+KTEKYYYKEEKKEETK
+KTEKYKYKEEKKEETK
+KTEKYYYKEEEEEETK
+KTEKKKKKEEKKEETK
+KTEEEEEEEEKKEETK
+KTEEEEEEEEEEEETK
+KTEEEEEEEEEEEETK
+KTTTTTTTTTTTTTTK
+KKKKKKKKKKKKKKKK
+.KK..........KK.
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Vaultwarden is your own password manager server. It speaks the Bitwarden language, so the official Bitwarden apps, browser extensions and desktop client all work with it, but the encrypted vault lives on the gate, not in someone else's cloud.</p>
+      <p>Your passwords are encrypted <b>on your device</b> with your master password before they ever reach the server. The gate only stores scrambled blobs. Even with full access to <code>/srv/gate/vaultwarden</code>, nobody can read a single entry without that master password. That's also why there's no "reset my master password" button: lose it and the vault is gone.</p>
+      <p>Vaultwarden is the one gate app that <b>never</b> goes through Authelia. Instead, nginx refuses everyone who isn't on the LAN (10.6.9.0/24) or WireGuard (10.6.99.0/24) with a plain 403. From the internet, the vault doesn't even have a public DNS name: there's deliberately no <code>vault</code> CNAME in Porkbun.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>The vault is tiny (around 30 MB of RAM) and guards the most precious loot on the island. Small snake, big fangs.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>vaultwarden/server:latest</code></dd>
+          <dt>PORT</dt><dd>8222 (ROCKET_PORT), 127.0.0.1</dd>
+          <dt>URL</dt><dd>vault.songofeo.com</dd>
+          <dt>DATA</dt><dd><code>/srv/gate/vaultwarden</code></dd>
+          <dt>SIGN-IN</dt><dd>Its own master password; LAN and WireGuard only</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      </div>
+      <div class="burst red" style="align-self:center;">SIGN-UPS CLOSED!</div>
+    </div>
+  </div>
+  <div class="cols-3">
+    <div class="panel tint"><h3>SPEAKS</h3><p>The Bitwarden API: phone apps, browser extensions, desktop app, the web vault, even the <code>bw</code> command line.</p></div>
+    <div class="panel tint"><h3>STORES</h3><p>Logins, notes, cards, identities and attachments, all encrypted before they leave your device.</p></div>
+    <div class="panel tint"><h3>WEIGHS</h3><p>About 30 MB of RAM. The lightest app on the gate, guarding the heaviest secrets.</p></div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>WHERE YOU ARE</th><th>WHAT VAULT. DOES</th></tr>
+    <tr><td><b>THE-BOX, the-spire, anything on the LAN</b></td><td>Opens the vault (10.6.9.x is allowed)</td></tr>
+    <tr><td><b>S21 or Cobra1 with WireGuard on</b></td><td>Opens the vault (10.6.99.x is allowed)</td></tr>
+    <tr><td><b>Cellular or a café, no WireGuard</b></td><td>No public name at all; even with the gate's address, nginx answers 403</td></tr>
+    <tr><td><b>Xfinity Wi-Fi (the work-laptop side)</b></td><td>Not the cobra network, so no; use the phone's "home" WireGuard profile</td></tr>
+  </table>
+</section>
+
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>THE BITWARDEN APP SYNCS, OVER WIREGUARD</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 PHONE</b>WireGuard on</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>2 PI-HOLE</b>vault. = 10.6.9.10</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 NGINX</b>10.6.99.x? allow</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 VAULTWARDEN</b>127.0.0.1:8222</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 BLOB</b>decrypted on phone</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>ZERO KNOWLEDGE</h3>
+        <p>Your master password never leaves your device. The app turns it into a key, unlocks the vault locally, and sends only encrypted items to the server. Vaultwarden stores them in <code>db.sqlite3</code> and hands them back on sync.</p>
+      </div>
+      <div class="intel"><h3>THE SIGN-UP SWITCH</h3>
+        <p><code>SIGNUPS_ALLOWED</code> decides if strangers who reach the page can make an account. It was <code>true</code> just long enough for the Commander to create his account on 6 November, then switched to <b>false</b>.</p>
+        <p>In the Quadlet setup it's a line in <code>vaultwarden.container</code>. The run script does it by itself: open until <code>db.sqlite3</code> exists, closed on the next run.</p>
+      </div>
+      <div class="intel"><h3>DOMAIN</h3>
+        <p><code>DOMAIN=https://vault.songofeo.com</code> tells Vaultwarden its own address, so links and the web vault work behind nginx.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>OFFLINE COPIES</h3>
+        <p>The Bitwarden apps keep an encrypted copy of your vault on the device. Away from home without WireGuard, you can still unlock and read what was last synced. New entries sync the next time the app reaches the server.</p>
+      </div>
+      <div class="intel"><h3>WHY NOT AUTHELIA?</h3>
+        <p>The Bitwarden apps talk to the server in the background with their own tokens. They can't stop to show a web sign-in page. A network rule (LAN and WireGuard only) is simpler and keeps the vault off the internet entirely.</p>
+      </div>
+      <div class="intel"><h3>WHERE IT STARTED</h3>
+        <p>Before the vault existed, passwords lived in KeePassXC (manual part 0.1, "a safe place for secrets"). The manual's checklist imports that interim database into Vaultwarden once the account exists.</p>
+      </div>
+      <div class="intel"><h3>THE ADMIN PAGE</h3>
+        <p>Vaultwarden's <code>/admin</code> page only switches on when an <code>ADMIN_TOKEN</code> is set. Ours isn't, so the page stays off. One less door to guard.</p>
+      </div>
+    </div>
+  </div>
+  <table class="board">
+    <tr><th>IN /SRV/GATE/VAULTWARDEN</th><th>WHAT IT IS</th></tr>
+    <tr><td><code>db.sqlite3</code></td><td>Accounts and every encrypted item. Its existence is what tells the run script to close sign-ups.</td></tr>
+    <tr><td><code>attachments/</code></td><td>Files you attach to entries, encrypted the same way</td></tr>
+    <tr><td><code>rsa_key*</code></td><td>The server's own signing key for login tokens. Lose it and everyone just logs in again.</td></tr>
+  </table>
+  <div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Even if a Joe walked off with the whole gate VM, all they'd get is ciphertext. The only key is the master password in your head. Guard that, not the server.</div>
+  </div>
+</section>
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: POINT THE APP</h3>
+        <p>In any Bitwarden app or extension, before logging in pick <b>Self-hosted</b> (the region menu) and set the server URL to <code>https://vault.songofeo.com</code>. Do the browser extension on THE-BOX first; the phone app next, with WireGuard on.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: TOTP INSIDE</h3>
+        <p>The Bitwarden app can act as your authenticator for Authelia's TOTP codes too. Keep a second copy in Aegis or 2FAS, so one lost phone doesn't lock you out of both.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: STAY UNLOCKED</h3>
+        <p>Set the app's vault timeout to something you'll live with and turn on fingerprint unlock. A strong master password you type once a day beats a weak one you type often.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman logs --tail 30 vaultwarden</code>
+        <code class="cmd">grep SIGNUPS ~/.config/containers/systemd/vaultwarden.container</code>
+        <span class="what">Must say SIGNUPS_ALLOWED=false.</span>
+        <code class="cmd">systemctl --user restart vaultwarden</code>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip lime"><h3>PRO TIP: SHARE SAFELY</h3>
+        <p>Vaultwarden supports Bitwarden <b>organizations</b>: make one for the house and share the streaming, Wi-Fi and utility logins with Rachel, while your own items stay private.</p>
+      </div>
+      <div class="tip"><h3>PRO TIP: GENERATE IT</h3>
+        <p>Every Bitwarden app has a password generator. Use it for every new app on the island (Uptime Kuma's admin, Kavita, RomM, the friends' Jellyfin accounts) and save the entry right there.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: ALIVE CHECK</h3>
+        <p>Vaultwarden answers <code>/alive</code> when it's healthy. The run script waits on it, and Homepage's tile watches <code>http://127.0.0.1:8222</code>.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec nginx curl -s http://127.0.0.1:8222/alive</code>
+        <span class="what">Prints a timestamp when it's up (nginx's image has curl).</span>
+      </div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="tip pink"><h3>PRO TIP: EMERGENCY SHEET</h3>
+      <p>Print one page for the house safe: the master password, the server URL <code>https://vault.songofeo.com</code>, and "turn on WireGuard first". Future you will thank you.</p>
+    </div>
+    <div class="tip lime"><h3>PRO TIP: HEALTH REPORT</h3>
+      <p>The Bitwarden web vault and apps can flag reused and weak passwords. Run it after the KeePassXC import and fix the worst ones first.</p>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel dark"><h3>BACKUPS</h3>
+    <p>Everything Vaultwarden knows is in <code>/srv/gate/vaultwarden</code> (the database plus attachments), inside VM 110, so the nightly Proxmox backup to PBS at 02:00 carries it. For an extra copy you control, the Bitwarden apps can <b>export</b> the vault as an encrypted file from THE-BOX. Store it off the gate.</p>
+  </div>
+</section>
+
+<section class="page theme-yellow" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">Found in the footlockers, or flagged in manual part 5.4. The vault has few traps, but each one is expensive.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE OPEN DOOR</h3>
+        <p>The manual's Quadlet ships with <code>SIGNUPS_ALLOWED=true</code> so you can make the first account. Leave it, and anyone on the LAN can make one too.<span class="fix">Closed on 6 Nov. After any rebuild from the manual, close it again: sed the line to false, daemon-reload, restart.</span></p>
+      </div>
+      <div class="trap"><h3>THE PUBLIC NAME</h3>
+        <p>A Porkbun CNAME for <code>vault</code> would advertise it to the world, even though nginx refuses outsiders.<span class="fix">No public <code>vault</code> record. The Pi-holes answer it at home and over WireGuard.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE FORGOTTEN MASTER</h3>
+        <p>There is no master password reset. The server can't decrypt your vault, so it can't help.<span class="fix">Write the master password on paper and keep it somewhere safe in the house.</span></p>
+      </div>
+      <div class="trap"><h3>THE XFINITY DEAD END</h3>
+        <p>On the Xfinity Wi-Fi, songofeo.com names point at the public address and Xfinity has no NAT loopback.<span class="fix">Use the "home" WireGuard profile (endpoint 10.0.0.2:51820), or cellular plus WireGuard.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="trap"><h3>THE LONE COPY</h3>
+      <p>If the only device with your vault is the phone, and the gate dies, you're down to one encrypted copy.<span class="fix">Log the browser extension on THE-BOX in too, and keep the nightly VM backup.</span></p>
+    </div>
+    <div class="trap"><h3>THE PLAIN EXPORT</h3>
+      <p>Bitwarden can also export an <b>unencrypted</b> file. That's every password in plain text.<span class="fix">Pick the encrypted export format, and never leave an export in Downloads.</span></p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="trap"><h3>THE PHONE-ONLY 2FA</h3>
+      <p>If Authelia's TOTP lives only in the Bitwarden app, and the vault won't sync, you can't reach the admin rooms to fix it.<span class="fix">Keep the TOTP seeds in a second app too.</span></p>
+    </div>
+    <div class="trap"><h3>THE REBUILD RESET</h3>
+      <p>Running <code>vaultwarden.sh</code> with <code>SIGNUPS_ALLOWED=true</code> on purpose reopens the door, and it stays open.<span class="fix">Run it again without the variable: the database exists, so sign-ups close.</span></p>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Status report, Commander: account made, sign-ups closed, interim KeePassXC passwords ready to import. The vault is sealed.</div>
+  </div>
+</section>

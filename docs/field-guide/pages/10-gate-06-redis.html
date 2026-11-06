@@ -1,0 +1,190 @@
+<!-- WORLD 1 / Redis -->
+
+<section class="page theme-orange" data-zone="WORLD 1 · THE GATE" data-toc="Redis|The Message Runner for Paperless" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-6 · CHARACTER SELECT</div>
+      <h1>REDIS</h1>
+      <div class="sub">The Message Runner: Paperless's to-do list, at lightning speed</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+........KKKKK...
+.......KYYYYK...
+......KYYYYK....
+.....KYYYYK.....
+....KYYYYKKKKK..
+...KYYYYYYYYYK..
+..KKKKKYYYYYK...
+.....KYYYYK.....
+....KYYYYK......
+...KYYYK........
+..KYYK..........
+..KYK...........
+..KK............
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Redis is a tiny, fast, in-memory data store. On Cobra Island it has one job: carry messages between Paperless's web page and its background workers. "New scan in the inbox, please OCR it" goes into Redis; a worker picks it up, does the job, and posts the result back.</p>
+      <p>It lives in the <code>gate</code> pod on 127.0.0.1:6379, next to Paperless and Postgres. It has no web page and no login, which is fine because nothing outside the pod can reach it. Its folder <code>/srv/gate/redis</code> holds a snapshot of the queue so a restart doesn't forget work in progress.</p>
+      <p>Paperless's workers are run by a task system that needs a "broker" to pass jobs around. That broker is Redis: <code>PAPERLESS_REDIS=redis://127.0.0.1:6379</code>. Without it, the web page still opens, but nothing gets consumed, and scans pile up in the inbox.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Every good army needs a runner. Redis never sleeps, never complains, and never reads the messages it carries.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>redis:7</code></dd>
+          <dt>PORT</dt><dd>6379, 127.0.0.1 only</dd>
+          <dt>URL</dt><dd>none: no web page</dd>
+          <dt>DATA</dt><dd><code>/srv/gate/redis</code></dd>
+          <dt>SERVES</dt><dd>Paperless only</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">PING? PONG!</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="cols-3">
+    <div class="panel tint"><h3>CARRIES</h3><p>Jobs: consume this file, rebuild the index, train the matcher, send results back.</p></div>
+    <div class="panel tint"><h3>DOESN'T CARRY</h3><p>Your documents. They go from the inbox to Paperless's media folder directly.</p></div>
+    <div class="panel tint"><h3>IF IT'S LOST</h3><p>Only queued jobs. Your archive is safe in Postgres and the media folder.</p></div>
+  </div>
+  <div class="panel"><h3>ASK CLAUDE-VIPER</h3>
+    <div class="qa cols-2">
+      <div>
+        <div class="q">Do any other apps use this Redis?</div>
+        <div class="a">No, only Paperless. RomM on the SGIN keeps its own small Redis inside its container (its <code>/redis-data</code> folder).</div>
+      </div>
+      <div>
+        <div class="q">Does it need backups?</div>
+        <div class="a">Not really. It only holds jobs in flight. The VM backup has it anyway.</div>
+      </div>
+    </div>
+  </div>
+  <div class="tip lime"><h3>PRO TIP: THE NAME</h3>
+    <p>Redis stands for <b>RE</b>mote <b>DI</b>ctionary <b>S</b>erver: a big table of keys and values, kept in memory. Paperless's queue is just a few of those keys.</p>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>ONE SCAN, TWO HALVES OF PAPERLESS</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 POLLER</b>new file in scans</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>2 REDIS</b>job queued</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 WORKER</b>takes the job</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>4 OCR + FILE</b>media, Postgres</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>5 REDIS</b>"done!"</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>IN MEMORY, MOSTLY</h3>
+        <p>Redis keeps everything in RAM, which is why it's fast. Every so often it writes a snapshot to <code>/data</code> (our <code>/srv/gate/redis</code>), and reads it back when it starts. A queue of a few jobs is a few kilobytes.</p>
+      </div>
+      <div class="intel"><h3>WHY A QUEUE?</h3>
+        <p>OCR on a 20-page scan can take a minute or more. If the web page did it itself, your browser would hang. With a queue, the page answers at once ("got it") and a worker grinds away in the background. You can upload ten files and keep browsing.</p>
+      </div>
+      <div class="intel"><h3>NO PASSWORD?</h3>
+        <p>Redis here runs without a password. That's only safe because it listens inside the pod: the gate publishes nothing but nginx's 80 and 443, and the gate's own firewall drops everything else.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>START ORDER</h3>
+        <p>Paperless's Quadlet has <code>Requires=postgres.service redis.service</code> and <code>After=</code> the same. So systemd starts Redis before Paperless, and stopping Redis stops Paperless too.</p>
+      </div>
+      <div class="intel"><h3>VERSION PIN</h3>
+        <p>The image is <code>redis:7</code>. Auto-updates bring 7.x fixes only. Paperless only needs a working broker, so there's no reason to chase the newest major.</p>
+      </div>
+      <div class="intel"><h3>IN THE BACKUP</h3>
+        <p>It's in <code>/srv/gate</code>, so the nightly VM backup has it, but you'd never need to restore it. An empty Redis just means an empty to-do list.</p>
+      </div>
+    </div>
+  </div>
+    <table class="board">
+    <tr><th>IF REDIS IS...</th><th>YOU'LL SEE</th><th>DO THIS</th></tr>
+    <tr><td><b>Up</b></td><td>Scans leave the inbox within a minute or two</td><td>Nothing</td></tr>
+    <tr><td><b>Down</b></td><td>papers. opens, but scans pile up in <code>scans</code></td><td>Restart redis and paperless</td></tr>
+    <tr><td><b>Can't write /data</b></td><td>Permission errors in <code>podman logs redis</code></td><td>Fix the folder's owner (page 3)</td></tr>
+  </table>
+  <div class="cols-2">
+    <div class="panel tint"><h3>HEALTH CHECKLIST</h3>
+      <ul class="checks">
+        <li><code>redis-cli ping</code> answers PONG</li>
+        <li>Its log has no permission errors</li>
+        <li>The scans inbox empties within minutes</li>
+      </ul>
+    </div>
+    <div class="panel tint"><h3>ITS NEIGHBOURS</h3>
+      <ul class="checks">
+        <li>paperless, 127.0.0.1:8000: its only client</li>
+        <li>postgres, 127.0.0.1:5432: the other crew member</li>
+        <li>nginx: never talks to it</li>
+      </ul>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Want to watch the runner run? <code>redis-cli monitor</code> prints every command live. Drop a scan in the inbox and see the job fly by. Ctrl+C to stop.</div>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRAPS</span><small>CODES + SABOTAGE</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec redis redis-cli ping</code>
+        <span class="what">PONG means it's alive.</span>
+        <code class="cmd">podman exec redis redis-cli info memory</code>
+        <span class="what">How much RAM it's using (used_memory_human).</span>
+        <code class="cmd">podman exec -it redis redis-cli monitor</code>
+        <span class="what">Every command, live. Ctrl+C to stop.</span>
+        <code class="cmd">podman logs --tail 20 redis</code>
+      </div>
+      <div class="tip"><h3>PRO TIP: STUCK SCANS?</h3>
+        <p>Files sitting in <code>scans</code> for more than a couple of minutes? Ping Redis first. If it answers, look at Paperless's log next.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: RESTART THE CREW</h3>
+        <p>Restarting only Redis can leave Paperless's workers confused. Restart the three together, in order.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">systemctl --user restart redis paperless</code>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE SILENT STALL</h3>
+        <p>Redis down, Paperless still shows its web page. Everything looks fine, but nothing gets consumed and the inbox fills up.<span class="fix">Ping it. Uptime Kuma watches web pages, not Redis, so this one you check by hand.</span></p>
+      </div>
+      <div class="trap"><h3>THE EXPOSED RUNNER</h3>
+        <p>A passwordless Redis reachable from the network is a classic break-in route.<span class="fix">Never publish 6379. <code>ss -tlnH</code> on the gate must not show it.</span></p>
+      </div>
+      <div class="trap"><h3>THE OWNERSHIP TRAP</h3>
+        <p>Like Postgres, Redis runs as its own user inside the container. A later <code>chown -R podsvc: /srv/gate</code> can leave it unable to write its snapshot.<span class="fix">Don't re-run that chown. If Redis logs permission errors on <code>/data</code>, fix its folder the way you fixed Postgres's.</span></p>
+      </div>
+      <div class="trap"><h3>THE "FLUSH IT" URGE</h3>
+        <p>Wiping Redis to "fix" Paperless throws away queued jobs, and their scans may already have left the inbox.<span class="fix">Restart, don't flush.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="panel tint"><h3>FIELD TEST: WATCH THE RUNNER</h3>
+    <ol class="moves">
+      <li>GATE, podsvc: start <code>podman exec -it redis redis-cli monitor</code> in your Windows Terminal SSH tab.</li>
+      <li>THE-BOX: save a small PDF into <code>\\cobra-stream\scans</code>.</li>
+      <li>Within a minute, lines scroll past as the poller queues the job and a worker takes it.</li>
+      <li>Ctrl+C, then find the document on papers.</li>
+    </ol>
+  </div>
+</section>

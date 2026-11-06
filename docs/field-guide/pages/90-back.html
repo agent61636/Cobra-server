@@ -1,0 +1,233 @@
+<!-- EXTRAS: secret codes pages, letters, back cover -->
+
+<section class="page theme-green" data-zone="EXTRAS" data-toc="Secret codes, World 1|Every gate command on one page" data-tocgroup="back">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div class="px" style="font-size:10px;color:var(--green);">TOP SECRET · TEAR OUT AND TAPE INSIDE YOUR FOOTLOCKER</div>
+      <div class="shade" style="font-size:46px;line-height:1;">SECRET CODES</div>
+      <div class="bungee" style="font-size:20px;">WORLD 1 · THE GATE</div>
+    </div>
+    <span class="stamp">EYES ONLY</span>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="codes"><h3>GET IN</h3>
+        <span class="where">THE-BOX · Windows Terminal</span>
+        <code class="cmd">ssh eels@10.6.9.10</code>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">sudo machinectl shell podsvc@</code>
+        <span class="what">Every command below runs as podsvc unless the tag says eels.</span>
+      </div>
+      <div class="codes"><h3>LOOK AROUND</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman ps --pod</code>
+        <code class="cmd">podman logs --tail 50 authelia</code>
+        <code class="cmd">podman logs -f nginx</code>
+        <code class="cmd">podman stats --no-stream</code>
+        <span class="what">CPU and memory per container, one snapshot.</span>
+      </div>
+      <div class="codes"><h3>RESTART (QUADLETS)</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">systemctl --user restart authelia nginx</code>
+        <code class="cmd">systemctl --user status paperless</code>
+        <code class="cmd">systemctl --user restart gate-pod</code>
+        <span class="what">The whole pod, every container in it.</span>
+        <code class="cmd">systemctl --user daemon-reload</code>
+        <span class="what">After editing any .container file.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: WHERE IT LIVES</h3>
+        <p>Every gate app keeps its own data under <code>/srv/gate/&lt;app&gt;</code>, and the Quadlet files sit in <code>~/.config/containers/systemd/</code> as podsvc. Both ride along in the nightly VM backup. The shared files (scans, youtube, art) live on the SGIN's drives and come over the CIFS mount.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="codes"><h3>CHECK EVERYTHING</h3>
+        <span class="where">GATE · eels or podsvc</span>
+        <code class="cmd">~podsvc/cobra-server/scripts/podman/gate/check.sh</code>
+        <code class="cmd">podman exec nginx nginx -t</code>
+        <code class="cmd">ss -tlnH</code>
+        <span class="what">Only 22, 80, 443 and 9090 may listen on the gate.</span>
+      </div>
+      <div class="codes"><h3>UPDATES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman auto-update --dry-run</code>
+        <span class="what">Which Quadlet images have a newer version (AutoUpdate=registry).</span>
+        <code class="cmd">podman auto-update</code>
+        <span class="what">Read Authelia's and Paperless's release notes first.</span>
+      </div>
+      <div class="codes"><h3>THE SHARE FROM THE SGIN</h3>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">findmnt /srv/storage/disks</code>
+        <code class="cmd">grep -c cifs /etc/fstab</code>
+        <span class="what">Must print 1. More means the fstab line stacked up again.</span>
+        <code class="cmd">sudo mount -a</code>
+      </div>
+      <div class="codes"><h3>CERTIFICATE</h3>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">systemctl list-timers lego-renew.timer</code>
+        <code class="cmd">journalctl -u lego-renew -n 20</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-red" data-zone="EXTRAS" data-toc="Secret codes, World 2|Every stream command on one page" data-tocgroup="back">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div class="px" style="font-size:10px;color:var(--red);">TOP SECRET · PAGE 2 OF 2</div>
+      <div class="shade" style="font-size:46px;line-height:1;">SECRET CODES</div>
+      <div class="bungee" style="font-size:20px;">WORLD 2 · THE STREAM</div>
+    </div>
+    <span class="stamp">EYES ONLY</span>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="codes"><h3>GET IN</h3>
+        <span class="where">THE-BOX · Windows Terminal</span>
+        <code class="cmd">ssh eels@10.6.9.20</code>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">sudo machinectl shell podsvc@</code>
+      </div>
+      <div class="codes"><h3>LOOK AROUND</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman ps --pod</code>
+        <code class="cmd">podman logs --tail 50 jellyfin</code>
+        <code class="cmd">podman restart navidrome-rachel</code>
+        <span class="what">Works whether the SGIN runs Quadlets or the scripts.</span>
+      </div>
+      <div class="codes"><h3>READ A GENERATED PASSWORD</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman secret ls</code>
+        <code class="cmd">podman secret inspect --showsecret --format '{{.SecretData}}' icecast-admin-password</code>
+      </div>
+      <div class="codes"><h3>THE GPU</h3>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">ls -l /dev/dri</code>
+        <code class="cmd">sudo intel_gpu_top</code>
+        <span class="what">Watch the Video bar move while a transcode runs. Needs intel-gpu-tools.</span>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="codes"><h3>RUN WITH THE SCRIPTS</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">cd ~/cobra-server/scripts/podman/sgin</code>
+        <code class="cmd">./up-all.sh</code>
+        <code class="cmd">UPDATE=1 ./jellyfin.sh</code>
+        <code class="cmd">./navidrome.sh comedy</code>
+        <span class="what">The scripts stop if a Quadlet already owns that app.</span>
+      </div>
+      <div class="codes"><h3>DRIVES</h3>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">findmnt -t ext4</code>
+        <code class="cmd">df -h /srv/storage/disks/*</code>
+        <code class="cmd">ls /srv/storage/disks/dock1a</code>
+      </div>
+      <div class="codes"><h3>FIREWALL AND SHARES</h3>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">sudo nft list ruleset</code>
+        <code class="cmd">sudo systemctl status smbd</code>
+        <code class="cmd">ss -tlnH</code>
+      </div>
+      <div class="tip"><h3>PRO TIP</h3><p>Every app's own data lives under <code>/srv/stream/&lt;app&gt;</code> on the SGIN's SSD. The library drives are mounted <b>read-only</b> into the apps, so a confused container can't delete a movie.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="EXTRAS" data-toc="Letters from the barracks|Questions the Commander might ask" data-tocgroup="back">
+  <div class="banner"><span>LETTERS FROM THE BARRACKS</span></div>
+  <div class="cols-2 qa">
+    <div>
+      <div class="q">Why do I sign in once on my phone, but my TV never asks?</div>
+      <div class="a">tv. is the one floor nginx sends straight to Jellyfin without Authelia, because TV apps can't show a web sign-in page. Jellyfin's own login guards it instead.</div>
+      <div class="q">At home nothing asks me to sign in. Is that a hole?</div>
+      <div class="a">No. The floors trust home (10.6.9.x) and WireGuard (10.6.99.x) addresses. The admin apps still ask for password and TOTP, even at home.</div>
+      <div class="q">Can I just open a port to Jellyfin on the SGIN?</div>
+      <div class="a">Please don't. Everything on the SGIN answers without the gate. Exactly one forward lives on OPNsense: WAN 443 to 10.6.9.10.</div>
+      <div class="q">How do I give a friend Jellyfin?</div>
+      <div class="a">On the-box, Jellyfin → Dashboard → Users → add them, with only the libraries you want. Then send them <code>https://tv.songofeo.com</code>. No gate account needed.</div>
+    </div>
+    <div>
+      <div class="q">The gate rebooted but the SGIN was off. Now what?</div>
+      <div class="a">Paperless, MeTube and eo-art can't find their shared folder and fail. systemd retries them every minute, so they come back by themselves once the SGIN is up.</div>
+      <div class="q">Where do my passwords live?</div>
+      <div class="a">Yours: in Vaultwarden at vault., LAN and WireGuard only. The apps' generated ones: as podman secrets, readable with the codes on the previous page. Never in the scripts.</div>
+      <div class="q">How do I know when something breaks?</div>
+      <div class="a">Uptime Kuma at status. watches every app, and Homepage at command. shows a live dot on each tile.</div>
+      <div class="q">Who gets in through the gate sign-in?</div>
+      <div class="a">Whoever is in Authelia's <code>users.yml</code> on the gate. Right now that's eels and rachel.</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="5"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Got a question for the barracks? Ask in the project and the next issue might answer it. Cobra-ah... ahem. Carry on.</div>
+  </div>
+</section>
+
+<section class="page full theme-blue" data-zone="BACK COVER">
+  <div style="height:100%;display:flex;flex-direction:column;background:var(--ink);color:#fff;background-image:radial-gradient(rgba(255,255,255,.07) 2px,transparent 2.3px);background-size:12px 12px;padding:.5in .42in;gap:18px;">
+    <div class="px" style="font-size:11px;color:var(--yellow);">COMING NEXT ISSUE</div>
+    <div class="shade" style="font-size:78px;line-height:.92;color:var(--red);text-shadow:5px 5px 0 #fff;">COBRA<br>ARCADE</div>
+    <div class="bungee" style="font-size:24px;color:var(--yellow);">TANKSTICK · TRACKBALL · LED-WIZ · HIGH SCORES</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;margin-top:6px;">
+<pre class="sprite" data-px="13">
+..KKKKKKKKKKKK..
+.KRRRRRRRRRRRRK.
+.KRYYYYYYYYYYRK.
+.KRYKKKKKKKKYRK.
+.KRRRRRRRRRRRRK.
+.KKKKKKKKKKKKKK.
+.KDKKKKKKKKKKDK.
+.KDKBBBBBBBBKDK.
+.KDKBFBBBBBBKDK.
+.KDKBBBBYBBBKDK.
+.KDKBBBBBBFBKDK.
+.KDKBBRBBBBBKDK.
+.KDKKKKKKKKKKDK.
+KKKKKKKKKKKKKKKK
+KTTTTTTTTTTTTTTK
+KTTKTTTTTRTYTTTK
+KTKRKTTTTTTTTTTK
+KTTKTTTTTBTGTTTK
+KKKKKKKKKKKKKKKK
+.KDDDDDDDDDDDDK.
+.KDDDKKKKKKDDDK.
+.KDDDKYYYYKDDDK.
+.KDDDKKKKKKDDDK.
+.KDDDDDDDDDDDDK.
+.KKKKKKKKKKKKKK.
+</pre>
+      <div class="stack" style="gap:16px;">
+        <div style="background:var(--red);border:4px solid #fff;box-shadow:6px 6px 0 var(--yellow);padding:10px 12px;transform:rotate(-1.5deg);">
+          <div class="px" style="font-size:9px;color:var(--yellow);">CABINET CLINIC</div>
+          <div class="bungee" style="font-size:19px;line-height:1.1;">WIRE THE TANKSTICK AND LIGHT UP EVERY BUTTON</div>
+        </div>
+        <div style="background:var(--blue);border:4px solid #fff;box-shadow:6px 6px 0 var(--red);padding:10px 12px;transform:rotate(1deg);">
+          <div class="px" style="font-size:9px;color:var(--yellow);">NIGHT OPS</div>
+          <div class="bungee" style="font-size:19px;line-height:1.1;">THE NIGHTLY ROM COPY TO THE SGIN</div>
+        </div>
+        <div style="background:#fff;color:var(--ink);border:4px solid var(--ink);box-shadow:6px 6px 0 var(--sky);padding:10px 12px;transform:rotate(-1deg);">
+          <div class="px" style="font-size:9px;color:var(--red);">HALL OF FAME</div>
+          <div class="bungee" style="font-size:19px;line-height:1.1;">SCORES FROM THE CABINET TO SCORES.SONGOFEO.COM</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:26px;align-items:flex-end;justify-content:center;">
+      <pre class="sprite" data-name="viper" data-px="6"></pre>
+      <pre class="sprite" data-name="star" data-px="6"></pre>
+      <pre class="sprite" data-name="coin" data-px="7"></pre>
+      <pre class="sprite" data-name="heart" data-px="7"></pre>
+      <pre class="sprite" data-name="floppy" data-px="6"></pre>
+    </div>
+    <div class="spacer"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="border:4px solid #fff;padding:12px;box-shadow:6px 6px 0 var(--red);">
+        <div class="px" style="font-size:9px;color:var(--yellow);margin-bottom:6px;">HIGH SCORE TABLE</div>
+        <div class="vt" style="font-size:24px;line-height:1.15;color:var(--phosphor);">1ST  EELS ..... 999990<br>2ND  RACHEL ... 876540<br>3RD  JOES ......... 00</div>
+      </div>
+      <div style="border:4px solid #fff;padding:12px;box-shadow:6px 6px 0 var(--yellow);">
+        <div class="px" style="font-size:9px;color:var(--yellow);margin-bottom:6px;">CREDITS</div>
+        <p style="font-size:13px;margin:0;">Written and drawn by Claude-Viper and the Brush-Fang art den for Commander Eels. Built from the cobra-server manual and the logs of the actual build. All pixel art is original.</p>
+      </div>
+    </div>
+    <div class="px" style="font-size:9px;color:#aaa;text-align:center;">GAME OVER? NEVER. PRESS START TO CONTINUE.</div>
+  </div>
+</section>

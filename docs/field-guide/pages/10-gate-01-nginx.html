@@ -1,0 +1,201 @@
+<!-- WORLD 1 / nginx: the reference chapter. Other chapters copy this shape. -->
+
+<section class="page theme-blue" data-zone="WORLD 1 · THE GATE" data-toc="nginx|The Front Door" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-1 · CHARACTER SELECT</div>
+      <h1>NGINX</h1>
+      <div class="sub">The Front Door: every *.songofeo.com name walks through here</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+....KKKKKKKK....
+...KMMMMMMMMK...
+..KMMMMMMMMMMK..
+..KMKKKKKKKKMK..
+..KMKGGGGGGKMK..
+..KMKGGGGGGKMK..
+..KMKGGGGGGKMK..
+..KMKGGGGYGKMK..
+..KMKGGGGGGKMK..
+..KMKGGGGGGKMK..
+..KMKGGGGGGKMK..
+..KMKGGGGGGKMK..
+.KKKKKKKKKKKKKK.
+KTTTTTTTTTTTTTTK
+KKKKKKKKKKKKKKKK
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">nginx is the bouncer's doorframe. It holds the wildcard certificate, answers on 443, reads the name you typed, asks Authelia whether you may come in, and then hands your request to the right app, on the gate or across the LAN on the SGIN.</p>
+      <p>It is the only container in World 1 with a door to the outside: the <code>gate</code> pod publishes just ports 80 and 443, and both belong to nginx. Every other gate app (Authelia on 9091, Vaultwarden on 8222, Paperless on 8000 and the rest) listens on 127.0.0.1 inside the pod, where only nginx can reach it. That is the whole security model in one sentence: <b>if nginx doesn't send you there, you can't get there.</b></p>
+      <p>Port 80 does exactly one thing: it answers <b>301, go to https</b>. OPNsense doesn't even forward 80 from the internet, because the certificate comes through Porkbun's DNS, not a web challenge. So from outside, 443 is the island's only open TCP door, and nginx is standing in it.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Scanners that knock on your bare IP get nothing. Not a page, not even a certificate. The catch-all server refuses the TLS handshake, so they never learn the name songofeo.com.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>nginx:stable</code></dd>
+          <dt>PORTS</dt><dd>80 and 443, published</dd>
+          <dt>CONFIG</dt><dd><code>/srv/gate/nginx/conf.d/songofeo.conf</code></dd>
+          <dt>CERT</dt><dd><code>/srv/gate/nginx/certs/</code> (wildcard, lego)</dd>
+          <dt>RUNS AS</dt><dd>podsvc, Quadlet <code>nginx.container</code></dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      </div>
+      <div class="burst red" style="align-self:center;">ONE CONFIG ERROR = EVERY FLOOR DOWN</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <table class="board">
+    <tr><th>KIND OF NAME</th><th>NAMES</th><th>WHAT NGINX DOES</th></tr>
+    <tr><td><b>The floors</b></td><td>music. mustang. comedy. sessions. books. comics. arcade. art.</td><td>Asks Authelia (skipped at home and on WireGuard), then proxies to the SGIN or eo-art</td></tr>
+    <tr><td><b>Cinema</b></td><td>tv.</td><td>Straight to Jellyfin :8096, <b>no</b> gate sign-in, so TV apps work</td></tr>
+    <tr><td><b>Admin apps</b></td><td>papers. metube. command. status.</td><td>Authelia password + TOTP from everywhere</td></tr>
+    <tr><td><b>The vault</b></td><td>vault.</td><td>LAN 10.6.9.0/24 and WireGuard 10.6.99.0/24 only; 403 for the rest</td></tr>
+    <tr><td><b>Anything else</b></td><td>bare IP, unknown names</td><td>Handshake refused</td></tr>
+  </table>
+</section>
+
+<section class="page theme-blue" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A PHONE ON CELLULAR OPENS MUSIC.</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 PHONE</b>music.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>2 DNS</b>CNAME to gate. A record</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 OPNSENSE</b>WAN 443 to 10.6.9.10</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>4 NGINX</b>TLS, picks server block</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>5 AUTHELIA</b>signed in? 200 or 401</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>6 NAVIDROME</b>10.6.9.20:4533</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>THE AUTH_REQUEST TRICK</h3>
+        <p>Every guarded <code>location /</code> carries one line: <code>auth_request /internal/authelia/authz;</code>. Before nginx forwards anything, it makes a tiny side request to Authelia at <code>127.0.0.1:9091/api/authz/auth-request</code>, with the original URL and your cookie.</p>
+        <p><b>200</b> means go ahead. <b>401</b> becomes a <b>302</b> to <code>gate.songofeo.com</code> with your page attached, so after signing in you land right back where you were.</p>
+        <p>On the floors, Authelia also tells nginx <i>who</i> you are, and nginx passes that on as the <code>Remote-User</code> header. The Navidromes trust that header from 10.6.9.10 only, so you don't log in twice.</p>
+      </div>
+      <div class="intel"><h3>TWO MAPS, ONE FILE</h3>
+        <p><code>map $host $station</code> turns a floor name into an address (music. to :4533, books. to :13378...). <code>map $host $protected</code> does the same for the admin apps on 127.0.0.1. Adding a floor is mostly one line in a map plus the name in that block's <code>server_name</code>.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>WHAT IT SETS ON EVERY REQUEST</h3>
+        <ul>
+          <li><b>HSTS</b>: "never use plain http here" for a year</li>
+          <li><b>X-Forwarded-For = $remote_addr</b>: the gate is the first proxy, so the visitor can't smuggle in a fake address</li>
+          <li><b>Remote-User ""</b>: a visitor's own Remote-User header is always wiped</li>
+          <li><b>Websockets</b>: Upgrade and Connection headers, for Uptime Kuma, MeTube and Jellyfin</li>
+          <li><b>No size limit</b> (<code>client_max_body_size 0</code>) for RomM and Audiobookshelf uploads</li>
+        </ul>
+      </div>
+      <div class="intel"><h3>RATE LIMITS</h3>
+        <p>Two buckets per visitor address: <b>media</b> at 50 requests a second (burst 300) because a library page loads dozens of covers, and <b>perip</b> at 10 a second (burst 50) for the sign-in and admin apps. Over the limit you get <b>429</b>, not a ban.</p>
+      </div>
+      <div class="intel"><h3>STREAMING STRAIGHT THROUGH</h3>
+        <p>On the floors and tv., <code>proxy_buffering off</code> streams video, audio and ROM downloads straight through instead of spooling them onto the gate's small disk, and timeouts are 1 hour so a long movie or a websocket doesn't get cut.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-blue" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: RELOAD, DON'T RESTART</h3>
+        <p>After editing <code>songofeo.conf</code>, test it and reload in place. A reload keeps every open stream playing; a bad config is refused and the old one stays live.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec nginx nginx -t</code>
+        <span class="what">Must say "syntax is ok" and "test is successful".</span>
+        <code class="cmd">podman exec nginx nginx -s reload</code>
+        <span class="what">Loads the new config with no downtime.</span>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: CHECK ALL NAMES</h3>
+        <p><code>check.sh</code> asks the gate's own nginx for every hostname and prints OK, NOTE or FAIL with what to look at. From the gate it's the view from <i>outside</i> the house, so floors must bounce you to the sign-in.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · eels or podsvc</span>
+        <code class="cmd">~podsvc/cobra-server/scripts/podman/gate/check.sh</code>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip lime"><h3>PRO TIP: WHO'S KNOCKING?</h3>
+        <p>The pod uses <b>pasta</b> networking, which keeps each visitor's real address. The log shows it at the start of every line: a 10.6.9.x desktop, your phone's carrier address, or a stranger.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman logs --tail 20 nginx</code>
+        <code class="cmd">podman logs -f nginx</code>
+        <span class="what">Follow it live. Ctrl+C to stop.</span>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: NEW FLOOR</h3>
+        <ol class="moves">
+          <li>Copy a whole <code>server</code> block (or add the name to <code>$station</code> and its <code>server_name</code> list).</li>
+          <li>Add the name to Authelia's <code>access_control</code>.</li>
+          <li>Test and reload nginx (codes on the left).</li>
+          <li>Porkbun: a CNAME to <code>gate.songofeo.com</code>. At home, the Pi-holes' wildcard already covers it.</li>
+        </ol>
+      </div>
+      <div class="tip"><h3>PRO TIP: IS THE PADLOCK OK?</h3>
+        <p>The cert covers <code>songofeo.com</code> and <code>*.songofeo.com</code> and renews itself every day it's within 30 days of expiry (lego-renew timer). The deploy hook copies it into nginx's certs folder and restarts nginx.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-blue" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">Found in the footlockers, stepped on during the build, or flagged in manual part 5.4.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE OPEN BLOCK</h3>
+        <p>A <code>server</code> or <code>location</code> without its own <code>auth_request</code> line is open to anyone who can reach the gate. There is no global "protect everything" switch.<span class="fix">Copy a whole protected block, auth location included, every time you add a name. Then run check.sh.</span></p>
+      </div>
+      <div class="trap"><h3>THE VANISHING HEADERS</h3>
+        <p>A location that sets even one <code>proxy_set_header</code> drops <b>all</b> the inherited ones. Same with <code>add_header</code>: one CORS header in <code>station-cors.inc</code> can silently delete HSTS from the floors.<span class="fix">Re-list every header in that location (the config does). Test HSTS with curl, below.</span></p>
+      </div>
+      <div class="trap"><h3>THE MISSING INCLUDE</h3>
+        <p>A plain <code>include</code> of a file that doesn't exist stops nginx from starting, which takes down every floor and the sign-in.<span class="fix">The config uses <code>station-cors*.inc</code>, a pattern, so a missing file just matches nothing.</span></p>
+      </div>
+      <div class="trap"><h3>THE 403 LOCKOUT</h3>
+        <p>New name in nginx, but forgot Authelia? Authelia's <code>default_policy: deny</code> refuses it, so you get <b>403</b>. That's the safe way to fail.<span class="fix">Add an <code>access_control</code> rule for the name and restart Authelia.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE 127.0.0.1 IMPOSTOR</h3>
+        <p>If every log line starts with 127.0.0.1 or 10.0.2.x, the pod isn't on pasta. Then <i>everyone</i> looks local: the home bypass, Vaultwarden's LAN rule and Jellyfin's logs all break.<span class="fix">Stop and check <code>podman info --format '{{.Host.RootlessNetworkCmd}}'</code> says <code>pasta</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE LOW-PORT WALL</h3>
+        <p>Rootless podman can't bind 80/443 until the kernel allows it. And the old <code>pod.sh</code> called <code>sysctl</code>, which isn't on podsvc's PATH on Debian (fixed in PR #44: it reads /proc now).<span class="fix">As eels, the sysctl.d line from part 5.2 sets <code>ip_unprivileged_port_start=80</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE CATCH-ALL HIJACK</h3>
+        <p>Three old OPNsense forwards pointed at the SGIN, one of them any/any. That catch-all swallowed WireGuard's UDP too. They're disabled now; only WAN TCP 443 to 10.6.9.10 is live.<span class="fix">Destination NAT must show exactly one enabled rule. Never forward to 10.6.9.20.</span></p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">THE-BOX · PowerShell</span>
+        <code class="cmd">curl.exe -sI https://tv.songofeo.com/</code>
+        <span class="what">Look for one Strict-Transport-Security line.</span>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">systemctl list-timers lego-renew.timer</code>
+        <span class="what">The next certificate renewal check.</span>
+      </div>
+    </div>
+  </div>
+</section>

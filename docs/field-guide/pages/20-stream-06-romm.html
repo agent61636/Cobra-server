@@ -1,0 +1,226 @@
+<!-- WORLD 2 / RomM: the web Arcade -->
+
+<section class="page theme-pink" data-zone="WORLD 2 · THE STREAM" data-toc="RomM|The web Arcade, games in the browser" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-6 · CHARACTER SELECT</div>
+      <h1>ROMM</h1>
+      <div class="sub">The Arcade: your ROM library, playable in a browser, at arcade.songofeo.com</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+.....KKKK.....
+....KRRRRK....
+....KRWRRK....
+....KRRRRK....
+.....KKKK.....
+......KK......
+......KK......
+......KK......
+..KKKKKKKKKK..
+.KDDDDDDDDDDK.
+KDDYKDDDDRKDDK
+KDDDDDDDDDDDDK
+KKKKKKKKKKKKKK
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">RomM is the browser arcade. It catalogs every ROM by platform, fetches box art and titles, and with <b>EmulatorJS</b> built in, lets anyone you've signed in play right in their browser. Press start on a laptop, a tablet, even a phone.</p>
+      <p>The trick: the game runs <b>in the player's browser</b>, not on the server. The SGIN only hands out files, so ten people playing ten games barely tickle its CPU. RomM keeps its catalog in a MariaDB database (next chapter) and its covers and settings on the SGIN's SSD.</p>
+      <p>The ROMs live on <b>dock1b</b>, in <code>dock1b/roms</code>. Their main copy is on the cabinet, <code>cobra-arcade</code>'s <code>D:\Roms</code>, and the cabinet sends them up every night, so the web arcade keeps working while the cabinet sleeps.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Status report, Commander: RomM is staged and ready in the arcade runbook (<code>docs/arcade-runbook.md</code>), waiting for the live arcade session. This chapter is your pre-mission briefing.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>rommapp/romm:latest</code></dd>
+          <dt>PORT</dt><dd>8080</dd>
+          <dt>URL</dt><dd><code>arcade.songofeo.com</code></dd>
+          <dt>DATA</dt><dd><code>/srv/stream/romm/</code> resources, assets, config, redis</dd>
+          <dt>ROMS</dt><dd><code>dock1b/roms</code>, writable</dd>
+          <dt>DATABASE</dt><dd><code>romm-db</code> (MariaDB 11)</dd>
+          <dt>SIGN-IN</dt><dd>Gate sign-in from outside + RomM login</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">INSERT COIN? NO NEED!</div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>TWO ARCADES, ONE ROM PILE</h3>
+    <div class="cols-2">
+      <div><b>The cabinet</b> (OptiPlex, LaunchBox and RetroArch) plays from <code>D:\Roms</code> with the Tankstick. Its saves live on the cabinet.</div>
+      <div><b>The web arcade</b> (RomM and EmulatorJS) plays the nightly copy on dock1b in any browser. Its saves live in RomM, per user.</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="intel"><h3>PLATFORM FOLDERS</h3><p>Examples from the manual: <code>roms/snes</code>, <code>roms/n64</code>, <code>roms/arcade</code>. RomM needs its own names for platforms; the cabinet's folder map translates where the cabinet's names differ.</p></div>
+    <div class="tip"><h3>PRO TIP: GAMEPADS</h3><p>EmulatorJS runs in the browser, and browsers can read most USB and Bluetooth gamepads. Plug one into the-box, press a button on the game page, play.</p></div>
+  </div>
+</section>
+
+<section class="page theme-pink" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>FROM CABINET TO BROWSER</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 CABINET</b>D:\Roms\&lt;platform&gt;</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 NIGHTLY</b>robocopy to \\cobra-stream\roms</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 DOCK1B</b>roms/&lt;platform&gt;/</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 ROMM</b>scan, art, :8080</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 BROWSER</b>EmulatorJS plays it</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>ONE FOLDER PER PLATFORM</h3>
+        <p>RomM expects <code>roms/&lt;platform&gt;/</code>: <code>roms/snes</code>, <code>roms/n64</code>, <code>roms/arcade</code> and so on. Each folder shows up as a platform after a scan. The cabinet's own folder names don't always match RomM's, so the cabinet script <code>03-roms-map.ps1</code> writes a folder map, and <code>romm-platforms.sh</code> adds it to RomM's <code>config.yml</code> under <code>system:</code>.</p>
+      </div>
+      <div class="intel"><h3>ONE-WAY TRAFFIC</h3>
+        <p>The nightly copy runs <b>cabinet to SGIN only</b> (<code>robocopy /E /XO</code>: adds and updates, never deletes). New ROMs go onto the cabinet's <code>D:\Roms</code>; the next night they appear on dock1b, then a RomM scan picks them up.</p>
+      </div>
+      <div class="intel"><h3>WHY RomM MAY WRITE</h3>
+        <p>Unlike the read-only media apps, RomM's roms folder is mounted writable, with <code>keep-groups</code> so it keeps podsvc's <code>media</code> group. No <code>:Z</code> on it, because Samba shares the same folder for the cabinet's copy.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>WHAT LIVES WHERE</h3>
+        <table class="board">
+          <tr><th>FOLDER</th><th>HOLDS</th></tr>
+          <tr><td><code>romm/resources</code></td><td>Fetched covers and screenshots</td></tr>
+          <tr><td><code>romm/assets</code></td><td>Uploaded saves, states, screenshots</td></tr>
+          <tr><td><code>romm/config</code></td><td><code>config.yml</code>: netplay, folder map</td></tr>
+          <tr><td><code>romm/redis</code></td><td>Its built-in task queue's data</td></tr>
+          <tr><td><code>romm/db</code></td><td>MariaDB's files (romm-db)</td></tr>
+        </table>
+      </div>
+      <div class="intel"><h3>SECRETS, NOT SCRIPTS</h3>
+        <p>The database password and RomM's auth key are made once and kept as <b>podman secrets</b> (<code>romm-db-password</code>, <code>romm-auth-secret</code>) when built by the scripts. They never appear in the script or in <code>podman inspect</code>. In Quadlet mode they're in the 600-protected <code>romm*.container</code> files instead.</p>
+      </div>
+      <div class="intel"><h3>THE SCOREBOARD IS ELSEWHERE</h3>
+        <p>The hiscore board at scores.songofeo.com runs on the gate, not here. RomM is just the arcade floor.</p>
+      </div>
+    </div>
+  </div>
+  <div class="intel"><h3>THE NIGHTLY COPY</h3>
+    <p>On the cabinet, <code>02-nightly.ps1</code> sets up the nightly job (run it once with <code>-RunNow</code> for the first copy). It logs to <code>C:\Cobra\nightly-copy.log</code> and writes <code>=== end</code> when done. The copy logs in to the SGIN's Samba as user <code>arcade</code>, saved once with <code>cmdkey</code>.</p>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Cabinet by day, browser by night, one ROM pile for both. The Joes don&#39;t even know which arcade you&#39;re in.</div>
+  </div>
+</section>
+
+<section class="page theme-pink" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: COVERS + NAMES</h3>
+        <p>Free metadata keys (IGDB through Twitch, ScreenScraper, SteamGridDB) give RomM box art and proper titles. With the scripts, put them in <code>~/.config/cobra/romm.env</code> as <code>IGDB_CLIENT_ID=...</code> lines and rerun <code>./romm.sh</code>; with Quadlets, as <code>Environment=</code> lines in <code>romm.container</code>.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: NETPLAY</h3>
+        <p>Netplay lets two browsers play one game together (WebRTC). <code>romm.sh</code> writes it switched on in <code>config.yml</code>. Friends outside the house usually also need a <b>TURN relay</b>; RomM's EmulatorJS docs list free ones under <code>ice_servers</code>.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: BIOS FILES</h3>
+        <p>Some systems won't boot without BIOS files. RomM &#8594; the platform &#8594; <b>Firmware</b> &#8594; upload. Several files for one system? Zip them together first.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: ONE USER PER PLAYER</h3>
+        <p>Administration &#8594; Users. Each player's saves and save states then stay their own.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">bash /tmp/cobra-arcade/romm-up.sh</code>
+        <span class="what">The runbook's starter: picks Quadlet or scripts mode, never overwrites.</span>
+        <code class="cmd">bash /tmp/cobra-arcade/romm-platforms.sh</code>
+        <span class="what">Adds the cabinet's folder map, with a backup of config.yml.</span>
+        <code class="cmd">podman logs --tail 50 romm</code>
+        <code class="cmd">podman restart romm</code>
+        <span class="where">SGIN · eels</span>
+        <code class="cmd">bash /tmp/cobra-arcade/check.sh</code>
+        <span class="what">Read-only check. Ends with ALL GOOD, or prints each fix.</span>
+      </div>
+      <div class="panel"><h3>FIRST VISIT</h3>
+        <ol class="moves">
+          <li><b>the-box browser:</b> <code>http://10.6.9.20:8080</code> &#8594; setup wizard &#8594; admin <code>eels</code>, password into Vaultwarden.</li>
+          <li>After the cabinet's first nightly copy: Library &#8594; <b>Scan</b>.</li>
+          <li>Phone on cellular: <code>https://arcade.songofeo.com</code> &#8594; gate sign-in &#8594; one game plays.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>The gate needs nothing new: arcade. is already in nginx's map, pointing at 10.6.9.20:8080. Start RomM and the door is already open.</div>
+  </div>
+  <div class="panel tint"><h3>RUNBOOK ORDER</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 SGIN</b>check.sh</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>2 CABINET</b>scripts + base</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 MAP</b>03-roms-map.ps1</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 ROMM</b>romm-up.sh</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>5 COPY</b>02-nightly -RunNow</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>6 SCAN</b>in RomM</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-pink" data-zone="WORLD 2 · THE STREAM">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">From manual 3.8b, the arcade runbook and the scripts' own warnings.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE WRONG-WAY ROM</h3>
+        <p>ROMs dropped straight into <code>\\cobra-stream\roms</code> never reach the cabinet: the copy only runs cabinet to SGIN.<span class="fix">Add ROMs on the cabinet in <code>D:\Roms\&lt;platform&gt;</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE TOO-BIG PILE</h3>
+        <p>dock1b is a 1 TB drive; <code>D:\Roms</code> on the 4 TB drive could outgrow it.<span class="fix">The nightly script stops by itself if <code>D:\Roms</code> is bigger than dock1b's free space. Check its log.</span></p>
+      </div>
+      <div class="trap"><h3>THE FORGOTTEN PASSWORD</h3>
+        <p>RomM's database already exists with an old password, and a fresh run makes a new one: RomM can't log in to its own database. <code>romm-up.sh</code> stops rather than guess.<span class="fix">Give the old values once: <code>ROMM_DB_PASSWORD=... ROMM_AUTH_SECRET=...</code> in front of the command.</span></p>
+      </div>
+      <div class="trap"><h3>THE PUBLISHED-PORT GAP</h3>
+        <p>No <code>PublishPort=8080:8080</code> in <code>stream.pod</code>, and RomM answers nobody.<span class="fix">Add the line, <code>daemon-reload</code>, restart stream-pod. romm-up.sh checks it for you.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE SAVE SPLIT</h3>
+        <p>Beat a level on the cabinet, open the same game in the browser: no save. They share ROMs, never saves, and browser netplay can't join a RetroArch netplay game.<span class="fix">Pick one place per playthrough.</span></p>
+      </div>
+      <div class="trap"><h3>THE LONELY NETPLAY</h3>
+        <p>Netplay works at home but a friend across town never connects.<span class="fix">Add a TURN relay under <code>ice_servers</code> in config.yml.</span></p>
+      </div>
+      <div class="trap"><h3>THE DOUBLE CONFIG</h3>
+        <p><code>romm-platforms.sh</code> refuses if <code>config.yml</code> already has a <code>platforms:</code> or <code>system:</code> section, so it never writes a duplicate.<span class="fix">Paste the map in by hand with nano, under the existing section.</span></p>
+      </div>
+      <div class="trap"><h3>THE EMPTY SCAN</h3>
+        <p>Scan before the first nightly copy and RomM finds nothing.<span class="fix">Watch <code>C:\Cobra\nightly-copy.log</code> on the cabinet for <code>=== end</code>, then Scan.</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>ARCADE OPERATOR'S CHECKLIST</h3>
+    <div class="cols-2">
+      <ul class="checks">
+        <li>check.sh says ALL GOOD</li>
+        <li>romm-up.sh ends with "RomM is up"</li>
+      </ul>
+      <ul class="checks">
+        <li>Folder map added, Library scanned</li>
+        <li>One game plays from a phone on cellular</li>
+      </ul>
+    </div>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Every one of these traps prints its own fix in the runbook scripts. Read the red line, Commander, it&#39;s talking to you.</div>
+  </div>
+</section>

@@ -1,0 +1,238 @@
+<!-- WORLD 2 / ErsatzTV: live channels -->
+
+<section class="page theme-orange" data-zone="WORLD 2 · THE STREAM" data-toc="ErsatzTV|Your own TV channels, guide included" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 2-2 · CHARACTER SELECT</div>
+      <h1>ERSATZTV</h1>
+      <div class="sub">The Broadcast Tower: real TV channels made from your own library</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+...K.......K....
+....K.....K.....
+.....K...K......
+......K.K.......
+KKKKKKKKKKKKKKKK
+KMMMMMMMMMMMMMMK
+KMKKKKKKKKKKMEMK
+KMKSSSSSSSSKMMMK
+KMKSWSSSSSSKMEMK
+KMKSSSSSSSSKMMMK
+KMKSSSSSSSSKMOMK
+KMKKKKKKKKKKMMMK
+KMMMMMMMMMMMMMMK
+KKKKKKKKKKKKKKKK
+.KK..........KK.
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Remember flipping channels and landing on a rerun you hadn't picked? ErsatzTV brings that back. It builds always-on TV channels out of your movies and shows, complete with a schedule, a program guide and commercial breaks from your filler folder.</p>
+      <p>It doesn't have viewers of its own. ErsatzTV hands Jellyfin two links, a <b>channel list</b> (M3U) and a <b>program guide</b> (XMLTV), and Jellyfin shows the channels under <b>Live TV</b> on every app: Roku, Apple TV, phones, browsers. Tune in and ErsatzTV starts playing that channel's schedule from wherever "now" is, transcoding it live on the Quick Sync GPU.</p>
+      <p>Both live in the <code>stream</code> pod, so they talk to each other over <code>127.0.0.1</code>. ErsatzTV answers on port 8409 for the LAN and WireGuard, has <b>no login page at all</b>, and the gate never publishes it. People away from home watch the channels through Jellyfin at tv.songofeo.com instead.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Picture it, Commander: "Cobra Channel 1, all monster movies, all night", with your old bumpers between them. The Joes will never find the remote.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
+          <dt>IMAGE</dt><dd><code>ghcr.io/ersatztv/legacy:latest</code></dd>
+          <dt>PORT</dt><dd>8409 (LAN + WireGuard only)</dd>
+          <dt>URL</dt><dd><code>http://10.6.9.20:8409</code></dd>
+          <dt>DATA</dt><dd><code>/srv/stream/ersatztv</code></dd>
+          <dt>SCRATCH</dt><dd><code>/transcode</code>, 2 GB in RAM</dd>
+          <dt>GPU</dt><dd><code>/dev/dri</code>, VAAPI</dd>
+          <dt>SIGN-IN</dt><dd>None. Never publish it</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">NOW SHOWING: YOUR LIBRARY</div>
+    </div>
+  </div>
+  <div class="panel"><h3>CHANNEL IDEAS</h3>
+    <div class="cols-3">
+      <div><b>COBRA 1, "Late Show":</b> a smart collection of horror and sci-fi movies, shuffled, with a Pad preset so each film starts on the half hour.</div>
+      <div><b>COBRA 2, "Saturday Morning":</b> a playlist of cartoon series in order, a pre-roll of old commercials before every episode.</div>
+      <div><b>COBRA 3, "Marathon":</b> one show, chronological, forever. Pick it up where the channel is, like the old days.</div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>THREE KINDS OF BREAK</h3>
+    <div class="cols-3">
+      <div><b>Live TV channels:</b> ErsatzTV's own filler presets, from <code>wd1/filler</code>. This chapter.</div>
+      <div><b>Episodes on demand:</b> cobra-breaks' "with breaks" playlists in Jellyfin (manual part 6).</div>
+      <div><b>Movies:</b> a pre-roll from the Local Intros plugin, fed from <code>wd1/pre-rolls</code>.</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>CHANNEL 3 GOES ON THE AIR</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 JELLYFIN</b>library synced in</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>2 SCHEDULE</b>collections + filler</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 PLAYOUT</b>built timeline</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 ERSATZTV</b>:8409 M3U + XMLTV</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>5 LIVE TV</b>in every Jellyfin app</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>WHERE THE SHOWS COME FROM</h3>
+        <p><b>Media Sources &#8594; Jellyfin:</b> ErsatzTV logs into Jellyfin at <code>http://127.0.0.1:8096</code> with an API key and syncs the Movies and TV libraries, posters and all.</p>
+        <p><b>Media Sources &#8594; Local:</b> a library of type <i>Other Videos</i> on <code>/media/wd1/filler</code> for the break videos.</p>
+        <p>Both containers mount <code>/srv/storage/disks</code> at the same <code>/media</code> path, read-only. So a file path Jellyfin reports is one ErsatzTV can open too. That shared path is the whole trick.</p>
+      </div>
+      <div class="intel"><h3>THE GPU, AGAIN</h3>
+        <p>Every channel someone is watching is a live transcode, so ErsatzTV gets the same <code>/dev/dri</code> and <code>keep-groups</code> wiring as Jellyfin. Its <b>FFmpeg profile</b> says: hardware acceleration <b>VAAPI</b>, driver <b>iHD</b>, device <code>/dev/dri/renderD128</code>, <b>H.264</b> (plays everywhere), 1080p.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>THE BUILDING BLOCKS</h3>
+        <table class="board">
+          <tr><th>BLOCK</th><th>WHAT IT IS</th></tr>
+          <tr><td><b>Collection</b></td><td>"All of this show" or "these 40 movies"</td></tr>
+          <tr><td><b>Smart collection</b></td><td>A saved search, e.g. <code>genre:comedy</code></td></tr>
+          <tr><td><b>Playlist</b></td><td>A fixed order you choose, mixing shows and movies</td></tr>
+          <tr><td><b>Filler preset</b></td><td>Breaks: Pre-roll before each item, or Pad to the half hour</td></tr>
+          <tr><td><b>Schedule</b></td><td>Items + order (chronological, shuffle, random) + filler</td></tr>
+          <tr><td><b>Channel</b></td><td>Number, name, logo, FFmpeg profile, MPEG-TS</td></tr>
+          <tr><td><b>Playout</b></td><td>Channel + schedule, built into a timeline</td></tr>
+        </table>
+      </div>
+      <div class="intel"><h3>WHY RAM?</h3>
+        <p>While someone watches, ErsatzTV writes the channel's live video segments to <code>/transcode</code>. That's a 2 GB <b>tmpfs</b>, a folder in RAM, so the constant little writes never wear the SGIN's SSD.</p>
+      </div>
+      <div class="intel"><h3>THE TWO MAGIC LINKS</h3>
+        <p><code>http://127.0.0.1:8409/iptv/channels.m3u</code><br><code>http://127.0.0.1:8409/iptv/xmltv.xml</code></p>
+      </div>
+    </div>
+  </div>
+  <div class="panel"><h3>WHAT THE GUIDE LOOKS LIKE</h3>
+    <table class="board">
+      <tr><th>CH</th><th>8:00 PM</th><th>8:30 PM</th><th>9:00 PM</th><th>9:30 PM</th></tr>
+      <tr><td><b>1</b></td><td colspan="3">Movie from the "Late Show" smart collection, padded to 9:30</td><td>Next movie</td></tr>
+      <tr><td><b>2</b></td><td>Episode 4</td><td>Episode 5</td><td>Episode 6</td><td>Episode 7</td></tr>
+      <tr><td><b>3</b></td><td colspan="2">Two-part special</td><td>Episode 12</td><td>Episode 13</td></tr>
+    </table>
+  </div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>This is the grid Jellyfin draws from the XMLTV guide. And ErsatzTV never copies a single movie: channels are just a timeline of pointers into the same read-only library Jellyfin uses, so a whole lineup costs almost no disk space.</div>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="WORLD 2 · THE STREAM">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="panel"><h3>BUILD A CHANNEL IN 6 MOVES</h3>
+    <ol class="moves">
+      <li><b>Jellyfin</b> (the-box browser) &#8594; Dashboard &#8594; API Keys &#8594; <b>+</b> &#8594; name <code>ersatztv</code> &#8594; copy the key.</li>
+      <li><b>ErsatzTV</b> <code>http://10.6.9.20:8409</code> &#8594; Media Sources &#8594; Jellyfin: <code>http://127.0.0.1:8096</code> + the key &#8594; Save &#8594; tick Movies and TV &#8594; Sync. Then Local &#8594; Other Videos &#8594; <code>/media/wd1/filler</code> &#8594; Scan.</li>
+      <li>Settings &#8594; FFmpeg Profiles &#8594; VAAPI, iHD, <code>/dev/dri/renderD128</code>, H.264, 1080p.</li>
+      <li>Lists &#8594; Collections (or Smart Collections, Playlists) &#8594; Filler Presets &#8594; Schedules.</li>
+      <li>Channels &#8594; Add &#8594; Playouts &#8594; Add &#8594; <b>Build</b>.</li>
+      <li>Jellyfin &#8594; Dashboard &#8594; Live TV: <b>M3U Tuner</b> with the channels link, <b>XMLTV</b> with the guide link &#8594; Refresh Guide Data.</li>
+    </ol>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="tip"><h3>PRO TIP: REAL TV TIMING</h3>
+        <p>A <b>Pre-roll</b> filler preset (Mode: Count 1) drops one break before each episode. Add a <b>Pad</b> preset too and ErsatzTV fills each episode out to the next 30-minute mark, so shows start on the hour and half hour like real TV.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: THEME NIGHTS</h3>
+        <p>A <b>smart collection</b> is a saved search that updates itself. <code>genre:comedy</code> today includes the comedy you add next month, with no rebuild of the list.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: REBUILD</h3>
+        <p>Changed a schedule a lot? Playouts &#8594; <b>Build</b> again. The guide in Jellyfin catches up on its next refresh, or press Refresh Guide Data yourself.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="tip pink"><h3>PRO TIP: THE FILLER STASH</h3>
+        <p>Old commercials, bumpers, station IDs, trailers: drop them in <code>\\cobra-stream\media\wd1\filler</code> from the-box, subfolders allowed. ErsatzTV, cobra-breaks and Jellyfin's Filler library all use that one folder. Aim for 50+.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">SGIN · podsvc</span>
+        <code class="cmd">podman logs --tail 50 ersatztv</code>
+        <code class="cmd">podman restart ersatztv</code>
+        <span class="what">Channels, schedules and playouts live in /srv/stream/ersatztv, so a restart loses nothing.</span>
+        <span class="where">THE-BOX · browser</span>
+        <code class="cmd">http://10.6.9.20:8409/iptv/channels.m3u</code>
+        <span class="what">Opens the channel list as text: proof it's alive.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: CHANNEL LOGOS</h3>
+        <p>Each channel takes a number, a name and a <b>logo</b>. A little pixel logo per channel makes the Jellyfin guide look like a real cable box.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="tip blue"><h3>PRO TIP: WATCH FROM AWAY</h3>
+      <p>On cellular, open Jellyfin at <code>https://tv.songofeo.com</code> &#8594; Live TV. The channel comes through Jellyfin and the gate; ErsatzTV never needs a public name.</p>
+    </div>
+    <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+      <div class="bubble"><span class="who">CLAUDE-VIPER</span>Start with one channel and one schedule. Get it playing in Jellyfin end to end, then build the rest of the lineup.</div>
+    </div>
+  </div>
+</section>
+
+<section class="page theme-orange" data-zone="WORLD 2 · THE STREAM">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">Footlocker findings from manual 3.8a and the research notes.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE OPEN TOWER</h3>
+        <p>ErsatzTV has no login screen. Anyone who reaches port 8409 can rewrite every channel.<span class="fix">Never give it a gate hostname. nftables keeps 8409 LAN and WireGuard only; remote viewers use Jellyfin's Live TV.</span></p>
+      </div>
+      <div class="trap"><h3>THE WRONG HOST</h3>
+        <p>The M3U and XMLTV buttons in ErsatzTV copy links with whatever address your browser used. Paste <code>10.6.9.20</code> or a hostname and Jellyfin goes the long way, or not at all.<span class="fix">Replace the host part with <code>127.0.0.1:8409</code> before pasting into Jellyfin.</span></p>
+      </div>
+      <div class="trap"><h3>THE VAAPI HICCUP</h3>
+        <p>The manual marks the VAAPI profile "verify": some builds error on it.<span class="fix">If channels won't start, try <b>QSV</b> with the same device in the FFmpeg profile.</span></p>
+      </div>
+      <div class="trap"><h3>THE IMPOSTOR IMAGE</h3>
+        <p>Old guides say <code>ghcr.io/ersatztv/ersatztv</code>. The maintained line is <code>ghcr.io/ersatztv/legacy</code> (v26.x). A rewrite, ErsatzTV Next, is still in early testing.<span class="fix">Stay on <code>legacy</code> until Next calls itself stable.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE DEAD KEY</h3>
+        <p>Delete or recreate the <code>ersatztv</code> API key in Jellyfin and the sync silently stops finding new episodes.<span class="fix">New key &#8594; ErsatzTV &#8594; Media Sources &#8594; Jellyfin &#8594; paste &#8594; Sync.</span></p>
+      </div>
+      <div class="trap"><h3>THE EMPTY FILLER</h3>
+        <p>A channel with a filler preset but an empty or unscanned filler library plays straight through with no breaks, or gaps.<span class="fix">Fill <code>wd1/filler</code>, then Media Sources &#8594; Local &#8594; Scan.</span></p>
+      </div>
+      <div class="trap"><h3>THE GHOST DRIVE, PART 2</h3>
+        <p>Just like Jellyfin, ErsatzTV only sees drives mounted when it started. Replug wd1 and the channels can't open their files.<span class="fix"><code>podman pod restart stream</code>, then rescan.</span></p>
+      </div>
+      <div class="trap"><h3>THE EMPTY GUIDE</h3>
+        <p>Channels added in Jellyfin, but the guide shows "no information" for hours.<span class="fix">Dashboard &#8594; Live TV &#8594; <b>Refresh Guide Data</b> after each new channel or playout build.</span></p>
+      </div>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Channels transcode only while someone watches. Nobody tuned in, nobody working: the GPU stays free for Jellyfin.</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel tint"><h3>ON-AIR CHECKLIST</h3>
+    <div class="cols-2">
+      <ul class="checks">
+        <li>Jellyfin source synced, filler library scanned</li>
+        <li>FFmpeg profile on VAAPI (or QSV), H.264, 1080p</li>
+        <li>Playout built for every channel</li>
+      </ul>
+      <ul class="checks">
+        <li>M3U and XMLTV links use 127.0.0.1:8409</li>
+        <li>Guide data refreshed in Jellyfin</li>
+        <li>A channel plays on a phone on cellular via tv.</li>
+      </ul>
+    </div>
+  </div>
+</section>

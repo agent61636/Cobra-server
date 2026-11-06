@@ -1,0 +1,239 @@
+/* Claude-Viper's Visual Field Guides: house style for "VIPER VISION".
+   An original late-80s/early-90s game-magazine look: thick ink outlines, flat bold color blocks,
+   halftone dots, pixel headers, solid offset shadows. Every page is a fixed US Letter sheet. */
+
+@font-face { font-family: "Press Start 2P"; src: url("fonts/pressstart2p.woff2") format("woff2"); }
+@font-face { font-family: "Bungee"; src: url("fonts/bungee.woff2") format("woff2"); }
+@font-face { font-family: "Bungee Shade"; src: url("fonts/bungeeshade.woff2") format("woff2"); }
+@font-face { font-family: "Archivo Narrow"; src: url("fonts/archivonarrow.woff2") format("woff2"); font-weight: 400 700; }
+@font-face { font-family: "VT323"; src: url("fonts/vt323.woff2") format("woff2"); }
+
+:root {
+  --ink: #111014;
+  --paper: #fffaf0;
+  --red: #e4202a;
+  --blue: #1d3fbb;
+  --sky: #00a6e0;
+  --yellow: #ffd400;
+  --green: #18a548;
+  --lime: #9be22d;
+  --purple: #6b2fa0;
+  --orange: #ff7a00;
+  --pink: #ff4fa3;
+  --steel: #5d6b7a;
+  --screen: #0b1f12;
+  --phosphor: #4cff7a;
+  /* the page's own accent pair, set by .theme-* */
+  --a: var(--red);
+  --b: var(--yellow);
+  --c: var(--blue);
+}
+
+@page { size: 8.5in 11in; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #2a2730; }
+body { font: 400 13.2px/1.36 "Archivo Narrow", "Liberation Sans Narrow", sans-serif; color: var(--ink);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+/* ---------- the sheet ---------- */
+.page { position: relative; width: 8.5in; height: 11in; overflow: hidden; background: var(--paper);
+  margin: 0 auto 24px; page-break-after: always; break-after: page; display: flex; flex-direction: column; }
+@media print { .page { margin: 0; } html, body { background: none; } }
+.page > .strip { flex: 0 0 auto; height: 30px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 .42in; background: var(--ink); color: #fff; font: 9px/1 "Press Start 2P", monospace; letter-spacing: .04em; }
+.page > .strip .zone { background: var(--a); color: #fff; padding: 6px 9px; margin-left: -9px; text-shadow: 1px 1px 0 var(--ink); }
+.page > .strip .mag { color: var(--b); }
+.page > .body { flex: 1 1 auto; position: relative; padding: .28in .42in .2in; overflow: hidden; display: flex; flex-direction: column; gap: 11px; }
+.page > footer { flex: 0 0 auto; height: 26px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 .42in; border-top: 3px solid var(--ink); font: 8px/1 "Press Start 2P", monospace; background: #fff; }
+.page > footer .pgno { background: var(--a); color: #fff; padding: 5px 8px; border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+.page.full > .body { padding: 0; }
+.page.full > .strip, .page.full > footer { display: none; }
+
+/* themes: --a main block color, --b highlight, --c second block */
+.theme-red    { --a: var(--red);    --b: var(--yellow); --c: var(--blue); }
+.theme-blue   { --a: var(--blue);   --b: var(--yellow); --c: var(--red); }
+.theme-yellow { --a: #d99a00;       --b: var(--yellow); --c: var(--blue); }
+.theme-green  { --a: var(--green);  --b: var(--lime);   --c: var(--purple); }
+.theme-purple { --a: var(--purple); --b: var(--pink);   --c: var(--sky); }
+.theme-orange { --a: var(--orange); --b: var(--yellow); --c: var(--purple); }
+.theme-sky    { --a: var(--sky);    --b: var(--yellow); --c: var(--red); }
+.theme-pink   { --a: var(--pink);   --b: var(--yellow); --c: var(--blue); }
+.theme-steel  { --a: var(--steel);  --b: var(--lime);   --c: var(--red); }
+
+/* ---------- type ---------- */
+h1, h2, h3, h4 { margin: 0; font-weight: 400; }
+.px { font-family: "Press Start 2P", monospace; letter-spacing: .02em; }
+.vt { font-family: "VT323", monospace; }
+.shade { font-family: "Bungee Shade", "Bungee", sans-serif; }
+.bungee { font-family: "Bungee", sans-serif; }
+p { margin: 0 0 .5em; }
+p:last-child { margin-bottom: 0; }
+b, strong { font-weight: 700; }
+code, .mono { font-family: "VT323", monospace; font-size: 1.22em; background: rgba(17,16,20,.08); padding: 0 3px; }
+ul, ol { margin: 0 0 .4em; padding-left: 1.25em; }
+li { margin: 0 0 .18em; }
+a { color: inherit; }
+
+/* chapter opener title: giant shaded letters on a color block */
+.chapter-head { position: relative; background: var(--a); color: #fff; border: 4px solid var(--ink); box-shadow: 7px 7px 0 var(--ink);
+  padding: 14px 18px 14px; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+  background-image: radial-gradient(rgba(0,0,0,.22) 1.4px, transparent 1.6px); background-size: 7px 7px; }
+.chapter-head .kicker { font: 10px/1.4 "Press Start 2P", monospace; color: var(--b); text-shadow: 2px 2px 0 var(--ink); }
+.chapter-head h1 { font: 54px/0.95 "Bungee Shade", "Bungee", sans-serif; color: #fff; text-shadow: 4px 4px 0 var(--ink); margin: 6px 0 4px; word-break: break-word; }
+.chapter-head h1.long { font-size: 40px; }
+.chapter-head .sub { font: 700 17px/1.2 "Archivo Narrow", sans-serif; background: var(--ink); color: var(--b); display: inline-block; padding: 4px 9px; }
+.chapter-head .art { background: var(--paper); border: 4px solid var(--ink); padding: 8px; box-shadow: 4px 4px 0 var(--ink); }
+
+/* section title: skewed banner */
+.banner { align-self: flex-start; position: relative; font: 22px/1 "Bungee", sans-serif; color: #fff; background: var(--a);
+  padding: 8px 16px 7px; border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); transform: skew(-8deg); margin-left: 6px; }
+.banner > span { display: inline-block; transform: skew(8deg); }
+.banner.alt { background: var(--c); }
+.banner.ink { background: var(--ink); color: var(--b); }
+.banner small { font: 9px/1 "Press Start 2P", monospace; color: var(--b); margin-left: 10px; vertical-align: middle; }
+
+.pixel-head { font: 13px/1.4 "Press Start 2P", monospace; color: var(--ink); border-bottom: 4px dotted var(--a); padding-bottom: 5px; }
+.lede { font: 700 16px/1.32 "Archivo Narrow", sans-serif; }
+.lede::first-letter { font: 44px/0.8 "Bungee", sans-serif; float: left; color: var(--a); padding: 4px 6px 0 0; text-shadow: 3px 3px 0 var(--ink); }
+
+/* ---------- layout ---------- */
+.cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.cols-21 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+.cols-12 { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; }
+.text-cols { column-count: 2; column-gap: 18px; column-rule: 2px dashed rgba(17,16,20,.25); }
+.text-cols > * { break-inside: avoid; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.grow { flex: 1 1 auto; }
+.center { text-align: center; }
+.spacer { flex: 1 1 auto; }
+
+/* ---------- boxes ---------- */
+.panel { position: relative; background: #fff; border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); padding: 18px 12px 10px; margin-top: 8px; }
+.panel > h3, .tip > h3, .trap > h3, .codes > h3, .stats > h3, .intel > h3 { position: absolute; top: -12px; left: 10px; font: 10px/1 "Press Start 2P", monospace;
+  background: var(--a); color: #fff; padding: 6px 8px; border: 3px solid var(--ink); white-space: nowrap; }
+.panel.tint { background: color-mix(in srgb, var(--b) 22%, #fff); }
+.panel.dark { background: var(--ink); color: #fff; }
+.panel.dark code { background: rgba(255,255,255,.12); }
+
+/* PRO TIP: yellow card with a starburst tab */
+.tip { position: relative; background: var(--yellow); border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); padding: 20px 12px 10px; margin-top: 8px; }
+.tip > h3 { background: var(--ink); color: var(--yellow); }
+.tip > h3::before { content: "\2605  "; color: var(--yellow); }
+.tip.blue { background: #bfe6ff; }
+.tip.pink { background: #ffd0e6; }
+.tip.lime { background: #e2ffb0; }
+
+/* JOE SABOTAGE: hazard-striped warning (the traps) */
+.trap { position: relative; background: #fff; border: 6px solid transparent; padding: 20px 12px 10px; margin-top: 8px;
+  border-image: repeating-linear-gradient(45deg, var(--ink) 0 9px, var(--yellow) 9px 18px) 6; box-shadow: 5px 5px 0 var(--ink); }
+.trap > h3 { background: var(--red); color: #fff; top: -16px; }
+.trap > h3::before { content: "! "; }
+.trap .fix { display: block; margin-top: 5px; padding: 4px 7px; background: #e9ffe9; border-left: 5px solid var(--green); }
+.trap .fix::before { content: "FIX: "; font: 8px "Press Start 2P", monospace; color: var(--green); }
+
+/* CODES: green-screen terminal. One bare command per <code class="cmd">. */
+.codes { position: relative; background: var(--screen); color: var(--phosphor); border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink);
+  padding: 20px 12px 10px; margin-top: 8px; font: 17px/1.15 "VT323", monospace;
+  background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 2px, transparent 2px 4px); }
+.codes > h3 { background: var(--phosphor); color: var(--screen); }
+.codes .cmd { display: block; background: rgba(76,255,122,.09); color: #d6ffe0; padding: 2px 6px; margin: 3px 0 2px; font: 17px/1.15 "VT323", monospace; white-space: pre-wrap; word-break: break-all; }
+.codes .cmd::before { content: "> "; color: var(--phosphor); }
+.codes .what { display: block; color: #8fd9a3; font: 15px/1.1 "VT323", monospace; margin: 5px 0 0; }
+.codes .where { display: inline-block; font: 8px/1 "Press Start 2P", monospace; color: var(--screen); background: var(--yellow); padding: 3px 5px; margin: 6px 0 1px; }
+
+/* INTEL: blue dossier box for "how it works" facts */
+.intel { position: relative; background: #e8f0ff; border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); padding: 20px 12px 10px; margin-top: 8px; }
+.intel > h3 { background: var(--blue); }
+
+/* character / boss stat card */
+.stats { position: relative; background: #fff; border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); padding: 20px 10px 8px; margin-top: 8px; }
+.stats > h3 { background: var(--c); }
+.stats dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; }
+.stats dt { font: 8px/1.9 "Press Start 2P", monospace; color: var(--a); white-space: nowrap; }
+.stats dd { margin: 0; font: 700 13px/1.25 "Archivo Narrow", sans-serif; word-break: break-word; }
+.stats dd code { font-size: 1.12em; }
+.meter { display: flex; align-items: center; gap: 6px; font: 8px/1 "Press Start 2P", monospace; margin: 4px 0; }
+.meter .lbl { width: 92px; }
+.meter .bar { display: flex; gap: 2px; }
+.meter .bar i { width: 11px; height: 12px; border: 2px solid var(--ink); background: #fff; }
+.meter .bar i.on { background: var(--a); }
+.meter.hp .bar i.on { background: var(--green); }
+.meter.danger .bar i.on { background: var(--red); }
+.meter.fun .bar i.on { background: var(--yellow); }
+
+/* Claude-Viper says: speech bubble with the pixel cobra */
+.viper { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: start; }
+.viper .bubble { position: relative; background: #fff; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 11px; box-shadow: 4px 4px 0 var(--ink); font-weight: 700; }
+.viper .bubble::before { content: ""; position: absolute; left: -15px; top: 16px; border: 8px solid transparent; border-right: 12px solid var(--ink); }
+.viper .bubble .who { display: block; font: 8px/1.4 "Press Start 2P", monospace; color: var(--a); margin-bottom: 3px; }
+
+/* level map: request path diagram */
+.levelmap { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; row-gap: 8px; }
+.levelmap .node { flex: 1 1 0; min-width: 0; background: #fff; border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 6px 6px; text-align: center; font: 700 12px/1.2 "Archivo Narrow", sans-serif; }
+.levelmap .node b { display: block; font: 8px/1.5 "Press Start 2P", monospace; color: var(--a); margin-bottom: 2px; }
+.levelmap .node.hot { background: var(--b); }
+.levelmap .node.boss { background: var(--a); color: #fff; }
+.levelmap .node.boss b { color: var(--b); }
+.levelmap .arrow { flex: 0 0 26px; display: flex; align-items: center; justify-content: center; font: 14px "Press Start 2P", monospace; color: var(--a); }
+
+/* starburst callout */
+.burst { position: relative; width: 132px; height: 132px; display: grid; place-items: center; text-align: center; background: var(--b); color: var(--ink);
+  clip-path: polygon(50% 0%, 61% 18%, 82% 7%, 80% 30%, 100% 34%, 85% 50%, 100% 66%, 80% 70%, 82% 93%, 61% 82%, 50% 100%, 39% 82%, 18% 93%, 20% 70%, 0% 66%, 15% 50%, 0% 34%, 20% 30%, 18% 7%, 39% 18%);
+  font: 11px/1.25 "Press Start 2P", monospace; padding: 26px; }
+.burst.red { background: var(--red); color: #fff; }
+
+/* numbered moves list */
+.moves { counter-reset: mv; list-style: none; padding: 0; margin: 0; }
+.moves > li { counter-increment: mv; position: relative; padding: 2px 0 6px 36px; margin: 0; }
+.moves > li::before { content: counter(mv); position: absolute; left: 0; top: 0; width: 26px; height: 26px; display: grid; place-items: center;
+  background: var(--a); color: #fff; border: 2px solid var(--ink); font: 10px "Press Start 2P", monospace; box-shadow: 2px 2px 0 var(--ink); }
+
+/* pixel checkboxes */
+.checks { list-style: none; padding: 0; margin: 0; }
+.checks li { position: relative; padding-left: 22px; margin-bottom: 4px; }
+.checks li::before { content: ""; position: absolute; left: 0; top: 2px; width: 12px; height: 12px; border: 2px solid var(--ink); background: #fff; box-shadow: 2px 2px 0 var(--a); }
+
+/* tables: the score board */
+table.board { width: 100%; border-collapse: collapse; border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); background: #fff; font-size: 12.5px; }
+table.board th { background: var(--ink); color: var(--b); font: 8px/1.4 "Press Start 2P", monospace; text-align: left; padding: 6px 6px; }
+table.board td { padding: 4px 6px; border-top: 2px solid var(--ink); vertical-align: top; }
+table.board tr:nth-child(even) td { background: color-mix(in srgb, var(--b) 18%, #fff); }
+
+/* letters page / Q&A */
+.qa .q { font-weight: 700; background: var(--ink); color: #fff; padding: 5px 8px; margin: 6px 0 4px; }
+.qa .q::before { content: "Q: "; color: var(--b); font: 9px "Press Start 2P", monospace; }
+.qa .a { padding: 0 2px 4px 8px; border-left: 4px solid var(--a); }
+.qa .a::before { content: "A: "; color: var(--a); font: 9px "Press Start 2P", monospace; }
+
+/* stickers and stamps */
+.stamp { display: inline-block; font: 10px/1 "Press Start 2P", monospace; color: var(--red); border: 3px solid var(--red); padding: 6px 8px; transform: rotate(-6deg); background: rgba(255,255,255,.7); }
+.tag { display: inline-block; font: 7.5px/1 "Press Start 2P", monospace; background: var(--ink); color: #fff; padding: 4px 5px; margin: 0 3px 3px 0; vertical-align: middle; }
+.tag.a { background: var(--a); } .tag.c { background: var(--c); } .tag.y { background: var(--yellow); color: var(--ink); }
+.tag.g { background: var(--green); } .tag.r { background: var(--red); }
+
+/* halftone and stripes for decorative blocks */
+.halftone { background-image: radial-gradient(rgba(17,16,20,.18) 1.5px, transparent 1.7px); background-size: 8px 8px; }
+.checker { height: 14px; background: conic-gradient(var(--ink) 25%, #fff 0 50%, var(--ink) 0 75%, #fff 0) 0 0/14px 14px; border: 2px solid var(--ink); }
+.zigzag { height: 12px; background: linear-gradient(135deg, var(--a) 25%, transparent 25%) -6px 0/12px 12px, linear-gradient(225deg, var(--a) 25%, transparent 25%) -6px 0/12px 12px; }
+
+/* pixel sprites (inline SVG made by build.mjs from <pre class="sprite">) */
+svg.sprite { display: block; image-rendering: pixelated; shape-rendering: crispEdges; }
+.sprite-row { display: flex; gap: 12px; align-items: flex-end; justify-content: center; }
+
+/* level select page (contents) */
+.toc { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 14px; }
+.toc a { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; text-decoration: none; background: #fff; border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 2px 7px; }
+.toc a .n { font: 9px/1 "Press Start 2P", monospace; background: var(--ink); color: var(--yellow); padding: 4px 5px; }
+.toc a .t { font: 700 13px/1.15 "Archivo Narrow", sans-serif; }
+.toc a .t small { display: block; font-weight: 400; font-size: 10.5px; line-height: 1.1; color: #555; }
+.toc a .p { font: 9px "Press Start 2P", monospace; color: var(--red); }
+.toc .zonehead { grid-column: 1 / -1; font: 11px/1 "Press Start 2P", monospace; color: #fff; background: var(--blue); padding: 6px 10px; border: 3px solid var(--ink); margin-top: 3px; }
+.toc .zonehead.stream { background: var(--red); }
+.toc .zonehead.bonus { background: var(--purple); }
+
+/* small print */
+.fine { font-size: 11px; color: #444; }
+.note { font-size: 12px; }
+.toc .zonehead.back { background: var(--green); }

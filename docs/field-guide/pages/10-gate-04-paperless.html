@@ -1,0 +1,241 @@
+<!-- WORLD 1 / Paperless-ngx -->
+
+<section class="page theme-green" data-zone="WORLD 1 · THE GATE" data-toc="Paperless-ngx|The Archive: scan it, find it" data-tocgroup="gate">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">WORLD 1-4 · CHARACTER SELECT</div>
+      <h1 class="long">PAPERLESS</h1>
+      <div class="sub">The Archive: drop a scan in, get a searchable document out</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="7">
+...KKKKKKKK.....
+...KWWWWWWKK....
+.KKKKKKKKKWKK...
+.KWWWWWWWKKWK...
+.KWKKKKKWWKWK...
+.KWWWWWWWWKWK...
+.KWKKKKKKWKWK...
+.KWWWWWWWWKKK...
+.KWKKKKKKWKGGK..
+.KWWWWWWWKGGGGK.
+.KWKKKKWWKGGKGGK
+.KWWWWWWWKGGGGK.
+.KKKKKKKKKKGGKK.
+...........KK...
+</pre>
+    </div>
+  </div>
+
+  <div class="cols-21">
+    <div class="stack">
+      <p class="lede">Paperless-ngx turns paper into a searchable archive. Drop a PDF or a phone photo of a letter into the scans folder; within a minute Paperless reads the text (OCR), files it, tags it, dates it and removes it from the inbox. Then you find any bill, receipt or manual by typing a word you remember.</p>
+      <p>It's the biggest app on the gate, and the only one with a crew: <b>Postgres</b> holds the database, <b>Redis</b> carries the to-do list for its background workers, and Paperless itself runs the web page and the workers that read your scans. All three share the <code>gate</code> pod and talk over 127.0.0.1.</p>
+      <p>The inbox lives on the SGIN, not the gate: <code>dock1a/scans</code>, shared from Windows as <code>\\cobra-stream\scans</code> and mounted on the gate over CIFS at <code>/srv/storage/disks</code>. The archive itself, the originals, the OCR'd copies and the search index, stays on the gate's own disk in <code>/srv/gate/paperless</code>.</p>
+      <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>The Joes kept their paperwork in footlockers. We keep ours in a database with full-text search. Advantage: Cobra.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="stats"><h3>STATS</h3>
+        <dl>
+          <dt>HOST</dt><dd>cobra-gate 10.6.9.10, pod <code>gate</code></dd>
+          <dt>IMAGE</dt><dd><code>paperless-ngx:latest</code></dd>
+          <dt>PORT</dt><dd>8000, 127.0.0.1</dd>
+          <dt>URL</dt><dd>papers.songofeo.com</dd>
+          <dt>DATA</dt><dd><code>/srv/gate/paperless</code> data, media, export</dd>
+          <dt>INBOX</dt><dd><code>dock1a/scans</code> over CIFS</dd>
+          <dt>SIGN-IN</dt><dd>Authelia password + TOTP, then its own login</dd>
+          <dt>CREW</dt><dd>postgres, redis</dd>
+        </dl>
+        <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+        <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      </div>
+      <div class="burst" style="align-self:center;">FILED IN 60 SECONDS</div>
+    </div>
+  </div>
+    <div class="panel"><h3>FIELD TEST</h3>
+    <div class="cols-2">
+      <ul class="checks">
+        <li>Save any PDF into <code>\\cobra-stream\scans</code> from THE-BOX</li>
+        <li>Within a minute it vanishes from the folder</li>
+        <li>papers. shows it on the dashboard, with a date guessed</li>
+      </ul>
+      <ul class="checks">
+        <li>Search a word from inside the page: it's found</li>
+        <li>Open it: original and archive versions both download</li>
+        <li>Tag it once; the next one from that sender gets the tag by itself</li>
+      </ul>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <table class="board">
+    <tr><th>FOLDER</th><th>WHERE</th><th>WHAT LIVES THERE</th></tr>
+    <tr><td><b>consume</b> (inbox)</td><td>SGIN <code>dock1a/scans</code>, via CIFS</td><td>New scans waiting to be filed. Emptied as Paperless takes them.</td></tr>
+    <tr><td><b>data</b></td><td>gate <code>/srv/gate/paperless/data</code></td><td>The search index and app settings</td></tr>
+    <tr><td><b>media</b></td><td>gate <code>/srv/gate/paperless/media</code></td><td>Every original and its archived (OCR'd) PDF</td></tr>
+    <tr><td><b>export</b></td><td>gate <code>/srv/gate/paperless/export</code></td><td>Where the document exporter writes a full backup copy</td></tr>
+  </table>
+</section>
+
+<section class="page theme-green" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>HOW IT WORKS</span><small>LEVEL MAP</small></div>
+  <div class="panel"><h3>A SCAN'S JOURNEY</h3>
+    <div class="levelmap">
+      <div class="node"><b>1 THE-BOX</b>save to \\cobra-stream\scans</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>2 SGIN</b>dock1a/scans</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 CIFS</b>gate sees it</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>4 POLL</b>every 60 s</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>5 REDIS</b>task queued</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>6 WORKER</b>OCR, tag, file</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="intel"><h3>WHY POLLING?</h3>
+        <p>Normally Paperless notices a new file the instant it lands. Those "a file changed" notifications don't cross an SMB share, so the gate would never hear about it. <code>PAPERLESS_CONSUMER_POLLING=60</code> makes Paperless simply look in the folder every 60 seconds.</p>
+      </div>
+      <div class="intel"><h3>WHAT A WORKER DOES</h3>
+        <ul>
+          <li>Reads the text with OCR, so a photo becomes searchable</li>
+          <li>Makes an archive PDF next to your original (both are kept)</li>
+          <li>Guesses a date, a correspondent, a document type and tags, learning from what you've filed before</li>
+          <li>Deletes the file from the inbox once it's safely stored</li>
+        </ul>
+      </div>
+      <div class="intel"><h3>THE CREW</h3>
+        <p><b>Postgres</b> stores documents, tags and users. <b>Redis</b> is the queue between the web page and the workers. Paperless's Quadlet <code>Requires=</code> both, so systemd starts them first.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="intel"><h3>PAPERLESS_URL</h3>
+        <p>Paperless only trusts requests for the address it's told it lives at. It's <code>https://papers.songofeo.com</code>. The name used to be <code>docs.</code>, and the old value was still in the Quadlet on setup night; we fixed it on 6 November.</p>
+      </div>
+      <div class="intel"><h3>WHEN THE SGIN NAPS</h3>
+        <p>If the gate boots while the SGIN is off, the inbox folder isn't there and Paperless fails. <code>Restart=on-failure</code> with <code>RestartSec=60</code> retries every minute until the SGIN is back. Nothing to do by hand.</p>
+      </div>
+      <div class="intel"><h3>TWO LOCKS</h3>
+        <p>papers. is an admin room: Authelia wants your password and a TOTP code, from everywhere. Then Paperless shows its own login, for the superuser made with <code>createsuperuser</code> (eels, made on 6 Nov).</p>
+      </div>
+      <div class="intel"><h3>SECRETS</h3>
+        <p>The database password and the secret key were generated once. Quadlets: inside <code>paperless.container</code> (mode 600). Scripts: podman secrets.</p>
+      </div>
+    </div>
+  </div>
+    <table class="board">
+    <tr><th>IT GUESSES</th><th>FROM</th><th>YOU CAN</th></tr>
+    <tr><td><b>Date</b></td><td>Dates printed in the text</td><td>Fix it once; the rest are usually right</td></tr>
+    <tr><td><b>Correspondent</b></td><td>Who sent it (Xfinity, the bank...)</td><td>Set matching rules or let it learn ("auto")</td></tr>
+    <tr><td><b>Document type</b></td><td>Bill, receipt, letter, manual</td><td>Make the types you care about</td></tr>
+    <tr><td><b>Tags</b></td><td>Words and past filing</td><td>Use tags like "taxes" or "house" across everything</td></tr>
+  </table>
+<div class="spacer"></div>
+  <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>The first start takes a few minutes while it builds its database. A blank page in the first minutes isn't a failure; check the logs before you panic.</div>
+  </div>
+</section>
+
+<section class="page theme-green" data-zone="WORLD 1 · THE GATE">
+  <div class="banner"><span>TIPS &amp; TRICKS</span><small>POWER-UPS</small></div>
+  <div class="cols-2">
+    <div class="stack">      <div class="tip"><h3>PRO TIP: MAIL IN</h3>
+        <p>Paperless can check an email inbox and file attachments by itself: Mail, add an account, then a rule (for example "PDFs from the bank, tag bills").</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: ARCHIVE NUMBERS</h3>
+        <p>Give paper you keep an <b>archive serial number</b> (ASN), and write it on the original. Paperless finds the digital copy; the number tells you which folder holds the paper.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: RACHEL'S PAPERS</h3>
+        <p>Paperless has users and owners. A second Paperless account can see shared documents but not your private ones. She'd also need Authelia TOTP for papers.</p>
+      </div>
+
+      <div class="tip"><h3>PRO TIP: THE DROP ZONE</h3>
+        <p>On THE-BOX, pin <code>\\cobra-stream\scans</code> to Quick Access in Explorer. Point the scanner's "scan to folder" or your phone's scanner app there too. Anything you drop is filed within a minute.</p>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: TEACH IT</h3>
+        <p>Make a few <b>correspondents</b> (Xfinity, the bank, the doctor) and <b>tags</b>, and correct the first dozen documents. Its auto-matching learns from what you file and gets the next ones right by itself.</p>
+      </div>
+      <div class="tip pink"><h3>PRO TIP: SEARCH LIKE A SPY</h3>
+        <p>The search box reads the OCR'd text, not just titles. Type "warranty" or a model number and Paperless finds the page it's printed on.</p>
+      </div>
+      <div class="tip lime"><h3>PRO TIP: SAVED VIEWS</h3>
+        <p>Save a search (say, tag "taxes" this year) as a view and show it on the dashboard. Tax season becomes one click.</p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec -it paperless python3 manage.py createsuperuser</code>
+        <span class="what">Once: the Paperless admin (done for eels).</span>
+        <code class="cmd">podman logs --tail 40 paperless</code>
+        <span class="what">Watch it pick up and file a scan.</span>
+        <code class="cmd">systemctl --user restart postgres redis paperless</code>
+        <span class="what">The whole crew, in order.</span>
+      </div>
+      <div class="tip"><h3>PRO TIP: FULL BACKUP</h3>
+        <p>The document exporter writes every document plus a manifest into the <code>export</code> folder: a copy you can import into a fresh Paperless.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · podsvc</span>
+        <code class="cmd">podman exec paperless document_exporter ../export</code>
+        <code class="cmd">ls /srv/gate/paperless/export</code>
+      </div>
+      <div class="tip blue"><h3>PRO TIP: TEST THE INBOX</h3>
+        <p>As eels on the gate, make and delete a test file in the inbox. If that fails, the CIFS mount is the problem, not Paperless.</p>
+      </div>
+      <div class="codes"><h3>CODES</h3>
+        <span class="where">GATE · eels</span>
+        <code class="cmd">ls /srv/storage/disks/dock1a/scans</code>
+      </div>
+    </div>
+  </div>
+  <div class="panel dark"><h3>SCANNER SETTINGS THAT WORK</h3>
+    <p><b>300 dpi, grayscale, PDF</b> is the sweet spot: sharp enough for OCR, small enough to keep forever. Multi-page letters go in as one PDF, not a pile of JPGs. Photos from the phone work too; flat, bright and square-on reads best.</p>
+  </div>
+</section>
+
+<section class="page theme-green" data-zone="WORLD 1 · THE GATE">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <pre class="sprite" data-name="joe" data-px="6"></pre>
+    <div>
+      <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
+      <p class="note" style="margin-top:10px;">The Archive was the trickiest room on setup night. Every one of these happened, or nearly did.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="stack">
+      <div class="trap"><h3>THE CHOWN DISASTER</h3>
+        <p>Re-running the manual's <code>chown -R podsvc: /srv/gate</code> after setup took Postgres's files away from its user (999 inside the container). Paperless crash-looped: <code>could not open file "global/pg_filenode.map": Permission denied</code>.<span class="fix">As podsvc: <code>podman unshare chown -R 999:999 /srv/gate/postgres</code>, then restart postgres and paperless.</span></p>
+      </div>
+      <div class="trap"><h3>THE OLD ADDRESS</h3>
+        <p><code>PAPERLESS_URL</code> still said <code>docs.</code> after the rename to <code>papers.</code>, so Paperless distrusted its own address.<span class="fix">Set it to <code>https://papers.songofeo.com</code> in <code>paperless.container</code>, daemon-reload, restart.</span></p>
+      </div>
+      <div class="trap"><h3>THE STACKED FSTAB</h3>
+        <p>Running the CIFS mount step more than once left <b>eight</b> copies of the same line in <code>/etc/fstab</code>.<span class="fix">Cleaned to one line on 6 Nov (backup <code>/etc/fstab.bak-before-cleanup</code>). The manual's <code>grep -q ... ||</code> guard now stops repeats.</span></p>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="trap"><h3>THE WRONG SAMBA PASSWORD</h3>
+        <p>The gate logs in to the SGIN's share as user <code>gate</code>. A wrong password in <code>/root/smb-gate.cred</code> means no inbox at all.<span class="fix">On the SGIN, <code>sudo smbpasswd gate</code> sets a new one; put it in the cred file with nano, never on the command line.</span></p>
+      </div>
+      <div class="trap"><h3>THE IMPATIENT START</h3>
+        <p>The first start migrates the database for minutes. Killing it halfway means starting again.<span class="fix">Give it a few minutes and follow <code>podman logs -f paperless</code>.</span></p>
+      </div>
+      <div class="trap"><h3>THE VANISHING INBOX</h3>
+        <p>Paperless deletes files from <code>scans</code> after filing them. That's by design, but it surprises people looking for the original there.<span class="fix">The original is in Paperless: open the document and download it.</span></p>
+      </div>
+    </div>
+  </div>
+    <div class="cols-2">
+    <div class="trap"><h3>THE DOUBLE SCAN</h3>
+      <p>Drop the same file twice and Paperless refuses the second copy as a duplicate. The file isn't lost, it's just not filed again.<span class="fix">Check the log line, then delete the extra copy.</span></p>
+    </div>
+    <div class="trap"><h3>THE TOTP WALL</h3>
+      <p>papers. is an admin room, so even at home it asks for a password and a TOTP code.<span class="fix">Register TOTP on THE-BOX first (Authelia's boss page).</span></p>
+    </div>
+  </div>
+<div class="spacer"></div>
+  <div class="panel dark"><h3>UPDATES</h3>
+    <p>Paperless is one of three apps (with Authelia and RomM) whose release notes you read before <code>podman auto-update</code>: they sometimes change settings between major versions. Run <code>podman auto-update --dry-run</code> first to see what would change.</p>
+  </div>
+</section>
