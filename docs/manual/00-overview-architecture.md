@@ -125,7 +125,7 @@
 | gate (in pod) | Authelia 9091 · Vaultwarden 8222 · Paperless 8000 · Postgres 5432 · Redis 6379 · MeTube 8081 · Homepage 3000 · Uptime Kuma 3001 | localhost only | Only nginx inside the pod |
 | gate | Cockpit | 9090 | LAN + VPN |
 | cobra-home | Home Assistant | 8123 | LAN + VPN directly; from outside only through the gate at `ha.songofeo.com` (part 10) |
-| stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533 · RomM 8080 · Icecast 8000 | LAN + VPN only (nftables) | gate's nginx + LAN clients |
+| stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533–4536 · RomM 8080 · Icecast 8000 | LAN + VPN only (nftables) | gate's nginx + LAN clients |
 | stream | Samba | 445 | LAN + VPN |
 | stream | Pi-hole #2 | 53, 80/443 (admin) | LAN + VPN |
 | stream | Cockpit · SSH | 9090 · 22 | LAN + VPN |
@@ -150,8 +150,10 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | Music (the station's Music floor) | `music.songofeo.com` | → stream: Navidrome | Station sign-in; Navidrome trusts it, so no second login |
 | Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | Station sign-in, then in-app once per device |
 | Comics / graphic novels | `comics.songofeo.com` | → stream: Kavita | Station sign-in, then in-app once per device |
-| Rachel's music | `mustang.songofeo.com` | → stream: same Navidrome (Rachel's library) | Same as `music.` |
-| Game Cellar / The Ward | `gaming.songofeo.com`, `sessions.songofeo.com` | → gate: holding page until their apps exist | Station sign-in |
+| Rachel's music | `mustang.songofeo.com` | → stream: Rachel's own Navidrome (`:4535`, only her folder) | Same as `music.` |
+| Stand-up comedy | `comedy.songofeo.com` | → stream: the comedy Navidrome (`:4534`, `dock1a/comedy`) | Same as `music.` |
+| The Ward (recorded podcasts) | `sessions.songofeo.com` | → stream: the sessions Navidrome (`:4536`, `dock1a/sessions`) | Same as `music.` |
+| Game Cellar | `gaming.songofeo.com` | → gate: holding page until its app exists | Station sign-in |
 | Landing-page pictures | `art.songofeo.com` | → gate: eo-art (random covers and backdrops from dock1a's `art` folder) | Station sign-in; signed-out visitors see the drawn art instead |
 | Save documents | `papers.songofeo.com` | → gate: Paperless-ngx | **Mandatory:** Authelia 2FA, then Paperless |
 | Save a YouTube video | `metube.songofeo.com` | → gate: MeTube | **Mandatory:** Authelia 2FA (MeTube has no login of its own) |

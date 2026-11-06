@@ -7,6 +7,7 @@ for s in jellyfin ersatztv navidrome audiobookshelf kavita romm; do
   "$here/$s.sh"
   echo
 done
+for who in rachel comedy sessions; do "$here/navidrome.sh" "$who"; echo; done
 liq=${COBRA_DATA:-/srv/stream}/radio/radio.liq
 if [ -r "$liq" ]; then "$here/radio.sh"; else echo "==> skipping the radio (no $liq yet, part 8)"; fi
 podman ps --pod --format 'table {{.Names}}\t{{.Status}}\t{{.PodName}}'
