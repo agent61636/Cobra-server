@@ -1,0 +1,13 @@
+{
+  "_read_me": "The gate's eo-art walls. /art is dock1a/art (copies you pick), /media/dock1a is the whole dock1a drive, read-only. Every folder is searched with all its sub-folders. Rescans every 6 hours and at once when this file changes.",
+  "rescan_hours": 6,
+  "walls": {
+    "cinema/poster":     [ { "path": "/art/movies", "patterns": ["poster*.jpg", "folder.jpg", "cover.jpg"] } ],
+    "cinema/backdrop":   [ { "path": "/art/movies" } ],
+    "radio/cover":       [ { "path": "/art/albums" } ],
+    "books/audio/cover": [ { "path": "/art/books" } ],
+    "comics/cover":      [ { "path": "/art/comics" } ],
+    "gaming/cover":      [ { "path": "/art/gaming" } ],
+    "comedy/cover":      [ { "path": "/media/dock1a/comedy", "patterns": ["folder.jpg", "cover.jpg"] } ]
+  }
+}

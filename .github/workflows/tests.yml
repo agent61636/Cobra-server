@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck the podman scripts
-        run: shellcheck scripts/podman/lib.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh
+        run: shellcheck scripts/podman/lib.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh scripts/oneshot/*.sh
   agent:
     runs-on: windows-latest
     steps:

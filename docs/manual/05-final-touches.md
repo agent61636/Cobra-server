@@ -404,17 +404,14 @@ access_control:
     # the Music Bay's VIP keypad: always signed in (even at home), because it needs to know who you are
     - domain: vip.songofeo.com
       policy: one_factor
-    # the station's floors and its pictures: open at home, one password everywhere else
+    # the station's floors and its pictures: one sign-in for everyone, at home too, so every Bay knows who you are
     - domain: &station [music.songofeo.com, mustang.songofeo.com, comedy.songofeo.com,
                         books.songofeo.com, comics.songofeo.com, arcade.songofeo.com, gaming.songofeo.com,
                         sessions.songofeo.com, art.songofeo.com]
-      networks: [home]
-      policy: bypass
-    - domain: *station
       policy: one_factor
 session:
   secret: 'SECRET2'
-  remember_me: -1                     # no "remember me" box: every sign-in lasts the same 6 hours
+  remember_me: 1M                     # tick "Remember me" at sign-in: one month on that device
   cookies:
     - domain: songofeo.com            # the whole station: the bare domain and every *.songofeo.com
       authelia_url: 'https://gate.songofeo.com'
@@ -434,8 +431,9 @@ chmod 600 /srv/gate/authelia/configuration.yml           # only podsvc (and Auth
 
 - The three secrets never need typing anywhere else, so you don't have to write them down. They're in the nightly VM backup with the rest of `/srv/gate`. If you ever change `SECRET3`, Authelia can no longer read its database (`db.sqlite3`): everyone has to register TOTP again.
 - `definitions.network`: Authelia 4.38 moved the named networks here from `access_control.networks`; the old spelling only prints a warning today and may stop working in a later release.
-- The `home` bypass trusts the address nginx hands Authelia, which is always the real address the connection came from (`X-Forwarded-For $remote_addr` in nginx below), never a header the visitor sends. That only works because rootless Podman on Debian 13 (pasta) keeps the visitor's real address on published ports; the checks at the end of 5.4 and 5.5 prove it on your hardware.
-- `expiration: 6h` and `inactivity: 6h`: a sign-in lasts six hours, then Authelia asks again. Change both together if you want longer or shorter.
+- **No home bypass for the floors** (2026-11-06): everyone signs in once, at home too, when they press ENTER on the concourse. A bypass would let people in without saying who they are, so the Bays (Navidrome above all) would never get a username to load the right profile. Tick **Remember me** and that device stays signed in for a month. The `home` network is still defined for rules that need it (Home Assistant, part 10), and it trusts only the address nginx hands Authelia (`X-Forwarded-For $remote_addr`), never a header the visitor sends; rootless Podman on Debian 13 (pasta) keeps the visitor's real address, which the checks at the end of 5.4 and 5.5 prove.
+- **Phone apps** can't show this sign-in, so each app's API paths skip it and the app checks its own username and password (nginx's `$own_login`, below). Running gate: `scripts/oneshot/gate-apps.sh`.
+- `expiration: 6h` and `inactivity: 6h`: without Remember me, a sign-in lasts six hours, then Authelia asks again. Change both together if you want longer or shorter.
 - `&station` / `*station` is plain YAML: the second rule reuses the first rule's list, so a new floor is added in one place.
 - Parts 7 and 8 add `scores.` and `radio.` to `access_control.rules` the same way.
 
@@ -525,12 +523,30 @@ map $host $station {
   arcade.songofeo.com       http://10.6.9.20:8080;    # Arcade: RomM + EmulatorJS
   art.songofeo.com          http://127.0.0.1:8790;    # the landing pages' live pictures (eo-art)
 }
+# --- Phone apps: their API paths skip the gate sign-in (an app cannot show it); the app checks its own login ---
+map "$host$request_uri" $app_api {
+  ~\.\.                                                                     0;   # never a path with .. in it
+  ~*%2e                                                                     0;
+  ~^books\.songofeo\.com/(api|login|logout|status|ping|socket\.io|hls|auth|feed|public)(/|\?|$)  1;   # Audiobookshelf
+  ~^comics\.songofeo\.com/api/                                              1;   # Kavita
+  ~^arcade\.songofeo\.com/api/                                              1;   # RomM
+  ~^papers\.songofeo\.com/api/                                              1;   # Paperless
+  default                                                                   0;
+}
+map "$station$request_uri" $subsonic_api {                                  # every Navidrome: Subsonic apps
+  ~\.\.                                                  0;
+  ~*%2e                                                  0;
+  ~^http://10\.6\.9\.20:45(3[3-9]|4[0-9])/rest/            1;
+  default                                                0;
+}
+map "$app_api$subsonic_api" $own_login { ~1 1; default 0; }
 server {
   listen 443 ssl; http2 on;
   server_name music.songofeo.com mustang.songofeo.com comedy.songofeo.com sessions.songofeo.com
               books.songofeo.com comics.songofeo.com arcade.songofeo.com art.songofeo.com;
   location /internal/authelia/authz {
     internal;
+    if ($own_login) { return 200; }   # a phone app's API path: no sign-in, so no Remote-User either
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
     # a location's own proxy_set_header replaces ALL inherited ones, so list what Authelia needs
     proxy_set_header X-Original-Method $request_method;
@@ -585,6 +601,7 @@ server {
   listen 443 ssl; http2 on; server_name vip.songofeo.com;
   location /internal/authelia/authz {
     internal;
+    if ($own_login) { return 200; }   # a phone app's API path: no sign-in, so no Remote-User either
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
     proxy_set_header X-Original-Method $request_method;
     proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
@@ -618,6 +635,7 @@ server {
   listen 443 ssl; http2 on; server_name gaming.songofeo.com;
   location /internal/authelia/authz {
     internal;
+    if ($own_login) { return 200; }   # a phone app's API path: no sign-in, so no Remote-User either
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
     proxy_set_header X-Original-Method $request_method;
     proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
@@ -659,6 +677,7 @@ server {
   server_name papers.songofeo.com metube.songofeo.com command.songofeo.com status.songofeo.com;
   location /internal/authelia/authz {
     internal;
+    if ($own_login) { return 200; }   # a phone app's API path: no sign-in, so no Remote-User either
     proxy_pass http://127.0.0.1:9091/api/authz/auth-request;
     # a location's own proxy_set_header replaces ALL inherited ones, so list what Authelia needs
     proxy_set_header X-Original-Method $request_method;
@@ -680,7 +699,7 @@ server {
 EOF
 ```
 
-Every protected `location /` above has its own `auth_request` line. That's the whole SSO: a `server` or `location` without one is open to anyone who can reach the gate. When you add a hostname later (parts 7 and 8 do), copy a whole `server` block with its `/internal/authelia/authz` location, and add the name to Authelia's `access_control` too; `default_policy: deny` refuses any name Authelia doesn't know, so forgetting that step locks people out instead of letting them in.
+Every protected `location /` above has its own `auth_request` line, and every `/internal/authelia/authz` answers yes at once for a phone app's API path (`$own_login`: each Navidrome's `/rest/`, Audiobookshelf's API, `/api/` on Kavita, RomM and Paperless), where the app's own login is the lock. That's the whole SSO: a `server` or `location` without one is open to anyone who can reach the gate. When you add a hostname later (parts 7 and 8 do), copy a whole `server` block with its `/internal/authelia/authz` location, and add the name to Authelia's `access_control` too; `default_policy: deny` refuses any name Authelia doesn't know, so forgetting that step locks people out instead of letting them in.
 
 The holding page for the Game Cellar (when its app exists, move `gaming.` into the `$station` map and the first `server_name` list, with the app's address):
 
@@ -738,7 +757,7 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 - [ ] Jellyfin's phone app connects with server address `https://tv.songofeo.com` (no port)
 - [ ] Navidrome: three separate servers. Eels' at `music.` sees all of `dock1a/music`; Rachel's at `mustang.` sees only `music/rachel`; `comedy.` has only the stand-up albums; `sessions.` only your recorded podcasts. Each person you add later gets their own Navidrome, name and login the same way (part 3.8)
 - [ ] `https://10.6.9.10` (bare IP) gets no page at all: the browser says the connection was reset or closed (the catch-all refuses the handshake)
-- [ ] **The gate sees real addresses.** Load `https://tv.songofeo.com` from the desktop, then as podsvc on the gate: `podman logs --tail 3 nginx`. Each line must start with the **desktop's** `10.6.9.x` address. If every line starts with `127.0.0.1` or `10.0.2.x`, the pod isn't using pasta: stop here, because the home bypass, the Vaultwarden LAN rule and Jellyfin's logs all depend on it. Check `podman info --format '{{.Host.RootlessNetworkCmd}}'` says `pasta`
+- [ ] **The gate sees real addresses.** Load `https://tv.songofeo.com` from the desktop, then as podsvc on the gate: `podman logs --tail 3 nginx`. Each line must start with the **desktop's** `10.6.9.x` address. If every line starts with `127.0.0.1` or `10.0.2.x`, the pod isn't using pasta: stop here, because the Vaultwarden LAN rule and Jellyfin's logs depend on it. Check `podman info --format '{{.Host.RootlessNetworkCmd}}'` says `pasta`
 - [ ] Authelia is up: `curl -s https://gate.songofeo.com/api/health` from the desktop prints `{"status":"OK"}`
 - [ ] **Bypass at home, but only for the floors:** in a private window on the desktop, `music.` opens Navidrome straight away (no sign-in, you're home), while `papers.` still sends you to the sign-in and then asks for the TOTP code
 - [ ] **The cookie.** After signing in, browser → F12 → Application (Chrome) or Storage (Firefox) → Cookies → `https://gate.songofeo.com`: `authelia_session` has Domain `.songofeo.com`, **Secure** ✓, **HttpOnly** ✓, SameSite **Lax**, and expires in 6 hours
@@ -759,7 +778,7 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 - [ ] OPNsense → Firewall → NAT → Destination NAT has **exactly one enabled** rule: WAN TCP 443 → `10.6.9.10` (old rules may stay listed greyed out, disabled). Nothing points at the SGIN (`10.6.9.20`), where Jellyfin, Navidrome and the other apps answer without the gate. (Part 3.1 deleted the old rules; check again here.) Firewall → Rules → **WAN** has only that 443 rule and the UDP 51820 WireGuard rule from 2.8
 - [ ] OPNsense → System → Firmware → **Plugins**: `os-upnp` is **not** installed. UPnP would let any device on the LAN open its own port to the internet, around the gate
 - [ ] From cellular (Wi-Fi off): each URL loads; `papers.` demands Authelia 2FA; `vault.` returns 403
-- [ ] **No bypass from outside.** From cellular in a private window, `https://music.songofeo.com` must send you to the sign-in screen first (it's only skipped at home and over WireGuard), while `https://tv.songofeo.com` shows Jellyfin's own login. On the gate as podsvc, `podman logs --tail 3 nginx` shows the phone's **public** address (not `10.6.9.x`): if it showed a `10.6.9.x` address, OPNsense is rewriting the source and the outside world would get the home bypass, so stop and check OPNsense → Firewall → NAT → **Outbound** for a rule on the LAN interface
+- [ ] **No bypass from outside.** From cellular in a private window, `https://music.songofeo.com` must send you to the sign-in screen first (at home too: there is no home bypass), while `https://tv.songofeo.com` shows Jellyfin's own login. On the gate as podsvc, `podman logs --tail 3 nginx` shows the phone's **public** address (not `10.6.9.x`): if it showed a `10.6.9.x` address, OPNsense is rewriting the source and the outside world would pass the Vaultwarden LAN rule, so stop and check OPNsense → Firewall → NAT → **Outbound** for a rule on the LAN interface
 - [ ] **No way around the gate.** Still on cellular, find your public IP (OPNsense → Interfaces → Overview → WAN), then try `http://<public IP>:8096`, `:4533`, `:8080`, `:13378`, `:5000` and `:9091`: each must time out. Only `https://tv.songofeo.com` (443) reaches anything
 - On the **Xfinity Wi-Fi** (not the cobra network), no `songofeo.com` name loads: they point at your public address, and the Xfinity gateway won't loop traffic back in to itself (no NAT loopback). WireGuard's `vpn.songofeo.com` hits the same wall there. Use cellular, or a second WireGuard profile "home" whose Endpoint is `10.0.0.2:51820` (OPNsense's WAN address on the Xfinity side), until the cobra Wi-Fi access point (2.10b) exists
 - [ ] Turn WireGuard on (still on cellular): `music.` now opens without the sign-in, and `podman logs --tail 3 nginx` shows the phone as `10.6.99.x`
