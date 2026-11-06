@@ -7,8 +7,8 @@
 #   ./check.sh                 asks the gate's own nginx (127.0.0.1), the view from "outside the house"
 #   ./check.sh 10.6.9.10       same checks against another address, e.g. from a LAN machine with this repo
 #
-# From 127.0.0.1 you are NOT in Authelia's "home" network, so the floors (music., books. ...) must send you to
-# the sign-in, exactly like a phone on cellular. From a LAN machine they open straight away instead.
+# The floors (music., books. ...) must send you to the sign-in from anywhere, at home too: there is no
+# home bypass any more, so every Bay knows who you are.
 set -uo pipefail
 TARGET=${1:-127.0.0.1}
 DOMAIN=songofeo.com
@@ -87,7 +87,7 @@ if [ "$CODE" = 302 ] && [[ $LOC == "$PORTAL"* ]]; then
 else app_answer "tv.$DOMAIN" "Jellyfin"
 fi
 
-echo "== The station's floors (sign-in from outside, open at home and over WireGuard)"
+echo "== The station's floors (always the sign-in first)"
 for pair in music:Navidrome mustang:"Rachel's Navidrome" comedy:"comedy Navidrome" books:Audiobookshelf \
             comics:Kavita arcade:RomM art:eo-art gaming:"holding page" sessions:"podcasts Navidrome" \
             scores:"hiscore, part 7" radio:"Icecast, part 8"; do
@@ -97,6 +97,17 @@ for pair in music:Navidrome mustang:"Rachel's Navidrome" comedy:"comedy Navidrom
   elif [ "$CODE" = 000 ] && [[ $h == scores.* || $h == radio.* ]]; then note "$h" "no server block yet ($app not done)"
   elif [ "$CODE" = 403 ] && [[ $h == scores.* || $h == radio.* ]]; then fail "$h" "403: add its access_control rule to Authelia ($app)"
   else app_answer "$h" "$app"
+  fi
+done
+
+echo "== Phone apps (their API paths skip the sign-in; the app checks its own login)"
+for pair in music:/rest/ping.view books:/ping; do
+  h=${pair%%:*}.$DOMAIN p=${pair#*:}
+  out=$(curl -sk -m 15 -o /dev/null -w '%{http_code} %{redirect_url}' --resolve "$h:443:$TARGET" "https://$h$p" 2>/dev/null) || true
+  code=${out%% *}; loc=${out#* }
+  if [ "$code" = 302 ] && [[ $loc == "$PORTAL"* ]]; then fail "$h$p" "302 to the sign-in: run scripts/oneshot/gate-apps.sh"
+  elif [ "$code" = 200 ] || [ "$code" = 401 ]; then ok "$h$p" "$code from the app itself"
+  else note "$h$p" "$code ${loc:-}"
   fi
 done
 
