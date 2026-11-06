@@ -103,13 +103,21 @@ sudo systemctl daemon-reload && sudo mount /srv/storage/disks && ls /srv/storage
 
 ## 5.3 Wildcard cert (as eels)
 
-**lego** gets one Let's Encrypt certificate for `songofeo.com` and `*.songofeo.com` by putting a temporary TXT record in your Porkbun DNS (the DNS challenge), so nothing has to be open to the internet to get it. Certbot has no Porkbun plugin in Debian; lego has Porkbun built in.
+**lego** gets one Let's Encrypt certificate for `songofeo.com` and `*.songofeo.com` by putting a temporary TXT record in your Porkbun DNS (the DNS challenge), so nothing has to be open to the internet to get it. Certbot has no Porkbun plugin in Debian.
+
+Use lego's **official build from GitHub**, not `apt install lego`: Debian 13 ships lego 4.9, which has no Porkbun provider (it fails with `unrecognized DNS provider: porkbun`). The commands below are for lego **5.x**, where the options go after the word `run`.
 
 Credentials: the `cobra-acme` Porkbun API key and secret key from part 0.4 (separate from the DDNS key, so either can be revoked alone).
 
 ```bash
-sudo apt install -y lego
-lego --version                                # needs 4.4 or newer for Porkbun
+cd /tmp
+V=5.6.0                                       # the latest release on github.com/go-acme/lego/releases
+curl -fLO https://github.com/go-acme/lego/releases/download/v$V/lego_v${V}_linux_amd64.tar.gz
+curl -fLO https://github.com/go-acme/lego/releases/download/v$V/lego_${V}_checksums.txt
+grep "lego_v${V}_linux_amd64.tar.gz" lego_${V}_checksums.txt | sha256sum -c -   # must say OK
+tar xzf lego_v${V}_linux_amd64.tar.gz lego
+sudo install -m 755 lego /usr/local/bin/lego
+/usr/local/bin/lego --version
 sudo install -m 600 /dev/null /root/porkbun.env
 sudo tee /root/porkbun.env >/dev/null <<'EOF'
 PORKBUN_API_KEY=pk1_...
@@ -133,13 +141,13 @@ EOF
 sudo chmod 755 /usr/local/sbin/gate-cert-deploy
 
 # First certificate (takes a few minutes while Porkbun's DNS updates)
-sudo sh -c 'set -a; . /root/porkbun.env; set +a; lego --path /etc/lego --email "<your email>" --accept-tos \
-  --dns porkbun --dns.resolvers 9.9.9.9:53 --domains songofeo.com --domains "*.songofeo.com" run'
+sudo sh -c 'set -a; . /root/porkbun.env; set +a; /usr/local/bin/lego run --path /etc/lego --email "<your email>" \
+  --accept-tos --dns porkbun --dns.resolvers 9.9.9.9:53 -d songofeo.com -d "*.songofeo.com"'
 sudo /usr/local/sbin/gate-cert-deploy
 ```
 
-- `apt` can't find `lego`? Download the `linux_amd64` archive from github.com/go-acme/lego/releases, check it against the release's checksums file, put the `lego` binary in `/usr/local/bin/`, and use `/usr/local/bin/lego` in the renewal service below.
-- If `lego --version` says **5.x**, the options go **after** the word `run` or `renew` (`lego run --dns porkbun ...`), as in lego's current docs. 4.x takes them before, as written here.
+- Already ran `apt install lego`? Leave it or `sudo apt remove lego`; just always call `/usr/local/bin/lego`. If an earlier attempt left files in `/etc/lego`, move them aside first (`sudo mv /etc/lego /etc/lego-v4-old`).
+- lego 5 has no `renew` command: `lego run` on an existing certificate renews it only when it's due, and says "Skip renewal" otherwise.
 - `songofeo.com.crt` already contains the full chain, which is what nginx wants as `fullchain.pem`.
 - `--dns.resolvers 9.9.9.9:53`: lego checks the challenge record against public DNS, not the Pi-holes, which answer every `songofeo.com` name with the gate's LAN address.
 
@@ -154,7 +162,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile=/root/porkbun.env
-ExecStart=/usr/bin/lego --path /etc/lego --email "<your email>" --accept-tos --dns porkbun --dns.resolvers 9.9.9.9:53 --domains songofeo.com --domains *.songofeo.com renew --days 30 --renew-hook /usr/local/sbin/gate-cert-deploy
+ExecStart=/usr/local/bin/lego run --path /etc/lego --email "<your email>" --accept-tos --dns porkbun --dns.resolvers 9.9.9.9:53 -d songofeo.com -d *.songofeo.com --renew-days 30 --deploy-hook /usr/local/sbin/gate-cert-deploy
 EOF
 sudo tee /etc/systemd/system/lego-renew.timer >/dev/null <<'EOF'
 [Unit]
@@ -167,7 +175,7 @@ Persistent=true
 WantedBy=timers.target
 EOF
 sudo systemctl daemon-reload && sudo systemctl enable --now lego-renew.timer
-sudo systemctl start lego-renew.service && sudo journalctl -u lego-renew -n 5   # "no renewal" is the expected answer today
+sudo systemctl start lego-renew.service && sudo journalctl -u lego-renew -n 5   # "Skip renewal" is the expected answer today
 ```
 
 - [ ] `sudo ls -l /srv/gate/nginx/certs/` shows `fullchain.pem` and `privkey.pem`, owned by podsvc
@@ -345,7 +353,9 @@ Where the gate's apps keep their files:
 
 This is the one login screen for the whole station. Someone taps the gold star **Sign in** on the station (or a floor's Enter, when they aren't signed in yet), lands on `gate.songofeo.com`, types their username and password once, and goes back where they came from. The session cookie is set for all of `songofeo.com`, so for the next **6 hours** every floor (Cinema, Music, Library, Comics, Arcade, Game Cellar, The Ward), the landing pages' live pictures, the website's players and the Android app let them straight through. The admin apps (`papers.`, `metube.`, `command.`, `status.`) also ask for a TOTP code.
 
-At home and over WireGuard the station's floors skip the sign-in, so the Jellyfin apps on the TVs and the music and audiobook apps on phones keep working; they still have their own logins. From anywhere else the sign-in comes first.
+At home and over WireGuard the station's floors skip the sign-in, so the music and audiobook apps on phones keep working; they still have their own logins. From anywhere else the sign-in comes first.
+
+**`tv.` is the one exception: it never goes through the gate's sign-in, from anywhere.** Friends watch on smart-TV, Roku, Fire TV and phone Jellyfin apps, which can't show a web sign-in page, so `tv.songofeo.com` relies on Jellyfin's own login alone. That makes the Jellyfin accounts the lock on the front door: one account per person with a strong password, only you as administrator, and leave Jellyfin's own failed-login lock-out on (Dashboard → Users → each user → "Maximum number of failed login attempts"). Every other name keeps the gate's sign-in.
 
 Authelia config (`/srv/gate/authelia/configuration.yml`). Still as podsvc, write the file, then swap the three `SECRETn` placeholders for random values:
 
@@ -368,7 +378,7 @@ access_control:
     - domain: [papers.songofeo.com, metube.songofeo.com, command.songofeo.com, status.songofeo.com]
       policy: two_factor
     # the station's floors and its pictures: open at home, one password everywhere else
-    - domain: &station [tv.songofeo.com, music.songofeo.com, mustang.songofeo.com,
+    - domain: &station [music.songofeo.com, mustang.songofeo.com,
                         books.songofeo.com, comics.songofeo.com, arcade.songofeo.com, gaming.songofeo.com,
                         sessions.songofeo.com, art.songofeo.com]
       networks: [home]
@@ -479,7 +489,6 @@ server {   # catch-all: bare IP, unknown names, scanners -> refuse the TLS hands
 
 # --- the station's floors: the Authelia sign-in first (skipped at home and over WireGuard), then the app ---
 map $host $station {
-  tv.songofeo.com           http://10.6.9.20:8096;    # Cinema: Jellyfin (+ ErsatzTV channels inside it)
   music.songofeo.com        http://10.6.9.20:4533;    # Music: Navidrome (each person sees their own library)
   mustang.songofeo.com  http://10.6.9.20:4533;    # Navidrome (Rachel's library)
   books.songofeo.com        http://10.6.9.20:13378;   # Library: Audiobookshelf
@@ -489,7 +498,7 @@ map $host $station {
 }
 server {
   listen 443 ssl; http2 on;
-  server_name tv.songofeo.com music.songofeo.com mustang.songofeo.com
+  server_name music.songofeo.com mustang.songofeo.com
               books.songofeo.com comics.songofeo.com arcade.songofeo.com art.songofeo.com;
   location /internal/authelia/authz {
     internal;
@@ -521,6 +530,19 @@ server {
     # visitor's own Remote-User header is always replaced, never passed on.
     proxy_set_header Remote-User $signed_in_user;
     proxy_pass $station;
+  }
+}
+
+# --- Cinema: Jellyfin's own login only, no gate sign-in (friends' TV and phone apps can't show one) ---
+server {
+  listen 443 ssl; http2 on; server_name tv.songofeo.com;
+  location / {
+    include /etc/nginx/conf.d/station-cors*.inc;
+    limit_req zone=media burst=300 nodelay;
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_read_timeout 1h;  proxy_send_timeout 1h;
+    proxy_pass http://10.6.9.20:8096;   # Jellyfin (+ ErsatzTV channels inside it); headers come from the shared settings above
   }
 }
 
@@ -628,7 +650,8 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 | Hostname | Goes to | Sign-in |
 |---|---|---|
 | `gate.` | Authelia (the sign-in page itself) | none |
-| `tv.` `music.` `mustang.` `books.` `comics.` `arcade.` | Jellyfin `:8096`, Navidrome `:4533` (two names), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
+| `tv.` | Jellyfin `:8096` on the SGIN `10.6.9.20` | **never** (Jellyfin's own login only, for the TV apps) |
+| `music.` `mustang.` `books.` `comics.` `arcade.` | Navidrome `:4533` (two names), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
 | `art.` | eo-art `127.0.0.1:8790` on the gate | same as the floors |
 | `gaming.` `sessions.` | the holding page (`conf.d/soon`) | same as the floors |
 | `papers.` `metube.` `command.` `status.` | Paperless `:8000`, MeTube `:8081`, Homepage `:3000`, Uptime Kuma `:3001` on the gate | password + TOTP, everywhere |
@@ -649,7 +672,7 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 - [ ] `https://10.6.9.10` (bare IP) gets no page at all: the browser says the connection was reset or closed (the catch-all refuses the handshake)
 - [ ] **The gate sees real addresses.** Load `https://tv.songofeo.com` from the desktop, then as podsvc on the gate: `podman logs --tail 3 nginx`. Each line must start with the **desktop's** `10.6.9.x` address. If every line starts with `127.0.0.1` or `10.0.2.x`, the pod isn't using pasta: stop here, because the home bypass, the Vaultwarden LAN rule and Jellyfin's logs all depend on it. Check `podman info --format '{{.Host.RootlessNetworkCmd}}'` says `pasta`
 - [ ] Authelia is up: `curl -s https://gate.songofeo.com/api/health` from the desktop prints `{"status":"OK"}`
-- [ ] **Bypass at home, but only for the floors:** in a private window on the desktop, `tv.` opens Jellyfin straight away (no sign-in, you're home), while `papers.` still sends you to the sign-in and then asks for the TOTP code
+- [ ] **Bypass at home, but only for the floors:** in a private window on the desktop, `music.` opens Navidrome straight away (no sign-in, you're home), while `papers.` still sends you to the sign-in and then asks for the TOTP code
 - [ ] **The cookie.** After signing in, browser → F12 → Application (Chrome) or Storage (Firefox) → Cookies → `https://gate.songofeo.com`: `authelia_session` has Domain `.songofeo.com`, **Secure** ✓, **HttpOnly** ✓, SameSite **Lax**, and expires in 6 hours
 - [ ] **Redirects stay at home.** Signed out, open `https://gate.songofeo.com/?rd=https%3A%2F%2Fexample.com%2F` and sign in: you must land on the station (`songofeo.com`), never on example.com. Authelia only sends people back to `https://` addresses under `songofeo.com`
 - [ ] HSTS on the floors and the admin apps: `curl -sI https://tv.songofeo.com/ | grep -i strict-transport` and `curl -sI https://papers.songofeo.com/ | grep -i strict-transport` each print one line. Nothing for `tv.` means `station-cors.inc` drops it (see above)
@@ -663,13 +686,15 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 
 - [ ] Porkbun → `songofeo.com` → DNS: one **CNAME** per app, each with answer `gate.songofeo.com`: `tv music books comics mustang arcade gaming sessions papers metube command`, plus `vpn` for WireGuard (2.10) (not `vault`, which stays LAN/VPN-only, and not `gate`, which is already the A record). `status` and `art` get no public record for now: they still work at home and over WireGuard, where the Pi-holes answer every `*.songofeo.com` name, but from outside they don't resolve (so the station's landing pages show their drawn artwork instead of live pictures there). They follow the `gate` A record that DDNS keeps up to date (2.10). Leave the bare `songofeo.com` and `www` records alone: they belong to Porkbun's static hosting (the station). Make sure Porkbun's **URL Forwarding** has nothing for these names.
 - [ ] **Before the 443 forward below:** the station's **Sign in** button and every floor's Log In (Project-Eo, live on Porkbun's hosting) must point at `https://gate.songofeo.com/?rd=...`, not `auth.songofeo.com`. Open `https://songofeo.com`, hover Sign in, and check the address in the browser's status bar. Fix them in Project-Eo and redeploy the site if they don't match
-- [ ] OPNsense → Firewall → NAT → Port Forward: WAN TCP 443 → `10.6.9.10:443`, filter rule auto-added. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
-- [ ] OPNsense → Firewall → NAT → Port Forward lists **exactly one** rule: WAN TCP 443 → `10.6.9.10`. Nothing points at the SGIN (`10.6.9.20`), where Jellyfin, Navidrome and the other apps answer without the gate. (Part 3.1 deleted the old rules; check again here.) Firewall → Rules → **WAN** has only that 443 rule and the UDP 51820 WireGuard rule from 2.8
+- [ ] OPNsense → Firewall → NAT → **Destination NAT** (called Port Forward in older versions) → **+**: Interface WAN, IPv4, TCP, Source **any**, Destination **WAN address** port HTTPS (443), Redirect target **`10.6.9.10`** port HTTPS (443), description `WAN 443 to gate` → Save → **Apply**. Don't forward 80: certs use the DNS challenge, and the overview promises 443 is the only public TCP port
+- [ ] Its **Firewall rule** field defaults to *Manual*, which adds no pass rule, so the forward is blocked. Add one: Firewall → Rules → **WAN** → **+**: Pass, In, IPv4, TCP, Source any, Destination **Single host `10.6.9.10`** (not WAN address: rules see the address after the forward rewrote it), port HTTPS (443), description `Allow 443 to gate` → Save → **Apply**
+- [ ] OPNsense → Firewall → NAT → Destination NAT has **exactly one enabled** rule: WAN TCP 443 → `10.6.9.10` (old rules may stay listed greyed out, disabled). Nothing points at the SGIN (`10.6.9.20`), where Jellyfin, Navidrome and the other apps answer without the gate. (Part 3.1 deleted the old rules; check again here.) Firewall → Rules → **WAN** has only that 443 rule and the UDP 51820 WireGuard rule from 2.8
 - [ ] OPNsense → System → Firmware → **Plugins**: `os-upnp` is **not** installed. UPnP would let any device on the LAN open its own port to the internet, around the gate
 - [ ] From cellular (Wi-Fi off): each URL loads; `papers.` demands Authelia 2FA; `vault.` returns 403
-- [ ] **No bypass from outside.** From cellular in a private window, `https://tv.songofeo.com` must send you to the sign-in screen first (it's only skipped at home and over WireGuard). On the gate as podsvc, `podman logs --tail 3 nginx` shows the phone's **public** address (not `10.6.9.x`): if it showed a `10.6.9.x` address, OPNsense is rewriting the source and the outside world would get the home bypass, so stop and check OPNsense → Firewall → NAT → **Outbound** for a rule on the LAN interface
+- [ ] **No bypass from outside.** From cellular in a private window, `https://music.songofeo.com` must send you to the sign-in screen first (it's only skipped at home and over WireGuard), while `https://tv.songofeo.com` shows Jellyfin's own login. On the gate as podsvc, `podman logs --tail 3 nginx` shows the phone's **public** address (not `10.6.9.x`): if it showed a `10.6.9.x` address, OPNsense is rewriting the source and the outside world would get the home bypass, so stop and check OPNsense → Firewall → NAT → **Outbound** for a rule on the LAN interface
 - [ ] **No way around the gate.** Still on cellular, find your public IP (OPNsense → Interfaces → Overview → WAN), then try `http://<public IP>:8096`, `:4533`, `:8080`, `:13378`, `:5000` and `:9091`: each must time out. Only `https://tv.songofeo.com` (443) reaches anything
-- [ ] Turn WireGuard on (still on cellular): `tv.` now opens without the sign-in, and `podman logs --tail 3 nginx` shows the phone as `10.6.99.x`
+- On the **Xfinity Wi-Fi** (not the cobra network), no `songofeo.com` name loads: they point at your public address, and the Xfinity gateway won't loop traffic back in to itself (no NAT loopback). WireGuard's `vpn.songofeo.com` hits the same wall there. Use cellular, or a second WireGuard profile "home" whose Endpoint is `10.0.0.2:51820` (OPNsense's WAN address on the Xfinity side), until the cobra Wi-Fi access point (2.10b) exists
+- [ ] Turn WireGuard on (still on cellular): `music.` now opens without the sign-in, and `podman logs --tail 3 nginx` shows the phone as `10.6.99.x`
 - [ ] The station end to end, from cellular in a private window: open `https://songofeo.com`, tap **Sign in**, sign in once, and you're back on the station. The Cinema, Library and Comics landing pages now show real pictures (once the `art` folders have some), and every floor's Log In goes straight to its app with no second sign-in screen from the gate. Six hours later the gate asks again.
 
 ## 5.6 Backups

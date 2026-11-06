@@ -7,7 +7,7 @@
 #   ./check.sh                 asks the gate's own nginx (127.0.0.1), the view from "outside the house"
 #   ./check.sh 10.6.9.10       same checks against another address, e.g. from a LAN machine with this repo
 #
-# From 127.0.0.1 you are NOT in Authelia's "home" network, so the floors (tv., music. ...) must send you to
+# From 127.0.0.1 you are NOT in Authelia's "home" network, so the floors (music., books. ...) must send you to
 # the sign-in, exactly like a phone on cellular. From a LAN machine they open straight away instead.
 set -uo pipefail
 TARGET=${1:-127.0.0.1}
@@ -80,8 +80,15 @@ for pair in papers:Paperless metube:MeTube command:Homepage status:"Uptime Kuma"
   fi
 done
 
+echo "== Cinema (Jellyfin's own login only, never the gate's sign-in, so the TV apps work)"
+probe "tv.$DOMAIN"
+if [ "$CODE" = 302 ] && [[ $LOC == "$PORTAL"* ]]; then
+  fail "tv.$DOMAIN" "302 to the gate's sign-in: tv. should have its own server block with no auth_request (part 5.4)"
+else app_answer "tv.$DOMAIN" "Jellyfin"
+fi
+
 echo "== The station's floors (sign-in from outside, open at home and over WireGuard)"
-for pair in tv:Jellyfin music:Navidrome mustang:Navidrome books:Audiobookshelf \
+for pair in music:Navidrome mustang:Navidrome books:Audiobookshelf \
             comics:Kavita arcade:RomM art:eo-art gaming:"holding page" sessions:"holding page" \
             scores:"hiscore, part 7" radio:"Icecast, part 8"; do
   h=${pair%%:*}.$DOMAIN app=${pair#*:}
