@@ -60,6 +60,8 @@ sudo mkdir -p /srv/gate/{nginx/certs,nginx/conf.d/soon,authelia,vaultwarden,pape
 sudo chown -R podsvc: /srv/gate
 ```
 
+- Run that `chown -R` **only on the first setup**, while the folders are still empty. Once the apps have started, some of their files belong to the user *inside* their container (Postgres runs as 999), and running it again takes them away: Paperless then crash-loops with `could not open file "global/pg_filenode.map": Permission denied`. The fix, as podsvc: `podman unshare chown -R 999:999 /srv/gate/postgres`, then `systemctl --user restart postgres paperless`.
+
 - [ ] SSH key + hardening as part 3.3 (`PermitRootLogin no`)
 
 Firewall (the gate is the one box the internet reaches, so it gets its own):
@@ -87,13 +89,17 @@ Shared storage from the SGIN (MeTube saves into the library, Paperless reads the
 ```bash
 sudo apt install -y cifs-utils
 sudo install -m 600 /dev/null /root/smb-gate.cred
-printf 'username=gate\npassword=%s\n' '<gate Samba password from part 3.6>' | sudo tee /root/smb-gate.cred >/dev/null
+sudo nano /root/smb-gate.cred   # two lines: username=gate and password=<the gate Samba password from part 3.6>
 sudo mkdir -p /srv/storage/disks
 PU=$(id -u podsvc); PG=$(id -g podsvc)
-echo "//10.6.9.20/media /srv/storage/disks cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
+grep -q ' /srv/storage/disks ' /etc/fstab || echo "//10.6.9.20/media /srv/storage/disks cifs credentials=/root/smb-gate.cred,vers=3.1.1,seal,uid=$PU,gid=$PG,file_mode=0666,dir_mode=0777,_netdev,nofail,x-systemd.automount 0 0" \
   | sudo tee -a /etc/fstab
-sudo systemctl daemon-reload && sudo mount /srv/storage/disks && ls /srv/storage/disks   # wd1 dock1a dock1b wd2
+sudo systemctl daemon-reload && ls /srv/storage/disks   # wd1 dock1a dock1b wd2 video (the automount mounts it on first use)
 ```
+
+- The password goes in with nano, not on the command line, so it doesn't end up in your shell history. Forgot it? On the SGIN: `sudo smbpasswd gate` sets a new one; nothing else uses this login.
+- The `grep -q ... ||` adds the fstab line only if it isn't there yet, so running the block twice doesn't stack copies. Check with `grep -n srv/storage/disks /etc/fstab`: exactly one line, with real numbers after `uid=` and `gid=`.
+- `mount error(16): Device or resource busy` from a manual `sudo mount` just means the automount already mounted it.
 
 - `file_mode=0666,dir_mode=0777`: Paperless and MeTube run as a non-root user *inside* their containers, which is some unnamed ID on the gate, so the mount lets anyone on the gate write. Only `eels` and `podsvc` log in there. This setting is local to the gate; on the SGIN the files still land as user `gate`, group `media`, mode 664, like everything else written over Samba.
 - `seal`: SMB3 encryption on the wire. `x-systemd.automount`: the gate boots even if the SGIN is off, and the share mounts when first used.
