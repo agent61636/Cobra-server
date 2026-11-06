@@ -86,6 +86,8 @@ Before adding much to the SGIN, run `free -h` while two Jellyfin transcodes are 
 
 The second pass (C-3) puts nebula-sync and Backrest ahead of this wave; see its "Updated pick order".
 
+A third pass (Nov 2026), covering plugins, Authelia integrations, the public side and business apps, is in [gaps-plugins-and-apps.md](gaps-plugins-and-apps.md).
+
 ---
 
 ## C-3. Second pass (26 Oct 2026)
