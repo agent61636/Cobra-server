@@ -31,8 +31,10 @@ if grep -qE "^\s*${F//./\\.}\s+http" "$NG"; then
 else
   sed -i -E "/^map \\\$host \\\$station \{/a\  $F   http://10.6.9.20:$P;    # Cobra N.A.V. ($U)" "$NG"
 fi
-grep -qE "server_name .*music\.songofeo\.com.*\b${F//./\\.}\b" "$NG" \
-  || sed -i -E "0,/server_name music\.songofeo\.com/s#server_name music\.songofeo\.com#server_name music.songofeo.com $F#" "$NG"
+# the floors' server_name line holds music. (it may start with tv. or other names)
+grep -qE "server_name .*music\.songofeo\.com" "$NG" || restore "no server_name line with music.songofeo.com in $NG"
+grep -qE "server_name .*\b${F//./\\.}\b" "$NG" \
+  || sed -i -E "0,/server_name .*music\.songofeo\.com/s#(server_name .*)\bmusic\.songofeo\.com#\1music.songofeo.com $F#" "$NG"
 if grep -qE "^\s*$U\s+https://" <(sed -n '/^map \$vip_user/,/^}/p' "$NG"); then
   sed -i -E "/^map \\\$vip_user/,/^}/s#^(\s*$U\s+)https://[^;]*;#\1https://$F/;#" "$NG"
 else
