@@ -55,3 +55,12 @@ where you can remove them; switching the folder back on brings them back with th
 
 The first person to open a new N.A.V. through the gate becomes its admin. Have the owner open it first,
 or open it yourself first if you want to be admin of every N.A.V.
+
+## Phone apps (Symfonium and other Subsonic apps)
+
+Apps can't show the gate's sign-in, so they talk to Navidrome's own `/rest/` API with a Navidrome
+password. An account made through the gate gets a random password, so give each person a real one once:
+in that N.A.V., **Users** (admin menu) → the person → **Change password**. In Symfonium, add a
+Subsonic/Navidrome server with `https://HOST.songofeo.com`, that username and that password.
+The gate must let `/rest/` through without its sign-in and without a `Remote-User` header (the gate
+thread handles that); the wall still covers the web pages, and `/rest/` always needs the password.
