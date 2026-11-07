@@ -1,0 +1,55 @@
+/* ===== COBRA RED SHELF (paste at the very BOTTOM of Custom CSS) ===== */
+
+/* 1. Kill every hard line around cards, rows and the grid */
+.card, .cardBox, .visualCardBox, .cardScalable, .cardImageContainer,
+.cardFooter, .itemsContainer, .verticalSection, .emby-scroller,
+.emby-scrollbuttons, .sectionTitleContainer, .padded-left, .padded-right {
+  border: none !important;
+  outline: none !important;
+}
+.card, .cardBox, .visualCardBox, .cardFooter, .itemsContainer,
+.verticalSection, .emby-scroller {
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* 2. Soft rounded posters */
+.cardImageContainer, .cardContent { border-radius: 6px !important; }
+
+/* 3. The shelf: a dark red glow pooled under each poster.
+      It is wider than the poster, so neighbours blend into one shelf. */
+.cardScalable { position: relative; overflow: visible !important; isolation: isolate; }
+.cardScalable::after {
+  content: "";
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  bottom: -16px;
+  height: 30px;
+  background: radial-gradient(ellipse at center,
+    rgba(170, 0, 0, 0.85) 0%,
+    rgba(100, 0, 0, 0.45) 45%,
+    rgba(0, 0, 0, 0) 75%);
+  filter: blur(4px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 4. Faint red lift on the poster itself */
+.cardScalable { box-shadow: 0 10px 16px -10px rgba(140, 0, 0, 0.7) !important; }
+
+/* 5. Gentle brighten on hover/focus, no outline box */
+.card:hover .cardScalable::after,
+.card:focus-within .cardScalable::after {
+  background: radial-gradient(ellipse at center,
+    rgba(200, 0, 0, 0.70) 0%,
+    rgba(110, 0, 0, 0.35) 45%,
+    rgba(0, 0, 0, 0) 75%);
+}
+
+/* 6. Phone: smaller, tighter glow so the grid stays clean */
+@media (max-width: 600px) {
+  .cardScalable::after { bottom: -12px; height: 22px; filter: blur(3px); }
+  .cardScalable { box-shadow: 0 8px 12px -8px rgba(140, 0, 0, 0.7) !important; }
+}
+/* ===== END COBRA RED SHELF ===== */
