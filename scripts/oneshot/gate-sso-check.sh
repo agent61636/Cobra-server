@@ -62,7 +62,7 @@ if [ -r "$NG" ]; then
 else fail "songofeo.conf" "can't read $NG"; fi
 
 echo "== 4. Live answers (asking this gate's nginx directly)"
-req() { curl -sk --noproxy '*' -m 15 -o /tmp/ssochk.$$ -w '%{http_code} %{redirect_url}' --resolve "$1:443:$TARGET" "${@:3}" "https://$1$2" 2>/dev/null; }
+req() { rm -f /tmp/ssochk.$$; curl -sk --noproxy '*' -m 15 -o /tmp/ssochk.$$ -w '%{http_code} %{redirect_url}' --resolve "$1:443:$TARGET" "${@:3}" "https://$1$2" 2>/dev/null; }
 for n in music mustang comedy sessions books comics; do
   r=$(req "$n.$D" /); [[ $r == "302 $PORTAL"* ]] && ok "$n. web page" "302 to the sign-in" || fail "$n. web page" "$r (expected a 302 to $PORTAL)"
 done
