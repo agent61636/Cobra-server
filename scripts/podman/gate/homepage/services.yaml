@@ -2,9 +2,9 @@
     - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
     - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
     - Music:        { href: "https://music.songofeo.com",       icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
-    - Rachel's music: { href: "https://mustang.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4535" }
-    - Comedy:       { href: "https://comedy.songofeo.com",      icon: navidrome.png,      description: "Stand-up albums", siteMonitor: "http://10.6.9.20:4534" }
-    - Sessions:     { href: "https://sessions.songofeo.com",    icon: navidrome.png,      description: "Our podcasts",    siteMonitor: "http://10.6.9.20:4536" }
+    - Rachel's music: { href: "https://mustang.songofeo.com", icon: navidrome.png,    description: "Same Navidrome, her library" }
+    - Comedy:       { href: "https://comedy.songofeo.com",      icon: audiobookshelf.png, description: "Stand-up albums", siteMonitor: "http://10.6.9.20:13378" }
+    - Sessions:     { href: "https://sessions.songofeo.com",    icon: audiobookshelf.png, description: "The Ward: our podcasts" }
 - Read & play:
     - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }
     - Kavita:       { href: "https://comics.songofeo.com",      icon: kavita.png,         siteMonitor: "http://10.6.9.20:5000" }

@@ -15,8 +15,8 @@ it's done. Work on the-box first; the phone is only for scanning codes and cellu
       plus Remote-Name/Remote-Groups for the profile picture: run
       [`scripts/oneshot/gate-apps.sh`](../scripts/oneshot/gate-apps.sh) on the gate as podsvc.
 - [ ] **Navidrome passwords**: accounts the gate made have random passwords. Set a real one once
-      on each Navidrome's Users page, then sign in from Symfonium
-      ([scripts/nav, Phone apps](../scripts/nav/README.md#phone-apps-symfonium-and-other-subsonic-apps)).
+      on Navidrome's Users page, then sign in from Symfonium
+      ([music.md, Phone apps](music.md#phone-apps)).
 - [ ] **Home Wi-Fi without WireGuard** (OPNsense answers DNS for the Xfinity side with 10.0.0.2):
       in OPNsense, Unbound host overrides for the app names → `10.0.0.2` (never a `*.songofeo.com`
       wildcard), Unbound listening on WAN, a WAN pass rule for TCP/UDP 53 **from 10.0.0.0/24 only**,
@@ -31,14 +31,17 @@ it's done. Work on the-box first; the phone is only for scanning codes and cellu
 - [ ] **Single sign-on into the apps' web pages** (Authelia as OpenID Connect provider: Jellyfin
       SSO plugin, Audiobookshelf, Kavita, RomM). To be written.
 
-## 2. Navidromes and N.A.V.
+## 2. Music, comedy and The Ward
 
-- [ ] Four Navidromes: [`scripts/oneshot/sgin-navidromes.sh`](../scripts/oneshot/sgin-navidromes.sh)
-      on the SGIN as eels, then [`scripts/oneshot/gate-navidromes.sh`](../scripts/oneshot/gate-navidromes.sh)
-      on the gate as podsvc. Claim the admin on `:4534`, `:4535`, `:4536` from the-box.
-- [ ] N.A.V. rollout: [`scripts/nav`](../scripts/nav/README.md) (`nav-vat.sh` once, then `nav.sh`
-      and `gate-nav.sh` per person, a Porkbun CNAME and a users.yml entry each).
-- [ ] Genre stations for the boombox: Navidrome smart playlists or their own N.A.V.s (your call).
+One Navidrome with a library per person; comedy and sessions in Audiobookshelf. Walkthrough:
+[docs/music.md](music.md) (replaces the four Navidromes and the N.A.V. clones).
+
+- [ ] SGIN: [`scripts/oneshot/sgin-music-one.sh`](../scripts/oneshot/sgin-music-one.sh) as eels
+      ([music.md step 1](music.md#1-sgin-one-navidrome-reading-musiceels)).
+- [ ] the-box: Navidrome libraries **Eels** and **Rachel**, and Rachel's user with only hers ticked (step 2).
+- [ ] Gate: [`scripts/oneshot/gate-music-one.sh`](../scripts/oneshot/gate-music-one.sh) as podsvc (step 3).
+- [ ] the-box: Audiobookshelf libraries **Comedy** (Book) and **Sessions** (Podcast) (step 4).
+- [ ] Genre stations for the boombox: Navidrome smart playlists (one per genre, scoped to library Eels).
 
 ## 3. Jellyfin
 

@@ -5,16 +5,17 @@ their own app username and password, and your TV on the Xfinity router and your 
 (Electronomicon) reach every name.
 
 The config text in manual 5.4 was tested again on 2026-11-07 in throwaway containers (nginx stable,
-Authelia latest), with the N.A.V. wall on `mustang.`:
+Authelia latest), with the N.A.V. wall on `mustang.` (since 2026-11-08 the music wall from
+`gate-music-one.sh` covers `music.` and `mustang.` together, see [music.md](music.md)):
 
 | Test | Result |
 |---|---|
 | `authelia validate-config`, `nginx -t` | no errors |
 | Not signed in: `music.` `mustang.` `comedy.` `sessions.` `books.` `comics.` `arcade.` `gaming.` `vip.` `papers.` `command.` | 302 to `gate.songofeo.com` |
 | Not signed in: `tv.` | straight to Jellyfin, no gate sign-in |
-| Phone-app paths (`/rest/` on every Navidrome, ABS `/api/` and `/login`, `/api/` on Kavita and Paperless) | reach the app, and a forged `Remote-User: eels` header is dropped |
+| Phone-app paths (`/rest/` on Navidrome, ABS `/api/` and `/login`, `/api/` on Kavita and Paperless) | reach the app, and a forged `Remote-User: eels` header is dropped |
 | `/rest/%2e%2e/app/` (a sneaky path) | 302 to the sign-in |
-| Signed in as eels / rachel / sam | each app gets that username and display name; `mustang.` refuses sam (403); `vip.` sends eels to `music.` and rachel to `mustang.`; `papers.` still asks for TOTP |
+| Signed in as eels / rachel / sam | each app gets that username and display name; `music.` and `mustang.` refuse sam (403); `vip.` sends eels to `music.` and rachel to `mustang.`; `papers.` still asks for TOTP |
 
 So when something fails on the real gate, it's the gate's *state* (which one-shot scripts ran) or the
 network, not the config text. Step 1 finds out which.
@@ -57,7 +58,7 @@ the backup back if the check fails. Running one twice changes nothing. Run them 
 
 | FAIL says | Script (in `scripts/oneshot/`, copies in the project files) | What it changes |
 |---|---|---|
-| `mustang. port`, `rule for comedy.`, `server block for comedy.` / `sessions.` | `gate-navidromes.sh` | nginx and Authelia: the four Navidromes |
+| `mustang. port`, `music wall`, `rule for comedy.`, `server block for comedy.` / `sessions.`, `comedy.`/`sessions.` `/ping` | `gate-music-one.sh` | nginx and Authelia: the one Navidrome, comedy and sessions on Audiobookshelf |
 | `home bypass` | `gate-signin.sh` | Authelia only: one sign-in for everyone, Remember me = 1 month. **Signs everyone out once** |
 | `phone-app paths`, `/rest/ (apps)` sent to the sign-in, `books. /ping` | `gate-apps.sh` | nginx only: the apps' API paths skip the sign-in |
 
@@ -86,7 +87,7 @@ signs you in, but a phone app sends the app's own username and password on `/res
 Navidrome made automatically from the gate sign-in has a random password, so set one:
 
 - [ ] `https://music.songofeo.com` as eels → the user menu (top right) → Users → the person → set a password.
-- [ ] In the phone app: server `https://music.songofeo.com` (or `mustang.`, `comedy.`, `sessions.`), that username and password.
+- [ ] In the phone app: server `https://music.songofeo.com` (or `mustang.`, the same server), that username and password. Comedy and The Ward are in the Audiobookshelf app (`books.`, `comedy.` or `sessions.`).
 
 **Audiobookshelf / Kavita**: their apps use the app's own login on `https://books.songofeo.com` and
 `https://comics.songofeo.com`.

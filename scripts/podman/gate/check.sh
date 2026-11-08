@@ -88,8 +88,8 @@ else app_answer "tv.$DOMAIN" "Jellyfin"
 fi
 
 echo "== The station's floors (always the sign-in first)"
-for pair in music:Navidrome mustang:"Rachel's Navidrome" comedy:"comedy Navidrome" books:Audiobookshelf \
-            comics:Kavita arcade:RomM art:eo-art gaming:"holding page" sessions:"podcasts Navidrome" \
+for pair in music:Navidrome mustang:"Navidrome (Rachel)" comedy:"Audiobookshelf (comedy)" books:Audiobookshelf \
+            comics:Kavita arcade:RomM art:eo-art gaming:"holding page" sessions:"Audiobookshelf (The Ward)" \
             scores:"hiscore, part 7" radio:"Icecast, part 8"; do
   h=${pair%%:*}.$DOMAIN app=${pair#*:}
   probe "$h"

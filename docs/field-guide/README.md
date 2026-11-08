@@ -4,7 +4,7 @@ A retro game-magazine guide to every container on Cobra Island: how each one wor
 
 - **Read it:** [`you-and-your-pod.pdf`](you-and-your-pod.pdf) (print or phone), or [`you-and-your-pod.html`](you-and-your-pod.html) (one self-contained file; open it in any browser, works offline).
 - **World 1, The Gate** (`cobra-gate`, 10.6.9.10, pod `gate`): nginx, Authelia, Vaultwarden, Paperless, Postgres, Redis, MeTube, Homepage, Uptime Kuma, hiscore, eo-art.
-- **World 2, The Stream** (`cobra-stream`, 10.6.9.20, pod `stream`): Jellyfin, ErsatzTV, four Navidromes (music, comedy, mustang, sessions), Audiobookshelf, Kavita, RomM, its MariaDB, Icecast, the Liquidsoap radio.
+- **World 2, The Stream** (`cobra-stream`, 10.6.9.20, pod `stream`): Jellyfin, ErsatzTV, one Navidrome (music. and mustang., a library per person), Audiobookshelf (also comedy. and sessions.), Kavita, RomM, its MariaDB, Icecast, the Liquidsoap radio.
 - **Bonus stage:** the two Pi-holes. **Extras:** secret codes pages for both worlds, letters, back cover.
 
 ## Editing and rebuilding
