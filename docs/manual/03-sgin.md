@@ -761,7 +761,7 @@ Then plug the other drives back in. **E5. Bring the shares and apps back** (stop
 sudo mount -a && df -h /srv/storage/disks/*                # every drive listed, each with its own size
 ls /srv/storage/disks/*                                    # each drive's folders (movies, shows, music…), not an empty listing
 sudo systemctl start smbd                                  # Samba shares (3.6)
-sudo machinectl shell podsvc@ /usr/bin/systemctl --user start stream-pod jellyfin ersatztv audiobookshelf kavita navidrome navidrome-comedy navidrome-rachel navidrome-sessions romm-db romm   # media apps (3.8)
+sudo machinectl shell podsvc@ /usr/bin/systemctl --user start stream-pod jellyfin ersatztv audiobookshelf kavita navidrome romm-db romm   # media apps (3.8)
 sudo machinectl shell podsvc@ /usr/bin/podman ps          # every container Up
 ```
 
@@ -856,7 +856,7 @@ table inet filter {
     ct state established,related accept
     iif lo accept
     ip protocol icmp accept
-    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } tcp dport { 22, 53, 80, 443, 445, 4533, 4534, 4535, 4536, 4537-4549, 5000, 8007, 8080, 8096, 8409, 9090, 13378 } accept
+    ip saddr { 10.6.9.0/24, 10.6.99.0/24 } tcp dport { 22, 53, 80, 443, 445, 4533, 4534, 4535, 5000, 8007, 8080, 8096, 8409, 9090, 13378 } accept
     ip saddr { 10.6.9.0/24, 10.6.99.0/24 } udp dport 53 accept
   }
 }
@@ -877,7 +877,7 @@ Run as podsvc, never as eels: `sudo machinectl shell podsvc@` (a full login sess
 **Prefer plain `podman run` scripts?** [`scripts/podman`](../../scripts/podman/README.md) has one script per app (`sgin/up-all.sh` runs them all) that builds the same `stream` pod with the same images, ports and folders. Use either the scripts or the Quadlet files below for an app, not both; the scripts' README explains how to switch.
 
 ```bash
-mkdir -p ~/.config/containers/systemd /srv/stream/{jellyfin/config,jellyfin/cache,ersatztv,abs/config,abs/metadata,kavita,navidrome,navidrome-comedy,navidrome-rachel,navidrome-sessions,romm/resources,romm/assets,romm/config,romm/redis,romm/db}
+mkdir -p ~/.config/containers/systemd /srv/stream/{jellyfin/config,jellyfin/cache,ersatztv,abs/config,abs/metadata,kavita,navidrome,romm/resources,romm/assets,romm/config,romm/redis,romm/db}
 cd ~/.config/containers/systemd
 DBPW=$(openssl rand -hex 24); SECRET=$(openssl rand -hex 32)
 echo "RomM DBPW=$DBPW SECRET=$SECRET"   # copy both into your password manager now
@@ -892,8 +892,6 @@ PublishPort=5000:5000
 PublishPort=4533:4533
 PublishPort=4534:4534
 PublishPort=4535:4535
-PublishPort=4536:4536
-PublishPort=4537-4549:4537-4549
 PublishPort=8080:8080
 [Install]
 WantedBy=default.target
@@ -958,44 +956,8 @@ ContainerName=navidrome
 Image=docker.io/deluan/navidrome:latest
 Pod=stream.pod
 AutoUpdate=registry
-Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/music ND_REVERSEPROXYWHITELIST=10.6.9.10/32
+Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/music/eels ND_REVERSEPROXYWHITELIST=10.6.9.10/32
 Volume=/srv/stream/navidrome:/data:Z
-Volume=/srv/storage/disks:/media:ro,rbind
-[Install]
-WantedBy=default.target
-EOF
-c navidrome-comedy <<'EOF'
-[Container]
-ContainerName=navidrome-comedy
-Image=docker.io/deluan/navidrome:latest
-Pod=stream.pod
-AutoUpdate=registry
-Environment=ND_PORT=4534 ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/comedy ND_REVERSEPROXYWHITELIST=10.6.9.10/32
-Volume=/srv/stream/navidrome-comedy:/data:Z
-Volume=/srv/storage/disks:/media:ro,rbind
-[Install]
-WantedBy=default.target
-EOF
-c navidrome-rachel <<'EOF'
-[Container]
-ContainerName=navidrome-rachel
-Image=docker.io/deluan/navidrome:latest
-Pod=stream.pod
-AutoUpdate=registry
-Environment=ND_PORT=4535 ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/music/rachel ND_REVERSEPROXYWHITELIST=10.6.9.10/32
-Volume=/srv/stream/navidrome-rachel:/data:Z
-Volume=/srv/storage/disks:/media:ro,rbind
-[Install]
-WantedBy=default.target
-EOF
-c navidrome-sessions <<'EOF'
-[Container]
-ContainerName=navidrome-sessions
-Image=docker.io/deluan/navidrome:latest
-Pod=stream.pod
-AutoUpdate=registry
-Environment=ND_PORT=4536 ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/sessions ND_REVERSEPROXYWHITELIST=10.6.9.10/32
-Volume=/srv/stream/navidrome-sessions:/data:Z
 Volume=/srv/storage/disks:/media:ro,rbind
 [Install]
 WantedBy=default.target
@@ -1032,31 +994,28 @@ WantedBy=default.target
 EOF
 chmod 600 romm*.container
 systemctl --user daemon-reload
-systemctl --user start stream-pod jellyfin ersatztv audiobookshelf kavita navidrome navidrome-comedy navidrome-rachel navidrome-sessions romm-db romm   # first run pulls every image: a few quiet minutes
-podman ps                                     # stream-infra + 10 containers Up
+systemctl --user start stream-pod jellyfin ersatztv audiobookshelf kavita navidrome romm-db romm   # first run pulls every image: a few quiet minutes
+podman ps                                     # stream-infra + 7 containers Up
 # logs: journalctl --user -u jellyfin -f     restart one: systemctl --user restart jellyfin
 ```
 
-- [ ] App URLs: Jellyfin `http://10.6.9.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, the comedy Navidrome `:4534`, Rachel's Navidrome `:4535`, the sessions Navidrome `:4536`, RomM `:8080`
+- [ ] App URLs: Jellyfin `http://10.6.9.20:8096`, ErsatzTV `:8409`, Audiobookshelf `:13378`, Kavita `:5000`, Navidrome `:4533`, RomM `:8080`
 
 - [ ] Image names (Oct 2026): ErsatzTV is published as `ghcr.io/ersatztv/legacy` (its GitHub repo ErsatzTV/legacy builds that image; the older `ghcr.io/ersatztv/ersatztv` name still exists but isn't what that repo publishes); RomM is `rommapp/romm`. RomM expects `roms/<platform>/` folders. `Tmpfs=/transcode` keeps ErsatzTV's live segments in RAM instead of wearing the SSD
 - [ ] Don't put `:Z` on `/srv/storage/disks` mounts (shared with Samba). `rbind` carries each drive's own mount into the container, so `/media/wd1` is wd1 and not the empty folder under it
 - [ ] Each container sees the drives that were mounted when it started. After plugging a drive back in, as podsvc: `systemctl --user restart stream-pod`, and only then scan libraries
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable H.264/HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), hardware encoding on, **Low-Power H.264/HEVC encoder on**, tone mapping on **and VPP tone mapping on**. Leave the transcode path on the internal SSD (the default). Users: hidden, Quick Connect off. If some movies stutter, see 3.8c
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
-- [ ] Navidrome: **one instance per person**, not one instance with several libraries. `navidrome` (`:4533`, `music.`) is Eels' and reads all of `dock1a/music`, so it sees everyone's music; `navidrome-rachel` (`:4535`, `mustang.`) reads only `dock1a/music/rachel`; `navidrome-comedy` (`:4534`, `comedy.`) reads `dock1a/comedy`; `navidrome-sessions` (`:4536`, `sessions.`) reads `dock1a/sessions`, your recorded podcasts. Someone new gets a **Cobra N.A.V.**: a block on the switchboard that switches genre, artist or album folders of the one shared `dock1a/music` on for them (read-only, nothing copied), built with `nav.sh` and walled off on the gate with `gate-nav.sh`. Ports 4537-4549 are the clone slots. See [`scripts/nav`](../../scripts/nav/README.md)
+- [ ] Navidrome: **one instance, a library per person** (Navidrome 0.58+; changed 2026-11-08 from one instance per collection). `navidrome` (`:4533`) is `music.songofeo.com`, and `mustang.songofeo.com` is the same server. Library 1 **Eels** is `ND_MUSICFOLDER` (`dock1a/music/eels`); add library **Rachel** (`dock1a/music/rachel`) in Settings → Libraries, then tick each user's libraries in Settings → Users (admins see all). Libraries may not overlap, which is why the main one is `music/eels` and not `music/`. Stand-up comedy (`dock1a/comedy`) and The Ward (`dock1a/sessions`) are libraries in **Audiobookshelf**, not Navidrome: it resumes long tracks, has playback speed and a sleep timer, and can publish The Ward as a podcast feed. Why, and the switch-over from the old four Navidromes: [docs/music.md](../music.md)
 - `ND_REVERSEPROXYWHITELIST=10.6.9.10/32`: Navidrome trusts the `Remote-User` header from the gate only, so someone the station's sign-in (part 5.4) already let in isn't asked again. Give each person the same username here as in Authelia's `users.yml`.
 - [ ] Each app: create its admin user now. Until you do, the first person to open the page becomes admin. First-run screens, all from the desktop's browser:
 
 | App | First visit | Then |
 |---|---|---|
 | Jellyfin `:8096` | Wizard: language → admin user `eels` + password → **Add Media Library**: *Movies* → folder `/media/video/movies`; again for *Shows* → `/media/video/series` (music and books live in Navidrome and ABS, so skip them here) → metadata language/country → **Allow remote connections: on** (newer Jellyfin has no automatic port mapping option, which is what we want) → Finish → log in | The Transcoding and Networking settings below |
-| Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books. Settings → Users → one user each |
+| Audiobookshelf `:13378` | Create the **root** user + password | Settings → **Libraries → Add**: name `Audiobooks`, type **Book**, folder `/media/dock1a/audiobooks`; again `Books` → `/media/dock1a/books` for e-books; `Comedy`, type **Book**, `/media/dock1a/comedy` (comedian/album folders, public at `comedy.`); `Sessions`, type **Podcast**, `/media/dock1a/sessions` (one folder per show, public at `sessions.`, The Ward). Settings → Users → one user each, with the libraries they may see |
 | Kavita `:5000` | Register the admin account (email can be anything local) | ⚙ → **Libraries → Add**: name `Comics`, type **Comic**, folder `/media/dock1a/comics` → Save → **Scan**. Users → Invite (or add) one per person |
-| Navidrome `:4533` | Create the admin user + password | It scans `ND_MUSICFOLDER` on its own; the library step below |
-| Comedy Navidrome `:4534` | Create the admin user + password (same username as in Authelia) | It scans `dock1a/comedy` (stand-up albums, one folder per album) on its own. Kept apart from `music.` so stand-up never lands in music shuffles or searches. Public at `comedy.songofeo.com` |
-| Rachel's Navidrome `:4535` | Create the admin user `rachel` (her Authelia username) + password | It scans only `dock1a/music/rachel`. Public at `mustang.songofeo.com` |
-| Sessions Navidrome `:4536` | Create the admin user + password (same username as in Authelia) | It scans `dock1a/sessions`: your own recorded podcasts, one folder per show, tagged as albums. Public at `sessions.songofeo.com` (The Ward) |
+| Navidrome `:4533` | Create the admin user `eels` + password | Settings → **Libraries**: rename Library 1 to `Eels` (path `/media/dock1a/music/eels`), untick *default for new users*; **+** `Rachel` → `/media/dock1a/music/rachel`. Settings → **Users → +** `rachel` (her Authelia username) with only **Rachel** ticked. Public at `music.` and `mustang.` |
 | ErsatzTV `:8409` | No login screen; it stays LAN/VPN-only because the gate never publishes it | 3.8a |
 | RomM `:8080` | Setup wizard → admin user | 3.8b |
 - [ ] If one container keeps restarting with `Permission denied` in `journalctl --user -u <name>`: that image switches to a non-root user inside, so its files must belong to that user. Find it with `podman exec <name> id` (often `1000`), add `UserNS=keep-id:uid=1000,gid=1000` under `[Container]` in its `.container` file, then `systemctl --user daemon-reload && systemctl --user restart <name>`. Your `podsvc` then *is* that user inside the container, so the folders it owns become writable.

@@ -4,11 +4,11 @@
 # and nftables (part 3.7) limits them to the LAN and WireGuard.
 #
 #   8096 Jellyfin   8409 ErsatzTV   13378 Audiobookshelf   5000 Kavita
-#   4533 Navidrome (Eels)  4534 Navidrome (comedy)  4535 Navidrome (Rachel)  4536 Navidrome (sessions)
-#   4537-4549 Cobra N.A.V. clone slots (scripts/nav)
+#   4533 Navidrome (one instance, a library per person: music. and mustang.)
+#   4534 4535 spare (comedy and sessions if they ever go back to Navidrome; today they're in Audiobookshelf)
 #   8080 RomM       8000  Icecast (radio, part 8)
 STREAM_POD=stream
-STREAM_PORTS=(8096:8096 8409:8409 13378:13378 5000:5000 4533:4533 4534:4534 4535:4535 4536:4536 4537-4549:4537-4549 8080:8080 8000:8000)
+STREAM_PORTS=(8096:8096 8409:8409 13378:13378 5000:5000 4533:4533 4534:4534 4535:4535 8080:8080 8000:8000)
 STREAM_DATA=${COBRA_DATA:-/srv/stream}
 
 stream_pod() { ensure_pod "$STREAM_POD" "${STREAM_PORTS[@]}"; }

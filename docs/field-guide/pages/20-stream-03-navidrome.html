@@ -1,11 +1,11 @@
-<!-- WORLD 2 / Navidrome: four instances, one per collection -->
+<!-- WORLD 2 / Navidrome: one instance, a library per person; comedy and The Ward on Audiobookshelf -->
 
-<section class="page theme-red" data-zone="WORLD 2 · THE STREAM" data-toc="Navidrome x4|The music floors: how they all work" data-tocgroup="stream">
+<section class="page theme-red" data-zone="WORLD 2 · THE STREAM" data-toc="Navidrome|The music floor: one jukebox, a shelf per person" data-tocgroup="stream">
   <div class="chapter-head">
     <div>
       <div class="kicker">WORLD 2-3 · CHARACTER SELECT</div>
       <h1>NAVIDROME</h1>
-      <div class="sub">The Music Floors: four separate jukeboxes, one per collection</div>
+      <div class="sub">The Music Floor: one jukebox, a shelf for each person</div>
     </div>
     <div class="art">
 <pre class="sprite" data-px="7">
@@ -28,11 +28,11 @@ KDDKDDRRDDKDDK
 
   <div class="cols-21">
     <div class="stack">
-      <p class="lede">Navidrome is a small, fast music server. Point it at a folder of songs and it reads their tags, builds an album and artist library, and plays it in a web player or any Subsonic app on your phone. Cobra Island runs <b>four</b> of them.</p>
-      <p>That's on purpose. The island's rule is <b>one Navidrome instance per collection, never one instance with several libraries</b>. Each collection gets its own container, its own port, its own database, its own users and its own name on the gate. Rachel's music never shows up in a comedy search, stand-up never lands in a music shuffle, and your recorded podcasts stay in their own room.</p>
-      <p>All four use the same image and the same settings; only the name, the port and the folder change. Each one is tiny, about 50 to 150 MB of RAM, so four of them cost less than one Jellyfin transcode.</p>
+      <p class="lede">Navidrome is a small, fast music server. Point it at a folder of songs and it reads their tags, builds an album and artist library, and plays it in a web player or any Subsonic app on your phone. Cobra Island runs <b>one</b> of it.</p>
+      <p>Since version 0.58 one Navidrome can hold several <b>libraries</b>, and the admin ticks which libraries each user may see. The Commander's music is library <b>Eels</b>, Rachel's is library <b>Rachel</b>. Rachel's account only sees hers; the admin sees both. Her music never lands in your shuffle unless you pick her shelf too.</p>
+      <p>Two names lead to the same jukebox: <code>music.</code> and <code>mustang.</code>. Stand-up and The Ward moved to Audiobookshelf, which remembers where you stopped in a long track (the last two pages of this chapter).</p>
       <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
-        <div class="bubble"><span class="who">CLAUDE-VIPER</span>Four jukeboxes, four doors, four keys. If one gets confused, the other three keep playing. That's Cobra engineering, Commander.</div>
+        <div class="bubble"><span class="who">CLAUDE-VIPER</span>One jukebox, two shelves, one set of keys per person. Less to feed, less to break, Commander.</div>
       </div>
     </div>
     <div class="stack">
@@ -40,32 +40,30 @@ KDDKDDRRDDKDDK
         <dl>
           <dt>HOST</dt><dd>cobra-stream 10.6.9.20, pod <code>stream</code></dd>
           <dt>IMAGE</dt><dd><code>deluan/navidrome:latest</code></dd>
-          <dt>PORTS</dt><dd>4533, 4534, 4535, 4536</dd>
-          <dt>LIBRARY</dt><dd><code>/media/dock1a/...</code> read-only</dd>
-          <dt>DATA</dt><dd><code>/srv/stream/navidrome*</code></dd>
+          <dt>PORT</dt><dd>4533</dd>
+          <dt>LIBRARIES</dt><dd><code>music/eels</code>, <code>music/rachel</code>, read-only</dd>
+          <dt>DATA</dt><dd><code>/srv/stream/navidrome</code></dd>
           <dt>SESSION</dt><dd>8 hours</dd>
-          <dt>SIGN-IN</dt><dd>Gate sign-in from outside, then trusted</dd>
+          <dt>SIGN-IN</dt><dd>Gate sign-in, then trusted</dd>
         </dl>
         <div class="meter hp"><span class="lbl">TOUGHNESS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
         <div class="meter danger"><span class="lbl">TRAP LEVEL</span><span class="bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
         <div class="meter fun"><span class="lbl">FUN FACTOR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
       </div>
-      <div class="burst" style="align-self:center;">4 PLAYERS 1 IMAGE</div>
+      <div class="burst" style="align-self:center;">1 JUKEBOX 2 SHELVES</div>
     </div>
   </div>
   <table class="board">
-    <tr><th>CONTAINER</th><th>PORT</th><th>READS</th><th>NAME</th><th>FOR</th></tr>
-    <tr><td><b>navidrome</b></td><td>4533</td><td><code>dock1a/music</code> (all of it)</td><td>music.</td><td>Commander Eels</td></tr>
-    <tr><td><b>navidrome-comedy</b></td><td>4534</td><td><code>dock1a/comedy</code></td><td>comedy.</td><td>Stand-up albums</td></tr>
-    <tr><td><b>navidrome-rachel</b></td><td>4535</td><td><code>dock1a/music/rachel</code></td><td>mustang.</td><td>Rachel</td></tr>
-    <tr><td><b>navidrome-sessions</b></td><td>4536</td><td><code>dock1a/sessions</code></td><td>sessions.</td><td>Recorded podcasts (The Ward)</td></tr>
+    <tr><th>LIBRARY</th><th>FOLDER</th><th>SEEN BY</th><th>NAMES</th></tr>
+    <tr><td><b>Eels</b> (Library 1)</td><td><code>dock1a/music/eels</code></td><td>eels</td><td>music.</td></tr>
+    <tr><td><b>Rachel</b></td><td><code>dock1a/music/rachel</code></td><td>rachel, eels</td><td>mustang. (or music.)</td></tr>
   </table>
   <div class="cols-2">
-    <div class="tip"><h3>PRO TIP: QUICK CHECK</h3><p>From the-box, <code>http://10.6.9.20:4533</code> to <code>:4536</code> each open a Navidrome login page. Four pages, four jukeboxes.</p></div>
-    <div class="intel"><h3>WHERE THEY CAME FROM</h3><p>One instance per collection was the Commander's call on 6 November 2026 (PR #46). The scripts and the manual both build all four.</p></div>
+    <div class="tip"><h3>PRO TIP: QUICK CHECK</h3><p>From the-box, <code>http://10.6.9.20:4533</code> → Settings → Libraries lists both shelves, and Settings → Users shows who sees which.</p></div>
+    <div class="intel"><h3>WHERE IT CAME FROM</h3><p>Four separate Navidromes (PR #46) and the N.A.V. clones (PR #52) were folded into one on 8 November 2026, the Commander's call. The old databases are kept in a backup.</p></div>
   </div>
   <div class="panel dark"><h3>CDS IN, MUSIC OUT</h3>
-    <p>Navidrome <b>plays</b> ripped music; it doesn't rip CDs. The path from a disc to your phone: rip it on the-box, fix the tags with MusicBrainz Picard, copy the album folder into the right collection on <code>\cobra-stream\media\dock1a</code>, and the matching Navidrome finds it on its next scan.</p>
+    <p>Navidrome <b>plays</b> ripped music; it doesn't rip CDs. The path from a disc to your phone: rip it on the-box, fix the tags with MusicBrainz Picard, copy the album folder into <code>music\eels</code> or <code>music\rachel</code> on <code>\\cobra-stream\media\dock1a</code>, and Navidrome finds it on its next scan.</p>
   </div>
 </section>
 
@@ -74,51 +72,41 @@ KDDKDDRRDDKDDK
   <div class="panel"><h3>RACHEL OPENS MUSTANG. ON CELLULAR</h3>
     <div class="levelmap">
       <div class="node"><b>1 BROWSER</b>mustang.songofeo.com</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>2 NGINX</b>$station map: :4535</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>3 AUTHELIA</b>signs in, says "rachel"</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>4 HEADER</b>Remote-User: rachel</div><div class="arrow">&#9654;</div>
-      <div class="node boss"><b>5 NAVIDROME</b>10.6.9.20:4535, logged in</div>
+      <div class="node hot"><b>2 AUTHELIA</b>signs in, says "rachel"; the music wall lets her by</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>3 HEADER</b>Remote-User: rachel</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>4 NAVIDROME</b>10.6.9.20:4533, her shelf only</div>
     </div>
   </div>
   <div class="cols-2">
     <div class="stack">
       <div class="intel"><h3>ONE SIGN-IN, NOT TWO</h3>
-        <p>Every Navidrome runs with <code>ND_REVERSEPROXYWHITELIST=10.6.9.10/32</code>. That tells it: "if a request comes from the gate and carries a <code>Remote-User</code> header, that person is already signed in." Authelia fills in the header after the gate's sign-in, so Navidrome lets you straight in.</p>
-        <p>Two safety locks: Navidrome only believes that header from 10.6.9.10, and nginx always <b>wipes</b> any Remote-User header a visitor sends themselves. Nobody can type "rachel" into a header and walk in.</p>
+        <p>Navidrome runs with <code>ND_REVERSEPROXYWHITELIST=10.6.9.10/32</code>: "if a request comes from the gate and carries a <code>Remote-User</code> header, that person is already signed in." Authelia fills in the header, so Navidrome lets you straight in. It only believes that header from 10.6.9.10, and nginx always <b>wipes</b> any Remote-User header a visitor sends.</p>
       </div>
-      <div class="intel"><h3>AT HOME IT'S DIFFERENT</h3>
-        <p>At home and on WireGuard, the gate skips its sign-in for the floors, so the header is empty. Then Navidrome shows its own login page. That's why each person's username must be <b>the same in Navidrome and in Authelia's users.yml</b>.</p>
+      <div class="intel"><h3>THE MUSIC WALL</h3>
+        <p>Navidrome makes an account for anyone the gate signs in. So Authelia has a wall in front of <code>music.</code> and <code>mustang.</code>: only the people listed (eels and rachel) get through, everyone else gets <i>forbidden</i>. <code>gate-music-one.sh</code> writes it; add a name with <code>MUSIC_USERS</code>.</p>
       </div>
     </div>
     <div class="stack">
-      <div class="intel"><h3>TAGS, NOT FOLDERS</h3>
-        <p>Navidrome builds its library from the tags inside each file: artist, album, track number, year, cover art. Folder names barely matter. Messy tags mean split albums and "Unknown Artist", so tidy tags are the secret to a clean library.</p>
+      <div class="intel"><h3>SHELVES DON'T OVERLAP</h3>
+        <p>Navidrome won't let one library sit inside another. That's why the main shelf is <code>music/eels</code> and not all of <code>music/</code>: then <code>music/rachel</code> can be a shelf of its own. A person sees whole shelves, never single folders inside one.</p>
       </div>
-      <div class="intel"><h3>WHAT EACH ONE SEES</h3>
-        <p>The library comes in read-only at <code>/media</code>, and <code>ND_MUSICFOLDER</code> picks the one folder that instance reads. Navidrome scans it on its own and picks up new files. It can play, star, rate and playlist your music, but never change or delete a file.</p>
-      </div>
-      <div class="intel"><h3>THE SETTINGS THEY SHARE</h3>
-        <ul>
-          <li><code>ND_PORT</code>: 4533 to 4536, one each (all in one pod, so no two may share)</li>
-          <li><code>ND_SESSIONTIMEOUT=8h</code>: stay logged in for a long listen</li>
-          <li><code>ND_ENABLEINSIGHTSCOLLECTOR=false</code>: no anonymous usage reports (scripts)</li>
-          <li>Database and covers cache in <code>/srv/stream/&lt;name&gt;</code> on the SSD</li>
-        </ul>
+      <div class="intel"><h3>WHY ONE AND NOT FOUR?</h3>
+        <p>Four Navidromes don't serve four people any faster. One already streams to many at once; playing a song is just reading a file, and a transcode costs the same CPU in any container. Extra instances only add RAM, another scan of the same disk, and another password per person.</p>
       </div>
     </div>
   </div>
-  <div class="panel tint"><h3>WHY NOT ONE BIG ONE?</h3>
-    <p>Newer Navidrome can hold several libraries in one instance, and it's tempting. Here it's off the table: separate instances mean separate databases, separate admins, separate play counts and shuffles, and a broken scan in one collection can't touch the others. The Commander likes knowing exactly where everything lives.</p>
+  <div class="panel tint"><h3>WHAT EACH PERSON KEEPS</h3>
+    <p>Stars, ratings, playlists and play counts belong to each user. Phone apps only get the shelves that user may see, and search, albums and artists are filtered the same way.</p>
   </div>
   <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
-    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Same image, same settings, four different folders. Learn one Navidrome and you've learned all four. The four pages after the traps are their character cards.</div>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Make Rachel's account yourself before she opens it, with only her shelf ticked. Then her first look is already the right one.</div>
   </div>
   <div class="cols-2">
     <div class="intel"><h3>WHAT'S IN THE DATA FOLDER</h3>
-      <p><code>/srv/stream/navidrome*</code> holds each instance's database: its users, playlists, stars, ratings and play counts, plus a cache of covers. That's the part to back up; the music itself lives on dock1a.</p>
+      <p><code>/srv/stream/navidrome</code> holds the database: users, shelves, playlists, stars and play counts, plus a cache of covers. Back that up; the music itself lives on dock1a.</p>
     </div>
     <div class="intel"><h3>WHAT THE GATE SEES</h3>
-      <p>nginx's <code>$station</code> map sends music. to :4533, comedy. to :4534, mustang. to :4535 and sessions. to :4536, all on 10.6.9.20. Four names, one server block.</p>
+      <p>nginx's <code>$station</code> map sends music. and mustang. to :4533, and comedy. and sessions. to Audiobookshelf on :13378, all on 10.6.9.20. One server block for all of them.</p>
     </div>
   </div>
 </section>
@@ -128,49 +116,46 @@ KDDKDDRRDDKDDK
   <div class="cols-2">
     <div class="stack">
       <div class="tip"><h3>PRO TIP: PHONE APPS</h3>
-        <p>Navidrome speaks the <b>Subsonic</b> language, so any Subsonic app works: Symfonium or Substreamer on the phone, Feishin on the desktop. Server address: the floor's name, e.g. <code>https://music.songofeo.com</code>, with your Navidrome username and password.</p>
+        <p>Navidrome speaks <b>Subsonic</b>, so any Subsonic app works: Symfonium or Substreamer on the phone, Feishin on the desktop. Server <code>https://music.songofeo.com</code>, your Navidrome username and password.</p>
       </div>
-      <div class="tip blue"><h3>PRO TIP: AWAY FROM HOME</h3>
-        <p>Phone apps can't show the gate's sign-in page, and from outside the floors always ask for it. Turn on <b>WireGuard</b> on the phone first: then the gate skips its sign-in and the app talks to Navidrome directly.</p>
+      <div class="tip blue"><h3>PRO TIP: THE APP PASSWORD</h3>
+        <p>An account the gate made has a random password. Set a real one once: Settings → Users → the person → Change password. The app uses that on <code>/rest/</code>.</p>
       </div>
       <div class="tip lime"><h3>PRO TIP: CLEAN TAGS</h3>
-        <p>Fix tags on the-box before copying music in. <b>MusicBrainz Picard</b> is the standard tagger: it matches albums and writes artist, album, track numbers and cover art. Then copy into <code>\\cobra-stream\media\dock1a\music\...</code>.</p>
+        <p>Fix tags on the-box before copying music in. <b>MusicBrainz Picard</b> matches albums and writes artist, album, track numbers and cover art.</p>
       </div>
-      <div class="tip pink"><h3>PRO TIP: STAR AND RATE</h3>
-        <p>Stars, ratings, playlists and play counts belong to each user in each instance. Rachel's favourites on mustang. are hers alone.</p>
+      <div class="tip pink"><h3>PRO TIP: PICK YOUR SHELVES</h3>
+        <p>The library picker in the sidebar switches between shelves, or shows them together. The admin sees every shelf.</p>
       </div>
       <div class="tip"><h3>PRO TIP: CELLULAR DATA</h3>
-        <p>Many Subsonic apps let you pick a lower streaming bitrate for mobile data; Navidrome converts on the fly. Or download albums in the app at home for offline play.</p>
+        <p>Many Subsonic apps let you pick a lower bitrate on mobile data; Navidrome converts on the fly. Or download albums at home for offline play.</p>
       </div>
     </div>
     <div class="stack">
       <div class="codes"><h3>CODES</h3>
         <span class="where">SGIN · podsvc</span>
         <code class="cmd">podman ps --filter name=navidrome</code>
-        <span class="what">All four should say Up.</span>
-        <code class="cmd">podman logs --tail 30 navidrome-rachel</code>
-        <code class="cmd">podman restart navidrome-comedy</code>
-        <span class="what">Swap in any of the four names.</span>
+        <span class="what">One line, Up.</span>
+        <code class="cmd">podman logs --tail 30 navidrome</code>
+        <code class="cmd">systemctl --user restart navidrome</code>
       </div>
-      <div class="tip"><h3>PRO TIP: A FIFTH PLAYER</h3>
-        <p>Someone new gets their own Navidrome on their own folder, <code>dock1a/music/&lt;name&gt;</code>, with the next free port:</p>
+      <div class="tip"><h3>PRO TIP: A THIRD PLAYER</h3>
+        <p>Someone new needs no new container, port or name:</p>
         <ol class="moves">
-          <li>Add the port (e.g. 4537) to <code>STREAM_PORTS</code> in <code>sgin/pod.sh</code>, then <code>RECREATE_POD=1 ./up-all.sh</code>.</li>
-          <li>Run <code>./navidrome.sh sam 4537</code>.</li>
-          <li>As eels, add the port to the nftables line (part 3.7).</li>
-          <li>On the gate: a name in nginx's <code>$station</code> map, an Authelia rule, and a Porkbun CNAME.</li>
+          <li>Add them to Authelia's users.yml on the gate.</li>
+          <li>Navidrome → Settings → Users → <b>+</b>, same username, tick their shelves (or make them a shelf: <code>music/&lt;name&gt;</code> and Settings → Libraries → <b>+</b>).</li>
+          <li>Run <code>gate-music-one.sh</code> again with them in <code>MUSIC_USERS</code>.</li>
         </ol>
       </div>
       <div class="codes"><h3>CODES</h3>
-        <span class="where">SGIN · podsvc, scripts mode</span>
-        <code class="cmd">cd ~/cobra-server/scripts/podman/sgin</code>
-        <code class="cmd">./navidrome.sh rachel</code>
-        <span class="what">Recreates just Rachel's container; her database stays.</span>
+        <span class="where">gate · podsvc</span>
+        <code class="cmd">bash ~/cobra-server/scripts/oneshot/gate-sso-check.sh</code>
+        <span class="what">Read-only. Shows the music wall and who is on it.</span>
       </div>
     </div>
   </div>
   <div class="viper"><pre class="sprite" data-name="viper" data-px="4"></pre>
-    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Want to listen to everything at once? The Commander's own music. sees all of <code>dock1a/music</code>, Rachel's folder included. Rachel's mustang. only sees hers.</div>
+    <div class="bubble"><span class="who">CLAUDE-VIPER</span>Want Rachel to hear your pop shelf too? Split <code>music/eels</code> into one shelf per genre and tick the ones she likes. Ask me when you want it.</div>
   </div>
 </section>
 
@@ -179,52 +164,52 @@ KDDKDDRRDDKDDK
     <pre class="sprite" data-name="joe" data-px="6"></pre>
     <div>
       <div class="banner" style="background:var(--red);"><span>JOE SABOTAGE REPORT</span></div>
-      <p class="note" style="margin-top:10px;">From manual 3.8, part 5.4 and the four-way split of November 2026.</p>
+      <p class="note" style="margin-top:10px;">From manual 3.8, part 5.4 and the merge of November 2026 (docs/music.md).</p>
     </div>
   </div>
   <div class="cols-2">
     <div class="stack">
       <div class="trap"><h3>THE FIRST-VISITOR CROWN</h3>
-        <p>Each new Navidrome makes whoever opens it first the admin. Four instances, four chances to lose the crown.<span class="fix">Open each port from the-box right after it starts and create its admin, with the same username as in Authelia.</span></p>
+        <p>A brand-new Navidrome makes whoever opens it first the admin.<span class="fix">Open it from the-box right after it starts and create <code>eels</code>, the same username as in Authelia.</span></p>
       </div>
       <div class="trap"><h3>THE NAME MISMATCH</h3>
-        <p>Authelia says "rachel", Navidrome only knows "Rachel2". The trusted header points at nobody, and the sign-in doesn't carry over.<span class="fix">One username per person, spelled the same in users.yml and in every Navidrome.</span></p>
+        <p>Authelia says "rachel", Navidrome only knows "Rachel2". The trusted header points at nobody.<span class="fix">One username per person, spelled the same in users.yml and in Navidrome.</span></p>
       </div>
-      <div class="trap"><h3>THE MERGED LIBRARY</h3>
-        <p>"Just add comedy as a second library in the main one, it's easier." It isn't allowed here.<span class="fix">New collection = new instance, new port, new name. See the fifth-player moves.</span></p>
+      <div class="trap"><h3>THE OVERLAPPING SHELF</h3>
+        <p>Library 1 still reads all of <code>music/</code>, so Navidrome refuses <code>music/rachel</code> as a second shelf.<span class="fix">Library 1's path must be <code>/media/dock1a/music/eels</code> (<code>sgin-music-one.sh</code> sets it).</span></p>
       </div>
-      <div class="trap"><h3>THE MOVED ROOT</h3>
-        <p>The main instance used to read <code>music/eels</code>; now it reads all of <code>music</code>. Until a full scan runs, albums show up twice or go missing.<span class="fix">After changing <code>ND_MUSICFOLDER</code>, restart the container and let it rescan.</span></p>
+      <div class="trap"><h3>THE OPEN SHELF</h3>
+        <p>A shelf marked <i>default for new users</i> lands in every new account, Rachel's included.<span class="fix">Untick it on both shelves and tick shelves per person on the Users page.</span></p>
       </div>
     </div>
     <div class="stack">
-      <div class="trap"><h3>THE HALF-OPENED DOOR</h3>
-        <p>A new instance needs its port in four places: the pod, nftables, nginx's map and Authelia. Miss the pod and it never answers; miss nftables and the gate can't reach it; miss Authelia and it's a 403.<span class="fix">Do all four, then run check.sh on the gate.</span></p>
+      <div class="trap"><h3>THE MISSING WALL</h3>
+        <p>Without the music wall, any friend with a gate login who opens music. gets a Navidrome account of their own.<span class="fix">Run <code>gate-music-one.sh</code>; <code>gate-sso-check.sh</code> says who's on the wall.</span></p>
       </div>
       <div class="trap"><h3>THE READ-ONLY SURPRISE</h3>
-        <p>Navidrome can't fix a wrong tag or delete a duplicate: its library is mounted read-only.<span class="fix">Fix files on the-box over the share (Picard), and Navidrome picks the change up on its next scan.</span></p>
+        <p>Navidrome can't fix a wrong tag or delete a duplicate: its library is mounted read-only.<span class="fix">Fix files on the-box over the share (Picard); Navidrome picks the change up on its next scan.</span></p>
       </div>
       <div class="trap"><h3>THE STAND-UP SHUFFLE</h3>
-        <p>A comedy album dropped into <code>music/</code> turns up in the Commander's shuffle halfway through a playlist.<span class="fix">Stand-up goes in <code>dock1a/comedy</code>, one folder per album. Podcasts go in <code>dock1a/sessions</code>.</span></p>
+        <p>A comedy album dropped into <code>music/</code> turns up in the Commander's shuffle.<span class="fix">Stand-up goes in <code>dock1a/comedy</code>, podcasts in <code>dock1a/sessions</code>: Audiobookshelf's shelves.</span></p>
       </div>
       <div class="trap"><h3>THE WATCHER LIMIT</h3>
-        <p>Four Navidromes, Jellyfin, Kavita and ABS all watch the library for changes, and Linux's default limit on file watchers is low.<span class="fix">Part 3.3 raises it in <code>/etc/sysctl.d/90-inotify.conf</code>. Keep that file.</span></p>
+        <p>Navidrome, Jellyfin, Kavita and ABS all watch the library, and Linux's default limit on file watchers is low.<span class="fix">Part 3.3 raises it in <code>/etc/sysctl.d/90-inotify.conf</code>. Keep that file.</span></p>
       </div>
     </div>
   </div>
   <div class="trap"><h3>THE WIDE-OPEN WHITELIST</h3>
-    <p>The trusted-header setting is the master key. Widen <code>ND_REVERSEPROXYWHITELIST</code> to the whole LAN and any device at home could claim to be any user by sending its own Remote-User header.<span class="fix">Keep it at exactly <code>10.6.9.10/32</code>, the gate and nothing else, on all four instances.</span></p>
+    <p>The trusted-header setting is the master key. Widen <code>ND_REVERSEPROXYWHITELIST</code> to the whole LAN and any device at home could claim to be any user.<span class="fix">Keep it at exactly <code>10.6.9.10/32</code>, the gate and nothing else.</span></p>
   </div>
 </section>
 
-<!-- the four character-select pages -->
+<!-- the character-select pages -->
 
-<section class="page theme-red" data-zone="WORLD 2 · NAVIDROME" data-toc="Navidrome: music.|The Commander's jukebox, :4533" data-tocgroup="stream">
+<section class="page theme-red" data-zone="WORLD 2 · NAVIDROME" data-toc="Navidrome: music.|The Commander's shelf, :4533" data-tocgroup="stream">
   <div class="chapter-head">
     <div>
       <div class="kicker">PLAYER 1 · NAVIDROME</div>
       <h1>MUSIC.</h1>
-      <div class="sub">The Commander's own jukebox: all of dock1a/music</div>
+      <div class="sub">The Commander's door: every shelf in the jukebox</div>
     </div>
     <div class="art">
 <pre class="sprite" data-px="8">
@@ -246,7 +231,7 @@ KKKK....KKKK
       <dl>
         <dt>NAME</dt><dd><code>navidrome</code></dd>
         <dt>PORT</dt><dd>4533</dd>
-        <dt>READS</dt><dd><code>/media/dock1a/music</code></dd>
+        <dt>LIBRARY 1</dt><dd><code>/media/dock1a/music/eels</code></dd>
         <dt>DATA</dt><dd><code>/srv/stream/navidrome</code></dd>
         <dt>URL</dt><dd><code>music.songofeo.com</code></dd>
         <dt>ADMIN</dt><dd>eels</dd>
@@ -254,123 +239,50 @@ KKKK....KKKK
       <div class="meter fun"><span class="lbl">RANGE</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
     </div>
     <div class="stack">
-      <p class="lede">The flagship. The Commander's Navidrome reads the whole <code>music</code> folder on dock1a, so it sees everyone's music: <code>music/eels</code>, <code>music/rachel</code> and anything added later. It's the Music floor of the station.</p>
-      <p>It's the only instance that keeps Navidrome's default port, 4533, and the manual's Quadlet file doesn't even set <code>ND_PORT</code>. The other three each move to their own port because they share the pod's one network.</p>
+      <p class="lede">The flagship. As the admin, the Commander sees every shelf: Eels, Rachel and any shelf added later. It's the Music floor of the station.</p>
+      <p><code>ND_MUSICFOLDER</code> becomes Library 1, renamed <b>Eels</b>. Every other shelf is added by hand in Settings → Libraries, with its path as the container sees it (<code>/media/dock1a/...</code>).</p>
     </div>
   </div>
   <div class="cols-2">
-    <div class="tip"><h3>PRO TIP: ALL-ACCESS</h3><p>Because it reads all of <code>music/</code>, a new person's folder shows up here automatically, even before they get an instance of their own.</p></div>
-    <div class="tip blue"><h3>PRO TIP: THE RADIO</h3><p>The Song of Eo radio shuffles this same folder, <code>dock1a/music</code>. Anything you add here can turn up on the air (chapter 2-9).</p></div>
+    <div class="tip"><h3>PRO TIP: ALL-ACCESS</h3><p>Admins see every shelf on their own, so a new person's shelf shows up here the moment it's added.</p></div>
+    <div class="tip blue"><h3>PRO TIP: THE RADIO</h3><p>The Song of Eo radio shuffles <code>dock1a/music</code>, both shelves. Anything you add can turn up on the air (chapter 2-9).</p></div>
   </div>
   <div class="cols-2">
-    <div class="trap"><h3>THE OLD ROOT</h3><p>Built when it still read <code>music/eels</code>? The library looks half empty.<span class="fix">ND_MUSICFOLDER must be <code>/media/dock1a/music</code>; restart and rescan.</span></p></div>
+    <div class="trap"><h3>THE OLD ROOT</h3><p>Library 1 still says <code>/media/dock1a/music</code>?<span class="fix">Settings → Libraries → Library 1 → path <code>/media/dock1a/music/eels</code>, Save, let it rescan.</span></p></div>
     <div class="codes"><h3>CODES</h3>
       <span class="where">SGIN · podsvc</span>
       <code class="cmd">podman logs --tail 30 navidrome</code>
       <code class="cmd">podman exec navidrome env</code>
-      <span class="what">Shows ND_MUSICFOLDER and the other settings it runs with.</span>
+      <span class="what">Shows ND_MUSICFOLDER and the other settings.</span>
     </div>
   </div>
   <div class="panel"><h3>THE ROUTE</h3>
     <div class="levelmap">
       <div class="node"><b>AT HOME</b>music.songofeo.com</div><div class="arrow">&#9654;</div>
       <div class="node hot"><b>PI-HOLE</b>answers 10.6.9.10</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>GATE</b>no sign-in at home</div><div class="arrow">&#9654;</div>
-      <div class="node boss"><b>NAVIDROME</b>10.6.9.20:4533</div><div class="arrow">&#9654;</div>
-      <div class="node"><b>LOGIN</b>Navidrome's own page</div>
+      <div class="node hot"><b>GATE</b>one sign-in, music wall</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>NAVIDROME</b>10.6.9.20:4533</div>
     </div>
   </div>
   <div class="cols-2">
-    <div class="tip lime"><h3>PRO TIP: WEB PLAYER</h3><p>No app needed on the-box: open <code>https://music.songofeo.com</code> in the browser for the full web player, with queue, playlists and album art.</p></div>
-    <div class="intel"><h3>WHAT'S INSIDE</h3><p><code>music/eels</code> and <code>music/rachel</code> today, plus any <code>music/&lt;name&gt;</code> folder added for a new person tomorrow.</p></div>
+    <div class="tip lime"><h3>PRO TIP: WEB PLAYER</h3><p>No app needed on the-box: <code>https://music.songofeo.com</code> is the full web player, with queue, playlists and album art.</p></div>
+    <div class="intel"><h3>WHAT'S INSIDE</h3><p>Shelf Eels (<code>music/eels</code>, by genre) and shelf Rachel (<code>music/rachel</code>).</p></div>
   </div>
 <div class="panel tint"><h3>LOADOUT</h3>
     <ul class="checks">
       <li>Admin <code>eels</code> made from the-box at <code>http://10.6.9.20:4533</code></li>
-      <li>Same username as in Authelia's users.yml</li>
-      <li>Symfonium or Substreamer on the S21, used over WireGuard when away</li>
+      <li>Shelves Eels and Rachel, neither <i>default for new users</i></li>
+      <li>Symfonium or Substreamer on the S21</li>
     </ul>
   </div>
 </section>
 
-<section class="page theme-yellow" data-zone="WORLD 2 · NAVIDROME" data-toc="Navidrome: comedy.|The stand-up club, :4534" data-tocgroup="stream">
+<section class="page theme-pink" data-zone="WORLD 2 · NAVIDROME" data-toc="Navidrome: mustang.|Rachel's door to the same jukebox" data-tocgroup="stream">
   <div class="chapter-head">
     <div>
       <div class="kicker">PLAYER 2 · NAVIDROME</div>
-      <h1>COMEDY.</h1>
-      <div class="sub">The stand-up club: comedy albums, never in a music shuffle</div>
-    </div>
-    <div class="art">
-<pre class="sprite" data-px="8">
-..KKKK..
-.KEEEEK.
-.KETEEK.
-.KEEEEK.
-.KETEEK.
-.KEEEEK.
-..KKKK..
-...KK...
-...KK...
-.KKKKKK.
-</pre>
-    </div>
-  </div>
-  <div class="cols-12">
-    <div class="stats"><h3>STATS</h3>
-      <dl>
-        <dt>NAME</dt><dd><code>navidrome-comedy</code></dd>
-        <dt>PORT</dt><dd>4534</dd>
-        <dt>READS</dt><dd><code>/media/dock1a/comedy</code></dd>
-        <dt>DATA</dt><dd><code>/srv/stream/navidrome-comedy</code></dd>
-        <dt>URL</dt><dd><code>comedy.songofeo.com</code></dd>
-      </dl>
-      <div class="meter fun"><span class="lbl">LAUGHS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
-    </div>
-    <div class="stack">
-      <p class="lede">Stand-up albums get a club of their own. A forty-minute set has no business popping up between two songs in a shuffle, and a search for a band shouldn't return a comedian's bit about that band.</p>
-      <p>So comedy lives in <code>dock1a/comedy</code>, one folder per album, and this instance reads only that. It runs on port 4534 and is public at <code>comedy.songofeo.com</code>, behind the same gate sign-in as the other floors.</p>
-    </div>
-  </div>
-  <div class="cols-2">
-    <div class="tip"><h3>PRO TIP: ALBUM TAGS</h3><p>Tag each special as an album, with the comedian as album artist. Track per bit if the release has them, or one long track: both play fine.</p></div>
-    <div class="tip pink"><h3>PRO TIP: RESUME</h3><p>Long tracks are easy to lose your place in. Many Subsonic apps can bookmark or remember the position; check your app's settings.</p></div>
-  </div>
-  <div class="cols-2">
-    <div class="trap"><h3>THE WRONG SHELF</h3><p>Comedy copied into <code>music/</code> shows up in the Commander's shuffles and on the radio.<span class="fix">Move it to <code>dock1a/comedy</code>; both instances rescan on their own.</span></p></div>
-    <div class="codes"><h3>CODES</h3>
-      <span class="where">SGIN · podsvc</span>
-      <code class="cmd">podman logs --tail 30 navidrome-comedy</code>
-      <code class="cmd">podman restart navidrome-comedy</code>
-    </div>
-  </div>
-  <div class="panel"><h3>THE ROUTE</h3>
-    <div class="levelmap">
-      <div class="node"><b>AT HOME</b>comedy.songofeo.com</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>PI-HOLE</b>answers 10.6.9.10</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>GATE</b>no sign-in at home</div><div class="arrow">&#9654;</div>
-      <div class="node boss"><b>NAVIDROME</b>10.6.9.20:4534</div><div class="arrow">&#9654;</div>
-      <div class="node"><b>LOGIN</b>Navidrome's own page</div>
-    </div>
-  </div>
-  <div class="cols-2">
-    <div class="tip lime"><h3>PRO TIP: ONE FOLDER EACH</h3><p><code>comedy/Comedian - Special (Year)/</code> keeps the share tidy for you; Navidrome itself goes by the tags inside.</p></div>
-    <div class="intel"><h3>WHO GETS IN</h3><p>Anyone with a gate account and a comedy. login. It's a separate user list from music., so a friend can have comedy without your music.</p></div>
-  </div>
-<div class="panel tint"><h3>LOADOUT</h3>
-    <ul class="checks">
-      <li>Admin made from the-box at <code>http://10.6.9.20:4534</code>, same username as in Authelia</li>
-      <li>Stand-up only in <code>\\cobra-stream\media\dock1a\comedy</code></li>
-      <li>Added as a separate server in your phone app</li>
-    </ul>
-  </div>
-</section>
-
-<section class="page theme-pink" data-zone="WORLD 2 · NAVIDROME" data-toc="Navidrome: mustang.|Rachel's own jukebox, :4535" data-tocgroup="stream">
-  <div class="chapter-head">
-    <div>
-      <div class="kicker">PLAYER 3 · NAVIDROME</div>
       <h1>MUSTANG.</h1>
-      <div class="sub">Rachel's own jukebox: only dock1a/music/rachel</div>
+      <div class="sub">Rachel's own door: only her shelf, dock1a/music/rachel</div>
     </div>
     <div class="art">
 <pre class="sprite" data-px="8">
@@ -390,57 +302,125 @@ KNNNK..KNNNK
   <div class="cols-12">
     <div class="stats"><h3>STATS</h3>
       <dl>
-        <dt>NAME</dt><dd><code>navidrome-rachel</code></dd>
-        <dt>PORT</dt><dd>4535</dd>
-        <dt>READS</dt><dd><code>/media/dock1a/music/rachel</code></dd>
-        <dt>DATA</dt><dd><code>/srv/stream/navidrome-rachel</code></dd>
+        <dt>NAME</dt><dd><code>navidrome</code> (the same one)</dd>
+        <dt>PORT</dt><dd>4533</dd>
+        <dt>SHELF</dt><dd><code>/media/dock1a/music/rachel</code></dd>
+        <dt>USER</dt><dd>rachel</dd>
         <dt>URL</dt><dd><code>mustang.songofeo.com</code></dd>
-        <dt>ADMIN</dt><dd>rachel</dd>
       </dl>
       <div class="meter fun"><span class="lbl">HORSEPOWER</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
     </div>
     <div class="stack">
-      <p class="lede">Rachel gets her own Navidrome, her own name and her own keys. Her instance reads only her folder, so her library, playlists, stars and play counts are hers and nobody else's.</p>
-      <p>Its admin is <code>rachel</code>, the same username she has in Authelia, so signing in at the gate from outside carries straight into her jukebox. </p>
+      <p class="lede">mustang. is Rachel's name for the jukebox. It opens the same Navidrome as music., and her account only has her shelf ticked, so her library, playlists, stars and play counts are hers alone.</p>
+      <p>Her username is <code>rachel</code>, the same as in Authelia, so signing in at the gate carries straight in. <code>music.</code> works for her too and shows the same thing.</p>
     </div>
   </div>
   <div class="cols-2">
-    <div class="tip pink"><h3>PRO TIP: HER OWN APP</h3><p>On her phone, add <code>https://mustang.songofeo.com</code> as the server in a Subsonic app, with WireGuard on when away from home.</p></div>
-    <div class="tip"><h3>PRO TIP: ADDING SONGS</h3><p>New music for Rachel goes in <code>\\cobra-stream\media\dock1a\music\rachel</code>. It shows up in mustang. and in the Commander's music. too.</p></div>
+    <div class="tip pink"><h3>PRO TIP: HER OWN APP</h3><p>On her phone, a Subsonic app with server <code>https://mustang.songofeo.com</code>, username <code>rachel</code> and the password set on the Users page.</p></div>
+    <div class="tip"><h3>PRO TIP: ADDING SONGS</h3><p>New music for Rachel goes in <code>\\cobra-stream\media\dock1a\music\rachel</code>. It shows on her shelf, and in the Commander's view too.</p></div>
   </div>
   <div class="cols-2">
-    <div class="trap"><h3>THE BORROWED CROWN</h3><p>If someone else opens <code>:4535</code> first, they become the admin of Rachel's jukebox.<span class="fix">Rachel (or you, as <code>rachel</code>) creates the admin right after it starts.</span></p></div>
+    <div class="trap"><h3>THE PEEK</h3><p>If Rachel's account is made by her first visit while shelf Eels is <i>default for new users</i>, she sees your whole collection.<span class="fix">Make her account yourself first, with only Rachel ticked.</span></p></div>
     <div class="codes"><h3>CODES</h3>
-      <span class="where">SGIN · podsvc</span>
-      <code class="cmd">podman logs --tail 30 navidrome-rachel</code>
-      <code class="cmd">podman restart navidrome-rachel</code>
+      <span class="where">the-box · browser</span>
+      <code class="cmd">http://10.6.9.20:4533</code>
+      <span class="what">Settings → Users → rachel → Libraries: only Rachel.</span>
     </div>
   </div>
   <div class="panel"><h3>THE ROUTE</h3>
     <div class="levelmap">
-      <div class="node"><b>AT HOME</b>mustang.songofeo.com</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>PI-HOLE</b>answers 10.6.9.10</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>GATE</b>no sign-in at home</div><div class="arrow">&#9654;</div>
-      <div class="node boss"><b>NAVIDROME</b>10.6.9.20:4535</div><div class="arrow">&#9654;</div>
-      <div class="node"><b>LOGIN</b>Navidrome's own page</div>
+      <div class="node"><b>ANYWHERE</b>mustang.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>GATE</b>one sign-in, music wall</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>NAVIDROME</b>10.6.9.20:4533</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>HER SHELF</b>library Rachel</div>
     </div>
   </div>
   <div class="cols-2">
-    <div class="tip lime"><h3>PRO TIP: THE TEMPLATE</h3><p>Her container is the copy-from model in the manual: a new person gets a copy of <code>navidrome-rachel.container</code> with their own name, folder and port.</p></div>
-    <div class="intel"><h3>WHO SEES HER MUSIC</h3><p>Rachel, in mustang. And the Commander, in music., because that instance reads all of <code>music/</code>. Nobody else.</p></div>
+    <div class="tip lime"><h3>PRO TIP: OLD PLAYLISTS</h3><p>Her old Navidrome (<code>navidrome-rachel</code>) is retired, data kept. Playlists made there don't move over on their own.</p></div>
+    <div class="intel"><h3>WHO SEES HER MUSIC</h3><p>Rachel, and the Commander as admin. Nobody else gets past the music wall.</p></div>
   </div>
 <div class="panel tint"><h3>LOADOUT</h3>
     <ul class="checks">
-      <li>Admin <code>rachel</code> made at <code>http://10.6.9.20:4535</code></li>
-      <li>Authelia user <code>rachel</code> exists on the gate</li>
+      <li>Navidrome user <code>rachel</code>, only shelf Rachel ticked</li>
+      <li>Authelia user <code>rachel</code>, on the music wall</li>
     </ul>
   </div>
 </section>
 
-<section class="page theme-sky" data-zone="WORLD 2 · NAVIDROME" data-toc="Navidrome: sessions.|The Ward's podcast archive, :4536" data-tocgroup="stream">
+<section class="page theme-yellow" data-zone="WORLD 2 · TALK FLOORS" data-toc="Comedy.|The stand-up club, in Audiobookshelf" data-tocgroup="stream">
   <div class="chapter-head">
     <div>
-      <div class="kicker">PLAYER 4 · NAVIDROME</div>
+      <div class="kicker">TALK FLOOR 1 · AUDIOBOOKSHELF</div>
+      <h1>COMEDY.</h1>
+      <div class="sub">The stand-up club: picks up right where the laugh stopped</div>
+    </div>
+    <div class="art">
+<pre class="sprite" data-px="8">
+..KKKK..
+.KEEEEK.
+.KETEEK.
+.KEEEEK.
+.KETEEK.
+.KEEEEK.
+..KKKK..
+...KK...
+...KK...
+.KKKKKK.
+</pre>
+    </div>
+  </div>
+  <div class="cols-12">
+    <div class="stats"><h3>STATS</h3>
+      <dl>
+        <dt>APP</dt><dd><code>audiobookshelf</code> (chapter 2-4)</dd>
+        <dt>PORT</dt><dd>13378</dd>
+        <dt>LIBRARY</dt><dd><b>Comedy</b>, type Book</dd>
+        <dt>READS</dt><dd><code>/media/dock1a/comedy</code></dd>
+        <dt>URL</dt><dd><code>comedy.songofeo.com</code></dd>
+      </dl>
+      <div class="meter fun"><span class="lbl">LAUGHS</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+    </div>
+    <div class="stack">
+      <p class="lede">A forty-minute set is talk, not a song. Audiobookshelf remembers where each person stopped, has playback speed and a sleep timer, and never drops a bit into a music shuffle.</p>
+      <p>Comedy is a <b>Book</b> library in the Audiobookshelf already on the SGIN: comedian = author, special = book, tracks play in order. <code>comedy.songofeo.com</code> opens it, behind the same gate sign-in as the other floors.</p>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="tip"><h3>PRO TIP: FOLDERS</h3><p><code>comedy/Comedian/Special (Year)/</code> with the tracks inside. Audiobookshelf reads the folder names first, then the tags.</p></div>
+    <div class="tip pink"><h3>PRO TIP: RESUME</h3><p>Stop on the-box, carry on in the phone app: the position follows you.</p></div>
+  </div>
+  <div class="cols-2">
+    <div class="trap"><h3>THE WRONG SHELF</h3><p>Comedy copied into <code>music/</code> shows up in Navidrome and on the radio.<span class="fix">Move it to <code>dock1a/comedy</code>; both rescan on their own.</span></p></div>
+    <div class="codes"><h3>CODES</h3>
+      <span class="where">SGIN · podsvc</span>
+      <code class="cmd">podman logs --tail 30 audiobookshelf</code>
+      <code class="cmd">systemctl --user restart audiobookshelf</code>
+    </div>
+  </div>
+  <div class="panel"><h3>THE ROUTE</h3>
+    <div class="levelmap">
+      <div class="node"><b>ANYWHERE</b>comedy.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>GATE</b>one sign-in</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>AUDIOBOOKSHELF</b>10.6.9.20:13378</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>LOGIN</b>its own, once per device</div>
+    </div>
+  </div>
+  <div class="cols-2">
+    <div class="tip lime"><h3>PRO TIP: THE APP</h3><p>The Audiobookshelf phone app, server <code>https://books.songofeo.com</code> (comedy. works too), then pick Comedy at the top.</p></div>
+    <div class="intel"><h3>WHO GETS IN</h3><p>Whoever you tick Comedy for in Audiobookshelf's Settings → Users. A friend can have comedy without your music.</p></div>
+  </div>
+<div class="panel tint"><h3>LOADOUT</h3>
+    <ul class="checks">
+      <li>Library Comedy, type Book, folder <code>/media/dock1a/comedy</code></li>
+      <li>Stand-up only in <code>\\cobra-stream\media\dock1a\comedy</code></li>
+    </ul>
+  </div>
+</section>
+
+<section class="page theme-sky" data-zone="WORLD 2 · TALK FLOORS" data-toc="Sessions.|The Ward's podcasts, in Audiobookshelf" data-tocgroup="stream">
+  <div class="chapter-head">
+    <div>
+      <div class="kicker">TALK FLOOR 2 · AUDIOBOOKSHELF</div>
       <h1>SESSIONS.</h1>
       <div class="sub">The Ward: your own recorded podcasts</div>
     </div>
@@ -462,49 +442,47 @@ K..KSWSSK..K
   <div class="cols-12">
     <div class="stats"><h3>STATS</h3>
       <dl>
-        <dt>NAME</dt><dd><code>navidrome-sessions</code></dd>
-        <dt>PORT</dt><dd>4536</dd>
+        <dt>APP</dt><dd><code>audiobookshelf</code></dd>
+        <dt>PORT</dt><dd>13378</dd>
+        <dt>LIBRARY</dt><dd><b>Sessions</b>, type Podcast</dd>
         <dt>READS</dt><dd><code>/media/dock1a/sessions</code></dd>
-        <dt>DATA</dt><dd><code>/srv/stream/navidrome-sessions</code></dd>
         <dt>URL</dt><dd><code>sessions.songofeo.com</code></dd>
       </dl>
       <div class="meter fun"><span class="lbl">ON AIR</span><span class="bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
     </div>
     <div class="stack">
-      <p class="lede">The Ward is where your own recordings live: the personal podcasts you've made, one folder per show, each episode tagged like a track on an album.</p>
-      <p>Using Navidrome as the player means every Subsonic app on every phone can play them, with the same login as the rest of the station. They're kept out of the music floor, so an episode never interrupts a playlist.</p>
+      <p class="lede">The Ward is where your own recordings live: one folder per show, one file per episode. As a <b>Podcast</b> library, each episode is marked played or not, per listener, and resumes where you stopped.</p>
+      <p>Audiobookshelf can also <b>Open RSS feed</b> on a show, so The Ward can be followed in any podcast app with the feed's address.</p>
     </div>
   </div>
   <div class="cols-2">
-    <div class="tip"><h3>PRO TIP: TAG AS ALBUMS</h3><p>Show name as the album, you as the album artist, episode number as the track number. Navidrome then lists every show as an album in episode order.</p></div>
-    <div class="tip blue"><h3>PRO TIP: COVER ART</h3><p>Embed a square cover in each file (Picard or your recording app can), so every show gets its own tile.</p></div>
+    <div class="tip"><h3>PRO TIP: DATE FIRST</h3><p>Start each file name with the date, <code>2026-11-08 Episode title.mp3</code>, so episodes sort in order.</p></div>
+    <div class="tip blue"><h3>PRO TIP: COVER ART</h3><p>A square <code>cover.jpg</code> in each show folder gives every show its own tile.</p></div>
   </div>
   <div class="cols-2">
-    <div class="trap"><h3>THE LOOSE EPISODE</h3><p>Files with no tags show up as "Unknown Album" in a pile.<span class="fix">Tag before copying into <code>dock1a/sessions</code>, one folder per show.</span></p></div>
+    <div class="trap"><h3>THE LOOSE EPISODE</h3><p>A file straight in <code>sessions/</code>, outside a show folder, isn't picked up as an episode.<span class="fix">One folder per show, episodes inside.</span></p></div>
     <div class="codes"><h3>CODES</h3>
-      <span class="where">SGIN · podsvc</span>
-      <code class="cmd">podman logs --tail 30 navidrome-sessions</code>
-      <code class="cmd">podman restart navidrome-sessions</code>
+      <span class="where">the-box · browser</span>
+      <code class="cmd">http://10.6.9.20:13378</code>
+      <span class="what">Settings → Libraries → Sessions → Scan.</span>
     </div>
   </div>
   <div class="panel"><h3>THE ROUTE</h3>
     <div class="levelmap">
-      <div class="node"><b>AT HOME</b>sessions.songofeo.com</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>PI-HOLE</b>answers 10.6.9.10</div><div class="arrow">&#9654;</div>
-      <div class="node hot"><b>GATE</b>no sign-in at home</div><div class="arrow">&#9654;</div>
-      <div class="node boss"><b>NAVIDROME</b>10.6.9.20:4536</div><div class="arrow">&#9654;</div>
-      <div class="node"><b>LOGIN</b>Navidrome's own page</div>
+      <div class="node"><b>ANYWHERE</b>sessions.songofeo.com</div><div class="arrow">&#9654;</div>
+      <div class="node hot"><b>GATE</b>one sign-in</div><div class="arrow">&#9654;</div>
+      <div class="node boss"><b>AUDIOBOOKSHELF</b>10.6.9.20:13378</div><div class="arrow">&#9654;</div>
+      <div class="node"><b>LOGIN</b>its own, once per device</div>
     </div>
   </div>
   <div class="cols-2">
-    <div class="tip lime"><h3>PRO TIP: FILE FORMAT</h3><p>Export episodes as MP3 or another common format. Navidrome plays most formats, but every phone app plays MP3.</p></div>
-    <div class="intel"><h3>NOT A FEED</h3><p>This is an archive of your own files, not a subscription app for podcasts from the internet.</p></div>
+    <div class="tip lime"><h3>PRO TIP: FILE FORMAT</h3><p>Export episodes as MP3 or M4A: every phone app plays them.</p></div>
+    <div class="intel"><h3>A FEED, IF YOU WANT</h3><p>The RSS feed is off until you open it, per show, and you can close it again.</p></div>
   </div>
 <div class="panel tint"><h3>LOADOUT</h3>
     <ul class="checks">
-      <li>Admin made at <code>http://10.6.9.20:4536</code>, same username as in Authelia</li>
+      <li>Library Sessions, type Podcast, folder <code>/media/dock1a/sessions</code></li>
       <li>Shows in <code>\\cobra-stream\media\dock1a\sessions</code>, one folder each</li>
-      <li>sessions. answers through the gate (check.sh)</li>
     </ul>
   </div>
 </section>

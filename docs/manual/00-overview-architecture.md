@@ -10,7 +10,7 @@
 |---|---|---|
 | 1 | *Proxmox runs everything from the Latitude: OPNsense, Pi-hole and Jellyfin?* | **Proxmox on the Latitude: yes. Jellyfin on it: no.** The Latitude runs Proxmox with the firewall, Pi-hole #1 and the `cobra-gate` VM. Jellyfin moves elsewhere (see #4). |
 | 2 | *Optiplex gets Windows 10 for the arcade?* | **Windows, yes, but Windows 11 rather than 10.** Consumer Windows 10 Extended Security Updates end on **Oct 13, 2026**. After that the cabinet would get no more security patches while sitting on your LAN. Windows 11 installs on the i7-6700 using Rufus's requirement bypass and activates with your existing license. LaunchBox/Big Box is Windows-only, so Windows is the right OS for the cabinet. Setup is in part 4. |
-| 3 | *Does Navidrome go on the Optiplex?* | **No.** Navidrome needs no GPU, and the cabinet should only run games. It goes on `cobra-stream` with the rest of the media apps. **One Navidrome instance is enough.** Navidrome 0.58+ supports multiple libraries with per-user access. `music.` (Eels, the admin, who sees every library) and `mustang.` (Rachel, who sees only hers) are two hostnames for the same instance. Anyone added later gets their own name the same way. |
+| 3 | *Does Navidrome go on the Optiplex?* | **No.** Navidrome needs no GPU, and the cabinet should only run games. It goes on `cobra-stream` with the rest of the media apps. **One Navidrome instance is enough.** Navidrome 0.58+ supports multiple libraries with per-user access. `music.` (Eels, the admin, who sees every library) and `mustang.` (Rachel, who sees only hers) are two hostnames for the same instance. Anyone added later gets a user and their libraries in that instance, no new name or container. Comedy and The Ward are Audiobookshelf libraries ([music.md](../music.md)). |
 | 4 | *Jellyfin on the gateway box is too much. Shouldn't it go on the Optiplex and use the Intel graphics?* | **You were right to worry: it doesn't belong on the gateway.** That box has 2 cores, 16 GB and the firewall. Putting a media server facing the internet on the same machine that *is* the firewall also widens the damage if it's ever compromised. **The Optiplex is the wrong fix too.** Its HD 530 is Skylake, which has **no hardware decode for HEVC 10-bit**, and that's the format most 4K MKVs use. It would also slow down games on the cabinet. **The SGIN's Celeron N5095A (Jasper Lake) is the best video engine you own.** It does hardware HEVC 10-bit decode and encode plus HDR tone mapping, at about 10 W. So the SGIN becomes **`cobra-stream`** and also keeps its jobs as backup server and Pi-hole #2. |
 | 5 | *SGIN = backup server + Pi-hole 2?* | **Yes, plus media** (see #4). It runs Proxmox Backup Server, Pi-hole #2, Samba, and the media pod. |
 | 6 | *R620 later, labs only?* | **Yes.** It adds lab capacity (an Active Directory lab, CAPEv2, Wazuh, Security Onion) but has no video engine, so it does nothing for streaming. You'll power it on remotely for lab sessions through iDRAC. That's part 9. |
@@ -125,7 +125,7 @@
 | gate (in pod) | Authelia 9091 · Vaultwarden 8222 · Paperless 8000 · Postgres 5432 · Redis 6379 · MeTube 8081 · Homepage 3000 · Uptime Kuma 3001 | localhost only | Only nginx inside the pod |
 | gate | Cockpit | 9090 | LAN + VPN |
 | cobra-home | Home Assistant | 8123 | LAN + VPN directly; from outside only through the gate at `ha.songofeo.com` (part 10) |
-| stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533–4536 · RomM 8080 · Icecast 8000 | LAN + VPN only (nftables) | gate's nginx + LAN clients |
+| stream | Jellyfin 8096 · ErsatzTV 8409 · Audiobookshelf 13378 · Kavita 5000 · Navidrome 4533 · RomM 8080 · Icecast 8000 | LAN + VPN only (nftables) | gate's nginx + LAN clients |
 | stream | Samba | 445 | LAN + VPN |
 | stream | Pi-hole #2 | 53, 80/443 (admin) | LAN + VPN |
 | stream | Cockpit · SSH | 9090 · 22 | LAN + VPN |
@@ -150,9 +150,9 @@ At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LA
 | Music (the station's Music floor) | `music.songofeo.com` | → stream: Navidrome | Station sign-in; Navidrome trusts it, so no second login |
 | Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | Station sign-in, then in-app once per device |
 | Comics / graphic novels | `comics.songofeo.com` | → stream: Kavita | Station sign-in, then in-app once per device |
-| Rachel's music | `mustang.songofeo.com` | → stream: Rachel's own Navidrome (`:4535`, only her folder) | Same as `music.` |
-| Stand-up comedy | `comedy.songofeo.com` | → stream: the comedy Navidrome (`:4534`, `dock1a/comedy`) | Same as `music.` |
-| The Ward (recorded podcasts) | `sessions.songofeo.com` | → stream: the sessions Navidrome (`:4536`, `dock1a/sessions`) | Same as `music.` |
+| Rachel's music | `mustang.songofeo.com` | → stream: the same Navidrome (`:4533`); her account only sees library Rachel (`dock1a/music/rachel`) | Same as `music.` |
+| Stand-up comedy | `comedy.songofeo.com` | → stream: Audiobookshelf (`:13378`), library Comedy (`dock1a/comedy`) | Station sign-in, then Audiobookshelf's own login |
+| The Ward (recorded podcasts) | `sessions.songofeo.com` | → stream: Audiobookshelf (`:13378`), podcast library Sessions (`dock1a/sessions`) | Same as `comedy.` |
 | Game Cellar | `gaming.songofeo.com` | → gate: holding page until its app exists | Station sign-in |
 | Landing-page pictures | `art.songofeo.com` | → gate: eo-art (random covers and backdrops from dock1a's `art` folder) | Station sign-in; signed-out visitors see the drawn art instead |
 | Save documents | `papers.songofeo.com` | → gate: Paperless-ngx | **Mandatory:** Authelia 2FA, then Paperless |

@@ -35,11 +35,11 @@ if [ -r "$AU" ]; then
   [ "$rm_" = 1M ] && ok "remember_me" "1M (one month)" || note "remember_me" "${rm_:-unset}: gate-signin.sh sets 1M"
   grep -q "vip\.$D" "$AU" || note "rule for vip." "missing (the VIP keypad isn't built yet; gate-signin.sh adds the rule)"
   for n in music mustang comedy sessions books comics arcade gaming art; do
-    grep -q "$n\.$D" "$AU" || fail "rule for $n." "missing in Authelia (default deny refuses it): run gate-navidromes.sh / gate-signin.sh"
+    grep -q "$n\.$D" "$AU" || fail "rule for $n." "missing in Authelia (default deny refuses it): run gate-music-one.sh / gate-signin.sh"
   done
   grep -q "tv\.$D" "$AU" && note "tv. in Authelia" "listed but harmless: tv.'s nginx block never asks Authelia"
-  walls=$(sed -n 's/.*# N\.A\.V\. wall: \([^ ]*\).*/\1/p' "$AU" | tr '\n' ' ')
-  [ -n "$walls" ] && ok "N.A.V. walls" "$walls" || note "N.A.V. walls" "none: every signed-in person can open every Navidrome, incl. music. and mustang."
+  wall=$(awk '/# Music wall: music\. and mustang\./{getline; getline; print; exit}' "$AU" | sed 's/.*subject: *//')
+  [ -n "$wall" ] && ok "music wall" "music. and mustang.: only $wall" || note "music wall" "none: anyone signed in gets a Navidrome account on music. Run gate-music-one.sh"
   errs=$(podman logs --since 24h authelia 2>&1 | grep -ciE 'level=(error|fatal)')
   [ "$errs" = 0 ] && ok "Authelia log (24h)" "no errors" || note "Authelia log (24h)" "$errs error lines: podman logs --since 24h authelia 2>&1 | grep -iE 'level=(error|fatal)' | tail"
 else fail "configuration.yml" "can't read $AU"; fi
@@ -56,7 +56,7 @@ if [ -r "$NG" ]; then
     grep -qE "(^|[[:space:]])$n\.$D([[:space:];]|$)" <<<"$sn" || fail "server block for $n." "missing: $n.$D gets the catch-all (handshake refused)"
   done
   grep -q '\$own_login' "$NG" && ok "phone-app paths" "gate-apps.sh is applied" || fail "phone-app paths" "not applied: Subsonic/ABS/Kavita apps hit the sign-in. Run gate-apps.sh"
-  grep -qE 'mustang\.songofeo\.com[[:space:]]+http://10\.6\.9\.20:4535' "$NG" && ok "mustang. -> :4535" "Rachel's own Navidrome" || fail "mustang. port" "not :4535: run gate-navidromes.sh"
+  grep -qE 'mustang\.songofeo\.com[[:space:]]+http://10\.6\.9\.20:4533' "$NG" && ok "mustang. -> :4533" "the one Navidrome (Rachel's library)" || fail "mustang. port" "not :4533: run gate-music-one.sh"
   tvblk=$(awk '/server_name[^;]*tv\.songofeo\.com/{f=1} f{print} f&&/^}/{exit}' "$NG")
   grep -q auth_request <<<"$tvblk" && fail "tv. server block" "shares a block with auth_request: TV apps can't sign in" || ok "tv. server block" "its own, no gate sign-in"
 else fail "songofeo.conf" "can't read $NG"; fi
@@ -66,14 +66,16 @@ req() { rm -f /tmp/ssochk.$$; curl -sk --noproxy '*' -m 15 -o /tmp/ssochk.$$ -w 
 for n in music mustang comedy sessions books comics; do
   r=$(req "$n.$D" /); [[ $r == "302 $PORTAL"* ]] && ok "$n. web page" "302 to the sign-in" || fail "$n. web page" "$r (expected a 302 to $PORTAL)"
 done
-for n in music mustang comedy sessions; do
+for n in music mustang; do
   r=$(req "$n.$D" "/rest/ping.view?v=1.16.1&c=ssocheck&f=json" -H 'Remote-User: eels'); b=$(head -c 300 /tmp/ssochk.$$)
   if [[ $r == 302* ]]; then fail "$n. /rest/ (apps)" "sent to the sign-in: run gate-apps.sh"
   elif [[ $b == *'"status":"ok"'* ]]; then fail "$n. /rest/ (apps)" "DANGER: a forged Remote-User header got in. Stop and tell Claude"
   elif [[ $b == *subsonic-response* ]]; then ok "$n. /rest/ (apps)" "Navidrome asks for the app's own login; forged header ignored"
   else fail "$n. /rest/ (apps)" "${r%% *}: Navidrome isn't answering (SGIN: systemctl --user status navidrome*)"; fi
 done
-r=$(req "books.$D" /ping); [[ $r == 200* ]] && ok "books. /ping (ABS app)" "200 from Audiobookshelf" || fail "books. /ping (ABS app)" "$r"
+for n in books comedy sessions; do
+  r=$(req "$n.$D" /ping); [[ $r == 200* ]] && ok "$n. /ping (ABS app)" "200 from Audiobookshelf" || fail "$n. /ping (ABS app)" "$r (comedy./sessions.: run gate-music-one.sh)"
+done
 r=$(req "tv.$D" /System/Info/Public); b=$(head -c 400 /tmp/ssochk.$$)
 if [[ $b == *ServerName* ]]; then ok "tv. (Jellyfin apps)" "$(sed -E 's/.*"ServerName":"([^"]*)".*"Version":"([^"]*)".*/Jellyfin "\1" \2/' <<<"$b")"
 else fail "tv. (Jellyfin apps)" "$r: Jellyfin didn't answer (SGIN: systemctl --user status jellyfin)"; fi

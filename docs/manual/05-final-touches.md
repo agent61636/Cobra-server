@@ -404,6 +404,13 @@ access_control:
     # the Music Bay's VIP keypad: always signed in (even at home), because it needs to know who you are
     - domain: vip.songofeo.com
       policy: one_factor
+    # Music wall: music. and mustang. (one Navidrome): only these people, anyone else is refused
+    # (Navidrome makes an account for anyone the gate signs in). gate-music-one.sh writes it; docs/music.md
+    - domain: [music.songofeo.com, mustang.songofeo.com]
+      subject: ["user:eels", "user:rachel"]
+      policy: one_factor
+    - domain: [music.songofeo.com, mustang.songofeo.com]
+      policy: deny
     # the station's floors and its pictures: one sign-in for everyone, at home too, so every Bay knows who you are
     - domain: &station [music.songofeo.com, mustang.songofeo.com, comedy.songofeo.com,
                         books.songofeo.com, comics.songofeo.com, arcade.songofeo.com, gaming.songofeo.com,
@@ -514,10 +521,10 @@ server {   # catch-all: bare IP, unknown names, scanners -> refuse the TLS hands
 
 # --- the station's floors: the Authelia sign-in first (skipped at home and over WireGuard), then the app ---
 map $host $station {
-  music.songofeo.com        http://10.6.9.20:4533;    # Music: Eels' Navidrome (all of dock1a/music)
-  mustang.songofeo.com      http://10.6.9.20:4535;    # Rachel's own Navidrome (dock1a/music/rachel)
-  comedy.songofeo.com       http://10.6.9.20:4534;    # stand-up albums, their own Navidrome (dock1a/comedy)
-  sessions.songofeo.com     http://10.6.9.20:4536;    # The Ward: recorded personal podcasts, their own Navidrome (dock1a/sessions)
+  music.songofeo.com        http://10.6.9.20:4533;    # Music: the one Navidrome (a library per person)
+  mustang.songofeo.com      http://10.6.9.20:4533;    # Rachel's music: same Navidrome as music., her own library
+  comedy.songofeo.com       http://10.6.9.20:13378;   # stand-up albums: Audiobookshelf library Comedy
+  sessions.songofeo.com     http://10.6.9.20:13378;   # The Ward: Audiobookshelf podcast library Sessions
   books.songofeo.com        http://10.6.9.20:13378;   # Library: Audiobookshelf
   comics.songofeo.com       http://10.6.9.20:5000;    # Comics: Kavita
   arcade.songofeo.com       http://10.6.9.20:8080;    # Arcade: RomM + EmulatorJS
@@ -527,13 +534,13 @@ map $host $station {
 map "$host$request_uri" $app_api {
   ~\.\.                                                                     0;   # never a path with .. in it
   ~*%2e                                                                     0;
-  ~^books\.songofeo\.com/(api|login|logout|status|ping|socket\.io|hls|auth|feed|public)(/|\?|$)  1;   # Audiobookshelf
+  ~^(books|comedy|sessions)\.songofeo\.com/(api|login|logout|status|ping|socket\.io|hls|auth|feed|public)(/|\?|$)  1;   # Audiobookshelf
   ~^comics\.songofeo\.com/api/                                              1;   # Kavita
   ~^arcade\.songofeo\.com/api/                                              1;   # RomM
   ~^papers\.songofeo\.com/api/                                              1;   # Paperless
   default                                                                   0;
 }
-map "$station$request_uri" $subsonic_api {                                  # every Navidrome: Subsonic apps
+map "$station$request_uri" $subsonic_api {                                  # Navidrome: Subsonic apps
   ~\.\.                                                  0;
   ~*%2e                                                  0;
   ~^http://10\.6\.9\.20:45(3[3-9]|4[0-9])/rest/            1;
@@ -594,7 +601,7 @@ server {
   }
 }
 
-# --- vip.: the Music Bay's VIP keypad sends each signed-in person to their own Navidrome ---
+# --- vip.: the Music Bay's VIP keypad sends each signed-in person to their music (music. or mustang., the same Navidrome) ---
 map $vip_user $vip_station {
   eels    https://music.songofeo.com/;
   rachel  https://mustang.songofeo.com/;
@@ -702,7 +709,7 @@ server {
 EOF
 ```
 
-Every protected `location /` above has its own `auth_request` line, and every `/internal/authelia/authz` answers yes at once for a phone app's API path (`$own_login`: each Navidrome's `/rest/`, Audiobookshelf's API, `/api/` on Kavita, RomM and Paperless), where the app's own login is the lock. That's the whole SSO: a `server` or `location` without one is open to anyone who can reach the gate. When you add a hostname later (parts 7 and 8 do), copy a whole `server` block with its `/internal/authelia/authz` location, and add the name to Authelia's `access_control` too; `default_policy: deny` refuses any name Authelia doesn't know, so forgetting that step locks people out instead of letting them in.
+Every protected `location /` above has its own `auth_request` line, and every `/internal/authelia/authz` answers yes at once for a phone app's API path (`$own_login`: Navidrome's `/rest/`, Audiobookshelf's API, `/api/` on Kavita, RomM and Paperless), where the app's own login is the lock. That's the whole SSO: a `server` or `location` without one is open to anyone who can reach the gate. When you add a hostname later (parts 7 and 8 do), copy a whole `server` block with its `/internal/authelia/authz` location, and add the name to Authelia's `access_control` too; `default_policy: deny` refuses any name Authelia doesn't know, so forgetting that step locks people out instead of letting them in.
 
 The holding page for the Game Cellar (when its app exists, move `gaming.` into the `$station` map and the first `server_name` list, with the app's address):
 
@@ -740,10 +747,10 @@ Checks before going public (from a desktop on the LAN, where Pi-hole sends every
 |---|---|---|
 | `gate.` | Authelia (the sign-in page itself) | none |
 | `tv.` | Jellyfin `:8096` on the SGIN `10.6.9.20` | **never** (Jellyfin's own login only, for the TV apps) |
-| `music.` `mustang.` `comedy.` `sessions.` `books.` `comics.` `arcade.` | Navidrome `:4533` (Eels), `:4535` (Rachel), `:4534` (comedy), `:4536` (sessions, your podcasts), Audiobookshelf `:13378`, Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
+| `music.` `mustang.` `comedy.` `sessions.` `books.` `comics.` `arcade.` | Navidrome `:4533` (`music.` and `mustang.`, a library per person), Audiobookshelf `:13378` (`books.`, `comedy.`, `sessions.`), Kavita `:5000`, RomM `:8080`, all on the SGIN `10.6.9.20` | skipped at home and over WireGuard, password elsewhere |
 | `art.` | eo-art `127.0.0.1:8790` on the gate | same as the floors |
 | `gaming.` | the holding page (`conf.d/soon`) | same as the floors |
-| `vip.` | a redirect to the signed-in person's own Navidrome (`eels` → `music.`, `rachel` → `mustang.`; anyone else gets the holding page). Someone new with their own Navidrome: add a line to the `$vip_station` map | **always** (no home bypass: it needs the username) |
+| `vip.` | a redirect to the signed-in person's own Navidrome (`eels` → `music.`, `rachel` → `mustang.`, both the one Navidrome; anyone else gets the holding page). Someone new with music: add a line to the `$vip_station` map | **always** (no home bypass: it needs the username) |
 | `papers.` `metube.` `command.` `status.` | Paperless `:8000`, MeTube `:8081`, Homepage `:3000`, Uptime Kuma `:3001` on the gate | password + TOTP, everywhere |
 | `vault.` | Vaultwarden `:8222` on the gate | none; LAN and WireGuard only, 403 elsewhere |
 | `scores.` (part 7) | hiscore `127.0.0.1:8090` | password (except `/upload/`, `/public/`, `/screen`) |
@@ -758,7 +765,7 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 - [ ] `https://gate.songofeo.com` shows the dark sign-in screen; signing in there lands on the station (`songofeo.com`)
 - [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
 - [ ] Jellyfin's phone app connects with server address `https://tv.songofeo.com` (no port)
-- [ ] Navidrome: three separate servers. Eels' at `music.` sees all of `dock1a/music`; Rachel's at `mustang.` sees only `music/rachel`; `comedy.` has only the stand-up albums; `sessions.` only your recorded podcasts. Each person you add later gets their own Navidrome, name and login the same way (part 3.8)
+- [ ] Navidrome: one server, a library per person. As eels, `music.` shows libraries Eels and Rachel; as rachel, `mustang.` (or `music.`) shows only Rachel; anyone else gets *forbidden* (the music wall, [music.md](../music.md)). `comedy.` and `sessions.` open Audiobookshelf
 - [ ] `https://10.6.9.10` (bare IP) gets no page at all: the browser says the connection was reset or closed (the catch-all refuses the handshake)
 - [ ] **The gate sees real addresses.** Load `https://tv.songofeo.com` from the desktop, then as podsvc on the gate: `podman logs --tail 3 nginx`. Each line must start with the **desktop's** `10.6.9.x` address. If every line starts with `127.0.0.1` or `10.0.2.x`, the pod isn't using pasta: stop here, because the Vaultwarden LAN rule and Jellyfin's logs depend on it. Check `podman info --format '{{.Host.RootlessNetworkCmd}}'` says `pasta`
 - [ ] Authelia is up: `curl -s https://gate.songofeo.com/api/health` from the desktop prints `{"status":"OK"}`
@@ -863,9 +870,9 @@ cat > /srv/gate/homepage/services.yaml <<'EOF'
     - Jellyfin:     { href: "https://tv.songofeo.com",          icon: jellyfin.png,       description: "Movies, shows, Live TV", siteMonitor: "http://10.6.9.20:8096" }
     - ErsatzTV:     { href: "http://10.6.9.20:8409",            icon: ersatztv.png,       description: "Channel builder (LAN)",  siteMonitor: "http://10.6.9.20:8409" }
     - Music:        { href: "https://music.songofeo.com",       icon: navidrome.png,      siteMonitor: "http://10.6.9.20:4533" }
-    - Rachel's music: { href: "https://mustang.songofeo.com", icon: navidrome.png,    siteMonitor: "http://10.6.9.20:4535" }
-    - Comedy:       { href: "https://comedy.songofeo.com",      icon: navidrome.png,      description: "Stand-up albums", siteMonitor: "http://10.6.9.20:4534" }
-    - Sessions:     { href: "https://sessions.songofeo.com",    icon: navidrome.png,      description: "Our podcasts",    siteMonitor: "http://10.6.9.20:4536" }
+    - Rachel's music: { href: "https://mustang.songofeo.com", icon: navidrome.png,    description: "Same Navidrome, her library" }
+    - Comedy:       { href: "https://comedy.songofeo.com",      icon: audiobookshelf.png, description: "Stand-up albums", siteMonitor: "http://10.6.9.20:13378" }
+    - Sessions:     { href: "https://sessions.songofeo.com",    icon: audiobookshelf.png, description: "The Ward: our podcasts" }
 - Read & play:
     - Audiobookshelf: { href: "https://books.songofeo.com",     icon: audiobookshelf.png, siteMonitor: "http://10.6.9.20:13378" }
     - Kavita:       { href: "https://comics.songofeo.com",      icon: kavita.png,         siteMonitor: "http://10.6.9.20:5000" }

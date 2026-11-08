@@ -82,7 +82,7 @@ KKKKKKKKKKKKKKKK
       <div class="intel"><h3>THE AUTH_REQUEST TRICK</h3>
         <p>Every guarded <code>location /</code> carries one line: <code>auth_request /internal/authelia/authz;</code>. Before nginx forwards anything, it makes a tiny side request to Authelia at <code>127.0.0.1:9091/api/authz/auth-request</code>, with the original URL and your cookie.</p>
         <p><b>200</b> means go ahead. <b>401</b> becomes a <b>302</b> to <code>gate.songofeo.com</code> with your page attached, so after signing in you land right back where you were.</p>
-        <p>On the floors, Authelia also tells nginx <i>who</i> you are, and nginx passes that on as the <code>Remote-User</code> header. The Navidromes trust that header from 10.6.9.10 only, so you don't log in twice.</p>
+        <p>On the floors, Authelia also tells nginx <i>who</i> you are, and nginx passes that on as the <code>Remote-User</code> header. Navidrome trusts that header from 10.6.9.10 only, so you don't log in twice.</p>
       </div>
       <div class="intel"><h3>TWO MAPS, ONE FILE</h3>
         <p><code>map $host $station</code> turns a floor name into an address (music. to :4533, books. to :13378...). <code>map $host $protected</code> does the same for the admin apps on 127.0.0.1. Adding a floor is mostly one line in a map plus the name in that block's <code>server_name</code>.</p>

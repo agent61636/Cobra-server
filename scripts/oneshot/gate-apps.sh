@@ -2,7 +2,7 @@
 # On the GATE, as podsvc:  bash /home/podsvc/gate-apps.sh
 # Lets the apps' own phone apps through the gate's sign-in, which an app can't show.
 # Only each app's API paths skip Authelia; the app then checks its own username and password.
-# The web pages stay behind the sign-in, and the N.A.V. walls still guard every Navidrome's web page.
+# The web pages stay behind the sign-in, and the music wall still guards Navidrome's web pages.
 #   every Navidrome (ports 4533-4549)  /rest/          Subsonic apps: Symphonium, DSub, Substreamer ...
 #   books.  Audiobookshelf             /api/ /login /status /ping /socket.io/ /hls/ /auth/ /feed/ /public/
 #   comics. Kavita                     /api/           Paperback / Mihon Kavita extension, OPDS readers
