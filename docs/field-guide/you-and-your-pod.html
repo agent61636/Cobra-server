@@ -891,7 +891,7 @@ svg.sprite { display: block; image-rendering: pixelated; shape-rendering: crispE
         <p><code>gate</code> is the DDNS <b>A record</b> every other name points at. Adding a CNAME for <code>gate</code> in Porkbun would clash with it.<span class="fix">The portal needs no new DNS record. Ever.</span></p>
       </div>
       <div class="trap"><h3>THE OPEN GUEST LIST</h3>
-        <p>Every user in <code>users.yml</code> can open every floor. Navidrome would make each of them an account on <code>music.</code>.<span class="fix">The music wall (8 November, <code>gate-music-one.sh</code>) lets only eels and rachel into <code>music.</code> and <code>mustang.</code>. Other floors: only add people you'd hand them to.</span></p>
+        <p>Every user in the users file can open the other floors. Navidrome would make each of them an account on <code>music.</code>.<span class="fix">The music wall (<code>gate-music-one.sh</code>, same subject as manual 5.4) lets eels, rachel, and group <code>music</code> into <code>music.</code> and <code>mustang.</code>, then denies everyone else. A trusted account needs <code>groups: [music]</code>. Other floors: only add people you'd hand them to.</span></p>
       </div>
       <div class="trap"><h3>THE OLD SPELLING</h3>
         <p>Authelia 4.38 moved named networks to <code>definitions.network</code>. The old <code>access_control.networks</code> only warns today.<span class="fix">Read the release notes before <code>podman auto-update</code> pulls a new Authelia.</span></p>

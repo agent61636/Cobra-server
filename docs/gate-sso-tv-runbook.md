@@ -22,11 +22,12 @@ network, not the config text. Step 1 finds out which.
 
 Changed 2026-11-09: a Jellyfin test account opens `tv.` and is refused at `music.` because those
 are different locks. `tv.` has no `auth_request` (Jellyfin's own users). `music.` is forward-auth,
-and the music wall then denies every subject except `user:eels`, `user:rachel`, and (after
-`gate-music-one.sh` from this date) `group:music`. There is no missing `music.songofeo.com` rule,
-and no Authelia group that covers TV. The live users file is not in this repo. "Music accounts on
-Gate 110" below is the check. Manual 5.4's pasted wall is still the two-user list; re-pasting that
-block puts the 403 back. The script is the wall to keep.
+and the music wall allows `user:eels`, `user:rachel`, and `group:music`, then denies everyone else.
+There is no missing `music.songofeo.com` rule, and no Authelia group that covers TV. The live users
+file is not in this repo. "Music accounts on Gate 110" below is the check. Manual 5.4's pasted wall
+is the same subject, `group:music` then the deny rule. On a gate that already has
+`configuration.yml`, `gate-music-one.sh` is the wall that gets applied. Pasting 5.4 over that file
+replaces every other rule in it.
 
 ## Step 1. Read-only check on the gate (changes nothing)
 

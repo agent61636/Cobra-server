@@ -198,9 +198,9 @@ It is not in git. Do not copy it into the repo: it holds password hashes.
 On their block, add `groups: [music]` (keep any groups they already have). The username has to be
 the one Navidrome will use, character for character.
 
-Then run the gate script again so the music wall lists `group:music` (a wall written before
-2026-11-09 lists only `user:eels` and `user:rachel`, then deny). No new container, port, name or
-CNAME.
+Then run `gate-music-one.sh` again. That is the wall that gets applied on a live gate, and it writes
+the same subject as manual 5.4: `group:music`, then deny. A wall written before 2026-11-09 lists
+only `user:eels` and `user:rachel`. No new container, port, name or CNAME.
 
 Open `https://music.songofeo.com` once in a browser as that person. Navidrome creates the row
 on that page load, with a random password, and only the libraries marked default for new users.

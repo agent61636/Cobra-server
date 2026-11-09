@@ -404,10 +404,10 @@ access_control:
     # the Music Bay's VIP keypad: always signed in (even at home), because it needs to know who you are
     - domain: vip.songofeo.com
       policy: one_factor
-    # Music wall: music. and mustang. (one Navidrome): only these people, anyone else is refused
-    # (Navidrome makes an account for anyone the gate signs in). gate-music-one.sh writes it; docs/music.md
+    # Music wall: music. and mustang. (one Navidrome): listed users and group:music, anyone else is refused
+    # (Navidrome makes an account for anyone the gate signs in). gate-music-one.sh writes this same wall; docs/music.md
     - domain: [music.songofeo.com, mustang.songofeo.com]
-      subject: ["user:eels", "user:rachel"]
+      subject: ["user:eels", "user:rachel", "group:music"]
       policy: one_factor
     - domain: [music.songofeo.com, mustang.songofeo.com]
       policy: deny
@@ -459,17 +459,22 @@ users:
     displayname: Eels
     email: <you@email>
     password: "$(hash eels)"
+    groups:
+      - music
   rachel:
     displayname: Rachel
     email: <their@email>
     password: "$(hash rachel)"
+    groups:
+      - music
 EOF
 chmod 600 /srv/gate/authelia/*.yml
 grep -c 'argon2id' /srv/gate/authelia/users.yml   # must print 2 (one per person); 0 means a hash failed, run it again
 ```
 
 - Use the **same usernames** as in Navidrome (part 3.8). Navidrome then signs in whoever Authelia signed in, so Music never asks a second time.
-- Adding someone later: add a block, then `systemctl --user restart authelia`. Removing someone: delete their block and restart; their session ends at once. (Sessions live in Authelia's memory, so any restart signs **everyone** out; they just sign in again.)
+- `groups: [music]` is what the music wall allows besides the two named users. A trusted account without that group, and without its own `user:` subject, is signed in at the gate and then refused at `music.` and `mustang.` (`tv.` never reads this file). Copy the `groups` lines onto each later block.
+- Adding someone later: add a block with `groups: [music]` if they may open music, then `systemctl --user restart authelia`. On a gate that already ran `scripts/oneshot/gate-music-one.sh`, re-run that script so the live wall matches this paste. Removing someone: delete their block and restart; their session ends at once. (Sessions live in Authelia's memory, so any restart signs **everyone** out; they just sign in again.)
 - **TOTP for the admin apps** (once per person who uses `papers.`, `metube.`, `command.` or `status.`): open one of them, sign in, choose **Register device** → **One-Time Password**. Authelia asks for a one-time code "sent by email"; with the `filesystem` notifier above it's written to a file instead. Read it on the gate as podsvc: `tail -n 20 /srv/gate/authelia/notification.txt`, type the code, then scan the QR code with an authenticator app (Aegis, 2FAS, Google Authenticator, or the Bitwarden app with Vaultwarden). The file holds codes, so keep it at mode 600 and empty it once you're set up: `: > /srv/gate/authelia/notification.txt`. Password resets work the same way.
 - **Sign in** on the station links to `https://gate.songofeo.com/?rd=https%3A%2F%2Fsongofeo.com%2F`. `rd` is where Authelia sends people back to; it only accepts addresses under `songofeo.com`. To sign out: `https://gate.songofeo.com/logout`. If the station's pages (the Project-Eo repository) still link to the older `auth.songofeo.com`, change those links to `gate.songofeo.com` there: `auth.` has no DNS record and no server block any more.
 - Jellyfin, Audiobookshelf, Kavita and RomM still show their own login the first time on each device (they remember it after that). On the website's players that's the **station pass**: one username and password, asked once per browser, signs in to all four (so keep the same username and password in each app). Wiring them to Authelia too (OpenID Connect) is a later step.
@@ -765,7 +770,7 @@ Every name except `gate.`, `vault.`, `status.` and `art.` must also be a CNAME t
 - [ ] `https://gate.songofeo.com` shows the dark sign-in screen; signing in there lands on the station (`songofeo.com`)
 - [ ] Jellyfin: play a movie, then Dashboard → Activity shows your desktop's IP (not `10.6.9.10`), so the Known proxies setting from part 3 works
 - [ ] Jellyfin's phone app connects with server address `https://tv.songofeo.com` (no port)
-- [ ] Navidrome: one server, a library per person. As eels, `music.` shows libraries Eels and Rachel; as rachel, `mustang.` (or `music.`) shows only Rachel; anyone else gets *forbidden* (the music wall, [music.md](../music.md)). `comedy.` and `sessions.` open Audiobookshelf
+- [ ] Navidrome: one server, a library per person. As eels, `music.` shows libraries Eels and Rachel; as rachel, `mustang.` (or `music.`) shows only Rachel; anyone who is not those two users and not in Authelia group `music` gets *forbidden* (the music wall, [music.md](../music.md)). `comedy.` and `sessions.` open Audiobookshelf
 - [ ] `https://10.6.9.10` (bare IP) gets no page at all: the browser says the connection was reset or closed (the catch-all refuses the handshake)
 - [ ] **The gate sees real addresses.** Load `https://tv.songofeo.com` from the desktop, then as podsvc on the gate: `podman logs --tail 3 nginx`. Each line must start with the **desktop's** `10.6.9.x` address. If every line starts with `127.0.0.1` or `10.0.2.x`, the pod isn't using pasta: stop here, because the Vaultwarden LAN rule and Jellyfin's logs depend on it. Check `podman info --format '{{.Host.RootlessNetworkCmd}}'` says `pasta`
 - [ ] Authelia is up: `curl -s https://gate.songofeo.com/api/health` from the desktop prints `{"status":"OK"}`
