@@ -140,14 +140,14 @@
 All public traffic follows the same path: **user → Porkbun DNS (plain DNS, no proxy) → your home IP → Xfinity → cobra-firewall (firewall, IDS/IPS, CrowdSec) → cobra-gate (nginx TLS + rate limits [+ Authelia]) → the app.**
 At home, Pi-hole answers every name under `songofeo.com` with `10.6.9.10`, so LAN traffic never leaves the house. The bare `songofeo.com` and `www` are the exception: they're the station on Porkbun's hosting, at home too.
 
-"Station sign-in" below means Authelia's password screen at `gate.songofeo.com` (part 5.4): one sign-in covers every floor for 6 hours, and it's skipped at home and over WireGuard.
+"Station sign-in" below means Authelia's password screen at `gate.songofeo.com` (part 5.4): one sign-in covers the floors for 6 hours, at home too (Remember me keeps a device for a month). `tv.` never uses it.
 
 | Want | URL | Path after the gate | Login |
 |---|---|---|---|
 | The station (homepage) | `songofeo.com` | Porkbun static hosting, not the gate (Project-Eo repository) | Public page. Its **Sign in** button opens the station sign-in |
 | Sign in | `gate.songofeo.com` | → gate: Authelia | Username + password (+ TOTP for admin apps); 6 h |
-| Watch a movie / Live TV | `tv.songofeo.com` | → stream: Jellyfin (+ ErsatzTV channels) | Station sign-in, then Jellyfin's login once per device: hidden users (nobody's name is shown on the login page), no Quick Connect |
-| Music (the station's Music floor) | `music.songofeo.com` | → stream: Navidrome | Station sign-in; Navidrome trusts it, so no second login |
+| Watch a movie / Live TV | `tv.songofeo.com` | → stream: Jellyfin (+ ErsatzTV channels) | Jellyfin's own login only. The gate does not ask Authelia. Hidden users, no Quick Connect |
+| Music (the station's Music floor) | `music.songofeo.com` | → stream: Navidrome | Station sign-in, and only the music wall (eels, rachel, or group `music`). Navidrome then trusts that username |
 | Audiobooks / ebooks | `books.songofeo.com` | → stream: Audiobookshelf | Station sign-in, then in-app once per device |
 | Comics / graphic novels | `comics.songofeo.com` | → stream: Kavita | Station sign-in, then in-app once per device |
 | Rachel's music | `mustang.songofeo.com` | → stream: the same Navidrome (`:4533`); her account only sees library Rachel (`dock1a/music/rachel`) | Same as `music.` |

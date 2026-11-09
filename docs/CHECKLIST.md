@@ -39,7 +39,7 @@ One Navidrome with a library per person; comedy and sessions in Audiobookshelf. 
 - [ ] SGIN: [`scripts/oneshot/sgin-music-one.sh`](../scripts/oneshot/sgin-music-one.sh) as eels
       ([music.md step 1](music.md#1-sgin-one-navidrome-reading-musiceels)).
 - [ ] the-box: Navidrome libraries **Eels** and **Rachel**, and Rachel's user with only hers ticked (step 2).
-- [ ] Gate: [`scripts/oneshot/gate-music-one.sh`](../scripts/oneshot/gate-music-one.sh) as podsvc (step 3).
+- [ ] Gate: [`scripts/oneshot/gate-music-one.sh`](../scripts/oneshot/gate-music-one.sh) as podsvc (step 3). The wall must list `group:music`. A Jellyfin test account is not on it until that account's Authelia block has `groups: [music]` ([runbook](gate-sso-tv-runbook.md)).
 - [ ] the-box: Audiobookshelf libraries **Comedy** (Book) and **Sessions** (Podcast) (step 4).
 - [ ] Genre stations for the boombox: Navidrome smart playlists (one per genre, scoped to library Eels).
 

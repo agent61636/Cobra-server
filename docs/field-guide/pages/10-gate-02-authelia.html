@@ -184,7 +184,7 @@
   <div class="cols-2">
     <div class="stack">
       <div class="tip"><h3>PRO TIP: ADD A PLAYER</h3>
-        <p>New person? Hash their password and add a block to <code>users.yml</code> with <code>displayname</code>, <code>email</code> and the hash. Use the <b>same username</b> they'll have in Navidrome, so Music signs them in by itself. Then restart Authelia.</p>
+        <p>New person? Hash their password and add a block to the users file (<code>users.yml</code>, or <code>users_database.yml</code> if <code>configuration.yml</code> names that) with <code>displayname</code>, <code>email</code>, the hash, and <code>groups: [music]</code> if they may open music. Use the <b>same username</b> they'll have in Navidrome. Then restart Authelia. <code>tv.</code> does not read this file.</p>
       </div>
       <div class="codes"><h3>CODES</h3>
         <span class="where">GATE · podsvc</span>

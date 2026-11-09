@@ -15,10 +15,18 @@ Authelia latest), with the N.A.V. wall on `mustang.` (since 2026-11-08 the music
 | Not signed in: `tv.` | straight to Jellyfin, no gate sign-in |
 | Phone-app paths (`/rest/` on Navidrome, ABS `/api/` and `/login`, `/api/` on Kavita and Paperless) | reach the app, and a forged `Remote-User: eels` header is dropped |
 | `/rest/%2e%2e/app/` (a sneaky path) | 302 to the sign-in |
-| Signed in as eels / rachel / sam | each app gets that username and display name; `music.` and `mustang.` refuse sam (403); `vip.` sends eels to `music.` and rachel to `mustang.`; `papers.` still asks for TOTP |
+| Signed in as eels / rachel / a third account | each app gets that username and display name; `music.` and `mustang.` refuse the third account (403) unless it is on the music wall (`user:` or `group:music`); `vip.` sends eels to `music.` and rachel to `mustang.`; `papers.` still asks for TOTP |
 
 So when something fails on the real gate, it's the gate's *state* (which one-shot scripts ran) or the
 network, not the config text. Step 1 finds out which.
+
+Changed 2026-11-09: a Jellyfin test account opens `tv.` and is refused at `music.` because those
+are different locks. `tv.` has no `auth_request` (Jellyfin's own users). `music.` is forward-auth,
+and the music wall then denies every subject except `user:eels`, `user:rachel`, and (after
+`gate-music-one.sh` from this date) `group:music`. There is no missing `music.songofeo.com` rule,
+and no Authelia group that covers TV. The live users file is not in this repo. "Music accounts on
+Gate 110" below is the check. Manual 5.4's pasted wall is still the two-user list; re-pasting that
+block puts the 403 back. The script is the wall to keep.
 
 ## Step 1. Read-only check on the gate (changes nothing)
 
@@ -58,7 +66,7 @@ the backup back if the check fails. Running one twice changes nothing. Run them 
 
 | FAIL says | Script (in `scripts/oneshot/`, copies in the project files) | What it changes |
 |---|---|---|
-| `mustang. port`, `music wall`, `rule for comedy.`, `server block for comedy.` / `sessions.`, `comedy.`/`sessions.` `/ping` | `gate-music-one.sh` | nginx and Authelia: the one Navidrome, comedy and sessions on Audiobookshelf |
+| `mustang. port`, `music wall`, `music group`, `rule for comedy.`, `server block for comedy.` / `sessions.`, `comedy.`/`sessions.` `/ping` | `gate-music-one.sh` | nginx and Authelia: the one Navidrome, comedy and sessions on Audiobookshelf, music wall includes `group:music` |
 | `home bypass` | `gate-signin.sh` | Authelia only: one sign-in for everyone, Remember me = 1 month. **Signs everyone out once** |
 | `phone-app paths`, `/rest/ (apps)` sent to the sign-in, `books. /ping` | `gate-apps.sh` | nginx only: the apps' API paths skip the sign-in |
 
@@ -67,6 +75,60 @@ the script's name). Then run the check from step 1 again until there are no FAIL
 
 If any `/rest/` line says **DANGER**, stop and tell Claude: it would mean a header a visitor sent
 reached Navidrome.
+
+## Music accounts on Gate 110
+
+Authelia runs on **cobra-gate**, Proxmox **VM 110**, `10.6.9.10`. The public name and that VM are
+the same machine. Do this as podsvc. Nothing here is in git, and nothing here should be copied
+into the repo.
+
+```bash
+sudo machinectl shell podsvc@
+```
+
+The users file's name is whatever `authentication_backend.file.path` says. This repo writes
+`/config/users.yml`, which on the host is `/srv/gate/authelia/users.yml`. Authelia's own examples
+call it `users_database.yml`. If the live config says that, the host file is
+`/srv/gate/authelia/users_database.yml`. Read the path, then that file. Do not assume the other name.
+
+```bash
+grep -n 'path:' /srv/gate/authelia/configuration.yml
+awk '/# Music wall: music\. and mustang\./,/policy: deny/' /srv/gate/authelia/configuration.yml
+```
+
+What you want on the wall, in this order (first match wins):
+
+- `domain: [music.songofeo.com, mustang.songofeo.com]` with `subject` containing `"user:eels"`,
+  `"user:rachel"`, and `"group:music"`, `policy: one_factor`
+- the same two domains again with `policy: deny` and no subject
+
+In the users file, each trusted account's block needs `groups:` including `music`. The password
+line is an argon2id hash. Leave it. Do not paste the file into chat or into git.
+
+A block that has no `groups`, and whose username is not one of the `user:` subjects, is allowed
+through `tv.` (if Jellyfin has that person) and gets **403** on `music.` and `mustang.` before
+Navidrome ever sees the request. `gate-sso-check.sh` prints `music 403: <username>` for each of
+those. That line is the split.
+
+On the SGIN (`10.6.9.20`), as podsvc, the Navidrome Quadlet has to trust the gate:
+
+```bash
+grep -E 'EXTAUTH|REVERSEPROXY' ~/.config/containers/systemd/navidrome.container
+```
+
+`ND_EXTAUTH_TRUSTEDSOURCES=10.6.9.10/32` and `ND_EXTAUTH_USERHEADER=Remote-User`. A container
+still on `ND_REVERSEPROXYWHITELIST=10.6.9.10/32` is the same setting under the old name. If
+neither is set, Navidrome ignores `Remote-User` and shows its own login. The Authelia password
+does not work on that screen.
+
+Then, for each trusted username: it must already exist in Navidrome, spelled the same, with
+libraries ticked. The web UI creates a missing user the first time that person loads
+`https://music.songofeo.com` (random password, no library while "default for new users" is off).
+A Subsonic app on `/rest/` does not create the user. `podman logs navidrome` saying
+`Authenticated username not found in DB` means that page was never loaded, or the names differ.
+
+`scripts/podman/sgin/navidrome.sh` writes the current variable names on a fresh install. An
+already-running Quadlet changes only when you edit `navidrome.container` and restart that service.
 
 ## Step 3. The apps' own logins (what the TV and phone apps use)
 
@@ -86,7 +148,8 @@ then Dashboard:
 signs you in, but a phone app sends the app's own username and password on `/rest/`. A user that
 Navidrome made automatically from the gate sign-in has a random password, so set one:
 
-- [ ] `https://music.songofeo.com` as eels → the user menu (top right) → Users → the person → set a password.
+- [ ] The person is on the music wall (`user:` or `group:music` in the users file on Gate 110). If not, the browser gets 403 and never reaches Navidrome. See "Music accounts on Gate 110" above.
+- [ ] `https://music.songofeo.com` once, so Navidrome has a row for that exact username. Then as eels: the user menu (top right) → Users → the person → set a password and tick their libraries.
 - [ ] In the phone app: server `https://music.songofeo.com` (or `mustang.`, the same server), that username and password. Comedy and The Ward are in the Audiobookshelf app (`books.`, `comedy.` or `sessions.`).
 
 **Audiobookshelf / Kavita**: their apps use the app's own login on `https://books.songofeo.com` and

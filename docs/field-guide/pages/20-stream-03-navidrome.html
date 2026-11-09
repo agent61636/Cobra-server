@@ -80,10 +80,10 @@ KDDKDDRRDDKDDK
   <div class="cols-2">
     <div class="stack">
       <div class="intel"><h3>ONE SIGN-IN, NOT TWO</h3>
-        <p>Navidrome runs with <code>ND_REVERSEPROXYWHITELIST=10.6.9.10/32</code>: "if a request comes from the gate and carries a <code>Remote-User</code> header, that person is already signed in." Authelia fills in the header, so Navidrome lets you straight in. It only believes that header from 10.6.9.10, and nginx always <b>wipes</b> any Remote-User header a visitor sends.</p>
+        <p>Navidrome runs with <code>ND_EXTAUTH_TRUSTEDSOURCES=10.6.9.10/32</code> (the old name <code>ND_REVERSEPROXYWHITELIST</code> still maps to it): "if a request comes from the gate and carries a <code>Remote-User</code> header, that person is already signed in." Authelia fills in the header, so Navidrome lets you straight in. It only believes that header from 10.6.9.10, and nginx always <b>wipes</b> any Remote-User header a visitor sends.</p>
       </div>
       <div class="intel"><h3>THE MUSIC WALL</h3>
-        <p>Navidrome makes an account for anyone the gate signs in. So Authelia has a wall in front of <code>music.</code> and <code>mustang.</code>: only the people listed (eels and rachel) get through, everyone else gets <i>forbidden</i>. <code>gate-music-one.sh</code> writes it; add a name with <code>MUSIC_USERS</code>.</p>
+        <p>Navidrome makes an account for anyone the gate signs in. So Authelia has a wall in front of <code>music.</code> and <code>mustang.</code>: eels, rachel, and the group <code>music</code> get through, everyone else gets <i>forbidden</i>. <code>tv.</code> never asks Authelia, so a Jellyfin test account is not on this wall. <code>gate-music-one.sh</code> writes it. Put <code>groups: [music]</code> on the person in the Authelia users file, same username.</p>
       </div>
     </div>
     <div class="stack">
@@ -142,9 +142,9 @@ KDDKDDRRDDKDDK
       <div class="tip"><h3>PRO TIP: A THIRD PLAYER</h3>
         <p>Someone new needs no new container, port or name:</p>
         <ol class="moves">
-          <li>Add them to Authelia's users.yml on the gate.</li>
-          <li>Navidrome → Settings → Users → <b>+</b>, same username, tick their shelves (or make them a shelf: <code>music/&lt;name&gt;</code> and Settings → Libraries → <b>+</b>).</li>
-          <li>Run <code>gate-music-one.sh</code> again with them in <code>MUSIC_USERS</code>.</li>
+          <li>Add them to Authelia's users file on the gate, with <code>groups: [music]</code>.</li>
+          <li>Open <code>music.</code> once so Navidrome creates the row, then Settings → Users, same username, tick their shelves (or make them a shelf: <code>music/&lt;name&gt;</code> and Settings → Libraries → <b>+</b>).</li>
+          <li>Run <code>gate-music-one.sh</code> again so the wall lists <code>group:music</code>.</li>
         </ol>
       </div>
       <div class="codes"><h3>CODES</h3>
@@ -198,7 +198,7 @@ KDDKDDRRDDKDDK
     </div>
   </div>
   <div class="trap"><h3>THE WIDE-OPEN WHITELIST</h3>
-    <p>The trusted-header setting is the master key. Widen <code>ND_REVERSEPROXYWHITELIST</code> to the whole LAN and any device at home could claim to be any user.<span class="fix">Keep it at exactly <code>10.6.9.10/32</code>, the gate and nothing else.</span></p>
+    <p>The trusted-header setting is the master key. Widen <code>ND_EXTAUTH_TRUSTEDSOURCES</code> (or the old <code>ND_REVERSEPROXYWHITELIST</code>) to the whole LAN and any device at home could claim to be any user.<span class="fix">Keep it at exactly <code>10.6.9.10/32</code>, the gate and nothing else.</span></p>
   </div>
 </section>
 

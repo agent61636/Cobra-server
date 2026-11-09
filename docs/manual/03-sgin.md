@@ -956,7 +956,7 @@ ContainerName=navidrome
 Image=docker.io/deluan/navidrome:latest
 Pod=stream.pod
 AutoUpdate=registry
-Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/music/eels ND_REVERSEPROXYWHITELIST=10.6.9.10/32
+Environment=ND_SESSIONTIMEOUT=8h ND_MUSICFOLDER=/media/dock1a/music/eels ND_EXTAUTH_TRUSTEDSOURCES=10.6.9.10/32 ND_EXTAUTH_USERHEADER=Remote-User
 Volume=/srv/stream/navidrome:/data:Z
 Volume=/srv/storage/disks:/media:ro,rbind
 [Install]
@@ -1007,7 +1007,7 @@ podman ps                                     # stream-infra + 7 containers Up
 - [ ] Jellyfin → Dashboard → Playback → Transcoding: **Intel QuickSync (QSV)**, device `/dev/dri/renderD128`, enable H.264/HEVC/HEVC 10-bit/VP9 decode (**not AV1**: Jasper Lake has no AV1 decode), hardware encoding on, **Low-Power H.264/HEVC encoder on**, tone mapping on **and VPP tone mapping on**. Leave the transcode path on the internal SSD (the default). Users: hidden, Quick Connect off. If some movies stutter, see 3.8c
 - [ ] Jellyfin → Dashboard → Networking → **Known proxies: `10.6.9.10`**. Without it, every remote viewer looks like a LAN client coming from the gate, so remote bitrate limits and per-IP logs don't work
 - [ ] Navidrome: **one instance, a library per person** (Navidrome 0.58+; changed 2026-11-08 from one instance per collection). `navidrome` (`:4533`) is `music.songofeo.com`, and `mustang.songofeo.com` is the same server. Library 1 **Eels** is `ND_MUSICFOLDER` (`dock1a/music/eels`); add library **Rachel** (`dock1a/music/rachel`) in Settings → Libraries, then tick each user's libraries in Settings → Users (admins see all). Libraries may not overlap, which is why the main one is `music/eels` and not `music/`. Stand-up comedy (`dock1a/comedy`) and The Ward (`dock1a/sessions`) are libraries in **Audiobookshelf**, not Navidrome: it resumes long tracks, has playback speed and a sleep timer, and can publish The Ward as a podcast feed. Why, and the switch-over from the old four Navidromes: [docs/music.md](../music.md)
-- `ND_REVERSEPROXYWHITELIST=10.6.9.10/32`: Navidrome trusts the `Remote-User` header from the gate only, so someone the station's sign-in (part 5.4) already let in isn't asked again. Give each person the same username here as in Authelia's `users.yml`.
+- `ND_EXTAUTH_TRUSTEDSOURCES=10.6.9.10/32` and `ND_EXTAUTH_USERHEADER=Remote-User`: Navidrome trusts the `Remote-User` header from the gate only, so someone the station's sign-in (part 5.4) already let in isn't asked again. The old name `ND_REVERSEPROXYWHITELIST` still maps to the same setting. Give each person the same username here as in Authelia's users file (`/srv/gate/authelia/users.yml`, or `users_database.yml` if `configuration.yml` says that). The music wall still has to name them or their group, or music returns 403 while `tv.` (Jellyfin's own users, no Authelia) lets them in. [music.md](../music.md), [gate-sso-tv-runbook.md](../gate-sso-tv-runbook.md).
 - [ ] Each app: create its admin user now. Until you do, the first person to open the page becomes admin. First-run screens, all from the desktop's browser:
 
 | App | First visit | Then |
