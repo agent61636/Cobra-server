@@ -38,8 +38,71 @@ if [ -r "$AU" ]; then
     grep -q "$n\.$D" "$AU" || fail "rule for $n." "missing in Authelia (default deny refuses it): run gate-music-one.sh / gate-signin.sh"
   done
   grep -q "tv\.$D" "$AU" && note "tv. in Authelia" "listed but harmless: tv.'s nginx block never asks Authelia"
-  wall=$(awk '/# Music wall: music\. and mustang\./{getline; getline; print; exit}' "$AU" | sed 's/.*subject: *//')
-  [ -n "$wall" ] && ok "music wall" "music. and mustang.: only $wall" || note "music wall" "none: anyone signed in gets a Navidrome account on music. Run gate-music-one.sh"
+  wall=$(awk '
+    /# Music wall: music\. and mustang\./ { f=1 }
+    f && /subject:/ { sub(/.*subject:[[:space:]]*/, ""); print; exit }
+    f && /policy: deny/ { exit }
+  ' "$AU")
+  if [ -n "$wall" ]; then
+    ok "music wall" "music. and mustang.: $wall"
+    [[ $wall == *'group:'* ]] && ok "music group" "wall allows a group, so a trusted account is a group membership" \
+      || fail "music group" "wall is a fixed user list: anyone else gets 403 on music. while tv. never asks Authelia. Re-run gate-music-one.sh (adds group:music)"
+  else note "music wall" "none: anyone signed in gets a Navidrome account on music. Run gate-music-one.sh"; fi
+  # The users file is named by authentication_backend.file.path. This repo's example is
+  # /config/users.yml (host: /srv/gate/authelia/users.yml). Authelia's own examples use
+  # users_database.yml. Whichever path is configured is the live file. It is not in git.
+  upath=$(awk '
+    /authentication_backend/ { ab=1 }
+    ab && /path:/ {
+      s=$0; sub(/.*path:[[:space:]]*/, "", s); gsub(/[",}[:space:]]/, "", s); print s; exit
+    }' "$AU")
+  case "$upath" in
+    /config/*) uhost="$(dirname "$AU")/${upath#/config/}" ;;
+    /*) uhost=$upath ;;
+    "") uhost="" ;;
+    *) uhost="$(dirname "$AU")/$upath" ;;
+  esac
+  if [ -z "$uhost" ]; then
+    note "users file" "authentication_backend.file.path not found in $AU"
+  elif [ ! -r "$uhost" ]; then
+    note "users file" "can't read $uhost (config says ${upath:-unset}). Not in git. Look on this VM, do not copy it into the repo."
+  else
+    ok "users file" "$uhost (config path ${upath}; not in git; hashes stay here)"
+    # Usernames that the wall would 403. Does not print password hashes.
+    awk -v wall="$wall" '
+      function token(kind, name) {
+        if (index(wall, "\"" kind ":" name "\"")) return 1
+        if (index(wall, kind ":" name ",")) return 1
+        if (index(wall, kind ":" name "]")) return 1
+        return 0
+      }
+      function flush(    i, n, a) {
+        if (user == "") return
+        if (wall != "" && !token("user", user)) {
+          n = split(groups, a, ",")
+          for (i = 1; i <= n; i++) if (a[i] != "" && token("group", a[i])) { user=""; groups=""; return }
+          print user
+        }
+        user=""; groups=""
+      }
+      /^users:/ { inu=1; next }
+      inu && /^[^ #]/ { flush(); inu=0 }
+      inu && /^  [A-Za-z0-9._-]+:[[:space:]]*$/ { flush(); user=$1; sub(/:$/, "", user); groups=""; next }
+      inu && user != "" && /^[[:space:]]*groups:/ {
+        line=$0; sub(/^[[:space:]]*groups:[[:space:]]*/, "", line); gsub(/[\[\]"'\'' ]/, "", line)
+        if (line != "") { groups=line; ing=0 } else ing=1
+        next
+      }
+      inu && ing && /^[[:space:]]*-[[:space:]]*/ {
+        g=$0; sub(/^[[:space:]]*-[[:space:]]*/, "", g); gsub(/["'\'' ]/, "", g)
+        groups=(groups=="" ? g : groups "," g); next
+      }
+      inu && ing { ing=0 }
+      END { flush() }
+    ' "$uhost" | while IFS= read -r u; do
+      note "music 403: $u" "not on the music wall. tv. does not read this file. Add groups: [music] here (same username in Navidrome), wall must list group:music"
+    done
+  fi
   errs=$(podman logs --since 24h authelia 2>&1 | grep -ciE 'level=(error|fatal)')
   [ "$errs" = 0 ] && ok "Authelia log (24h)" "no errors" || note "Authelia log (24h)" "$errs error lines: podman logs --since 24h authelia 2>&1 | grep -iE 'level=(error|fatal)' | tail"
 else fail "configuration.yml" "can't read $AU"; fi

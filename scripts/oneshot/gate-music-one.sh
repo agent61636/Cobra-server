@@ -5,9 +5,11 @@
 #   music.   and mustang.  -> 10.6.9.20:4533 (one Navidrome, a library per person)
 #   TALK=abs (default):      comedy. and sessions. -> Audiobookshelf 10.6.9.20:13378
 #   TALK=navidrome:          comedy. -> :4534, sessions. -> :4535 (their own Navidromes)
-# Authelia wall: only MUSIC_USERS (default "eels rachel") may open music. and mustang.; anyone else
-# signed in is refused, so Navidrome never auto-makes an account for them. Replaces the old
-# N.A.V. walls for those two names.
+# Authelia wall: MUSIC_USERS (default "eels rachel") and anyone in MUSIC_GROUPS (default "music")
+# may open music. and mustang. Anyone else signed in is refused, so Navidrome never auto-makes
+# an account for them. tv. does not use this wall (Jellyfin's own users). A trusted account that
+# already opens tv. still gets 403 here until its Authelia block has groups: [music] (same
+# username as Navidrome). Replaces the old N.A.V. walls for those two names.
 # Optional, TALK=abs: COMEDY_SHELF=/path SESSIONS_SHELF=/path send the bare comedy. and sessions.
 # addresses straight to their Audiobookshelf library (copy the path from the browser's address bar
 # with that library open, everything after .songofeo.com).
@@ -17,6 +19,7 @@ NG=${NG:-/srv/gate/nginx/conf.d/songofeo.conf}
 AU=${AU:-/srv/gate/authelia/configuration.yml}
 TALK=${TALK:-abs}
 MUSIC_USERS=${MUSIC_USERS:-eels rachel}
+MUSIC_GROUPS=${MUSIC_GROUPS:-music}
 COMEDY_SHELF=${COMEDY_SHELF:-}
 SESSIONS_SHELF=${SESSIONS_SHELF:-}
 TS=$(date +%Y%m%d-%H%M%S)
@@ -28,6 +31,7 @@ for s in "$COMEDY_SHELF" "$SESSIONS_SHELF"; do
   [ -z "$s" ] || [[ $s =~ ^/[A-Za-z0-9/_-]+$ ]] || die "a shelf path looks like /audiobookshelf/library/<id> (got: $s)"
 done
 for u in $MUSIC_USERS; do [[ $u =~ ^[a-z0-9._-]+$ ]] || die "bad username in MUSIC_USERS: $u"; done
+for g in $MUSIC_GROUPS; do [[ $g =~ ^[a-z0-9._-]+$ ]] || die "bad group in MUSIC_GROUPS: $g"; done
 if [ ! -f "$NG" ] || [ ! -f "$AU" ]; then die "missing $NG or $AU"; fi
 
 cp -p "$NG" "$NG.bak-$TS"; cp -p "$AU" "$AU.bak-$TS"
@@ -92,6 +96,7 @@ fi
 # Authelia: one wall for music. and mustang., above the station's shared rule (first match wins).
 # Old N.A.V. walls for those two names (6 lines each, from gate-nav.sh) and an older music wall go first.
 subj=""; for u in $MUSIC_USERS; do subj+="${subj:+, }\"user:$u\""; done
+for g in $MUSIC_GROUPS; do subj+="${subj:+, }\"group:$g\""; done
 awk -v subj="$subj" '
   { line[NR]=$0 }
   END {
@@ -107,7 +112,7 @@ awk -v subj="$subj" '
     ind = keep[at]; sub(/-.*/, "", ind)
     for (i = 1; i <= n; i++) {
       if (i == ins) {
-        print ind "# Music wall: music. and mustang. (one Navidrome): only these people, anyone else is refused"
+        print ind "# Music wall: music. and mustang. (one Navidrome): listed users and group:music, anyone else is refused"
         print ind "- domain: [music.songofeo.com, mustang.songofeo.com]"
         print ind "  subject: [" subj "]"
         print ind "  policy: one_factor"
@@ -132,5 +137,6 @@ systemctl --user restart authelia
 sleep 5
 systemctl --user is-active --quiet authelia || restore "Authelia didn't come back up"
 podman exec nginx nginx -s reload
-say "Done. music. and mustang. open the one Navidrome (only: $MUSIC_USERS)."
+say "Done. music. and mustang. open the one Navidrome (users: ${MUSIC_USERS:-none}; groups: ${MUSIC_GROUPS:-none})."
+echo "    Trusted accounts need groups: [$MUSIC_GROUPS] in the Authelia users file (same username in Navidrome)."
 [ "$TALK" = abs ] && echo "    comedy. and sessions. open Audiobookshelf." || echo "    comedy. -> :4534, sessions. -> :4535."

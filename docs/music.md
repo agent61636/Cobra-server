@@ -143,10 +143,13 @@ sudo machinectl shell podsvc@ /bin/bash /home/podsvc/gate-music-one.sh
 ```
 
 What it does: `music.` and `mustang.` → `:4533`; `comedy.` and `sessions.` → Audiobookshelf `:13378`
-(and lets the Audiobookshelf app in on those names); an Authelia wall so only `eels` and `rachel`
-can open `music.` and `mustang.`. The wall matters because Navidrome makes an account for anyone
-the gate signs in. To let someone else in later, run it again with everyone listed:
-`MUSIC_USERS="eels rachel sam"` in front of the command.
+(and lets the Audiobookshelf app in on those names); an Authelia wall so `eels`, `rachel`, and
+anyone in the Authelia group `music` can open `music.` and `mustang.`. The wall matters because
+Navidrome makes an account for anyone the gate signs in. A Jellyfin user is not on that wall:
+`tv.` never asks Authelia, so the same person can open Jellyfin and get *forbidden* on music.
+Put `groups: [music]` on their block in the Authelia users file (same username), then run this
+script again. Listing people by name still works: `MUSIC_USERS="eels rachel"` in front of the
+command. `MUSIC_GROUPS` defaults to `music`; set it empty only if you want the named users alone.
 
 ### 4. the-box browser: Comedy and Sessions in Audiobookshelf
 
@@ -172,7 +175,7 @@ sudo machinectl shell podsvc@ /usr/bin/env COMEDY_SHELF=/audiobookshelf/library/
 - [ ] the-box, private window: `https://music.songofeo.com` → gate sign-in → Navidrome as eels, with
       both libraries in the sidebar's library picker.
 - [ ] Signed in as rachel (private window): `https://mustang.songofeo.com` shows only her music.
-- [ ] Signed in as anyone else: `music.` and `mustang.` say *forbidden*.
+- [ ] Signed in as anyone who is not eels, rachel, or in the Authelia group `music`: `music.` and `mustang.` say *forbidden*.
 - [ ] `https://comedy.songofeo.com` and `https://sessions.songofeo.com` open Audiobookshelf.
 - [ ] On the gate as podsvc: `bash ~/cobra-server/scripts/oneshot/gate-sso-check.sh` (read-only).
 
@@ -186,10 +189,40 @@ sudo machinectl shell podsvc@ /usr/bin/env COMEDY_SHELF=/audiobookshelf/library/
 
 ## Someone new
 
-Add them to Authelia's `users.yml` (manual 5.4), then in Navidrome **Settings → Users → +** with the
-same username and tick their libraries (or make them a library of their own: a folder
-`dock1a/music/<name>` and **Settings → Libraries → +**). Then run the gate script again with them
-in `MUSIC_USERS`. No new container, port, name or CNAME.
+Add them to Authelia's users file on Gate 110 (manual 5.4). The repo's example calls that file
+`/srv/gate/authelia/users.yml` because `configuration.yml` sets
+`authentication_backend.file.path` to `/config/users.yml`. If the live line says
+`/config/users_database.yml`, that host file is `/srv/gate/authelia/users_database.yml` instead.
+It is not in git. Do not copy it into the repo: it holds password hashes.
+
+On their block, add `groups: [music]` (keep any groups they already have). The username has to be
+the one Navidrome will use, character for character.
+
+Then run `gate-music-one.sh` again. That is the wall that gets applied on a live gate, and it writes
+the same subject as manual 5.4: `group:music`, then deny. A wall written before 2026-11-09 lists
+only `user:eels` and `user:rachel`. No new container, port, name or CNAME.
+
+Open `https://music.songofeo.com` once in a browser as that person. Navidrome creates the row
+on that page load, with a random password, and only the libraries marked default for new users.
+Those two libraries are unticked, so the new row sees no music until you open **Settings → Users**
+and tick their libraries. A phone app's `/rest/` path does not create the row. If Navidrome's log
+says `Authenticated username not found in DB`, the web page was never loaded, or the header's
+username is not the Navidrome username.
+
+## A Jellyfin account that cannot open music
+
+`tv.songofeo.com` has no `auth_request`. Jellyfin's own user table is the only lock, so a test
+account created in Jellyfin's Dashboard opens TV without Authelia.
+
+`music.songofeo.com` is forward-auth. Authelia's first matching rule for that name is the music
+wall: `one_factor` for the listed subjects, then `policy: deny`. There is no missing
+`music.songofeo.com` rule, and there is no Authelia group that includes TV. TV is not an Authelia
+rule. The example users file has no `groups` at all, so a test account added the same way as the
+manual's two people is signed in at the gate and then refused at music.
+
+After the wall lets them through, nginx sets `Remote-User` and Navidrome accepts it only from
+`10.6.9.10` (`ND_EXTAUTH_TRUSTEDSOURCES`; the old `ND_REVERSEPROXYWHITELIST` still maps to that).
+The check on the gate is [gate-sso-tv-runbook.md](gate-sso-tv-runbook.md).
 
 ## Later: share some of your genres with Rachel
 
