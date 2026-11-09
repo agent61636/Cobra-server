@@ -20,6 +20,7 @@ preflight
 need_folders "$SCANS_DIR"
 gate_pod
 ensure_dir "$DATA/data" "$DATA/media" "$DATA/export" "$GATE_DATA/postgres" "$GATE_DATA/redis"
+keep_personal_state paperless
 
 ensure_secret paperless-db-password "${PAPERLESS_DB_PASSWORD:-}"
 ensure_secret paperless-secret-key "${PAPERLESS_SECRET:-$(random_hex 32)}"
@@ -38,6 +39,7 @@ for _ in $(seq 60); do
   sleep 2
 done
 podman exec postgres pg_isready -q -U paperless || warn "Postgres isn't ready yet; Paperless retries on its own (podman logs postgres)"
+state_import_staged paperless
 
 # The scans folder comes over the CIFS mount from the SGIN (no :Z on a network share).
 # Polling: change notifications don't cross SMB.
@@ -55,5 +57,6 @@ run_container paperless "$GATE_POD" "$IMAGE" \
   -v "$DISKS/$SCANS_DIR:/usr/src/paperless/consume"
 
 pod_http paperless http://127.0.0.1:8000 180 || warn "Paperless isn't answering yet (first start migrates the database; give it a few minutes)"
+snapshot_personal_state paperless
 done_msg paperless https://papers.songofeo.com
 echo "    Once: podman exec -it paperless python3 manage.py createsuperuser"

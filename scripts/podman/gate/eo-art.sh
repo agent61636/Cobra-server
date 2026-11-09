@@ -16,6 +16,7 @@ preflight
 need_folders "$ART_DIR/movies" "$ART_DIR/albums" "$ART_DIR/books" "$ART_DIR/comics" "$ART_DIR/gaming"
 gate_pod
 ensure_dir "$DATA"
+keep_personal_state eo-art
 [ -r "$DATA/eo_art.py" ] || die "no $DATA/eo_art.py yet. Copy it from the Project-Eo repository (home/eo-art/eo_art.py), part 5.4"
 
 # The pictures are copies in dock1a/art, plus covers read straight from dock1a (the Comedy Bay); eo-art only reads them.
@@ -38,5 +39,6 @@ except urllib.error.HTTPError: pass' 2>/dev/null; then up=1; break; fi
   sleep 2
 done
 [ "$up" = 1 ] || warn "eo-art isn't answering yet; check podman logs eo-art"
+snapshot_personal_state eo-art
 done_msg eo-art https://art.songofeo.com/cinema/backdrop
 echo "    Fill $DISKS/$ART_DIR/{movies,albums,books,comics,gaming} with .jpg copies; eo-art rescans every 6 hours (folders.json sets the walls, part 5.4)."

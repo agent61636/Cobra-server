@@ -14,6 +14,7 @@ DATA=$GATE_DATA/homepage
 preflight
 gate_pod
 ensure_dir "$DATA"
+keep_personal_state homepage
 for f in settings.yaml services.yaml; do
   if [ ! -e "$DATA/$f" ]; then cp "$here/homepage/$f" "$DATA/$f"; say "wrote starter $DATA/$f"; fi
 done
@@ -23,5 +24,6 @@ run_container homepage "$GATE_POD" "$IMAGE" \
   -v "$DATA:/app/config:Z"
 
 pod_http homepage http://127.0.0.1:3000 60 || warn "Homepage isn't answering yet; check podman logs homepage"
+snapshot_personal_state homepage
 done_msg homepage https://command.songofeo.com
 echo "    Edit $DATA/services.yaml to change tiles; Homepage picks up changes by itself."

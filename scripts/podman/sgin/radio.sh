@@ -13,6 +13,7 @@ DATA=$STREAM_DATA/radio
 
 preflight
 need_folders "$MUSIC_DIR"
+keep_personal_state radio
 [ -r "$DATA/radio.liq" ] || die "$DATA/radio.liq is missing; copy apps/radio/radio.liq there first (part 8.2)"
 stream_pod
 
@@ -36,5 +37,6 @@ run_container radio "$STREAM_POD" "$RADIO_IMAGE" \
   --entrypoint liquidsoap \
   -- /radio/radio.liq
 
+snapshot_personal_state radio
 done_msg radio http://10.6.9.20:8000
 echo "    Icecast admin password: podman secret inspect --showsecret --format '{{.SecretData}}' icecast-admin-password"

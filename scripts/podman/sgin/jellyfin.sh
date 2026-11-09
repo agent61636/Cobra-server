@@ -15,6 +15,7 @@ need_gpu
 need_folders "$MOVIES_DIR" "$SHOWS_DIR" "$FILLER_DIR" "$PREROLLS_DIR" "$YOUTUBE_DIR"
 stream_pod
 ensure_dir "$DATA/config" "$DATA/cache"
+keep_personal_state jellyfin
 
 # --device /dev/dri + keep-groups: the container keeps podsvc's render group, so it may open the GPU.
 # Config and cache stay on the SGIN's SSD; the library is read-only (no :Z, it's shared with Samba).
@@ -37,6 +38,7 @@ else
   warn "QSV check failed: no HEVC profiles inside the container, so transcodes will fall back to the CPU. Check part 3.3: intel-media-va-driver-non-free, firmware-intel-graphics (HuC), enable_guc=2"
 fi
 
+snapshot_personal_state jellyfin
 done_msg jellyfin http://10.6.9.20:8096
 cat <<'TXT'
     Once, in Jellyfin -> Dashboard -> Playback -> Transcoding (part 3.8):

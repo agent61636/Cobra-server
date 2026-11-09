@@ -15,6 +15,7 @@ preflight
 need_folders "$YOUTUBE_DIR"
 gate_pod
 ensure_dir "$DATA"
+keep_personal_state metube
 
 # Finished videos go to the SGIN's wd2 (a folder on the Seagate); the queue and partial downloads stay on the gate's disk.
 run_container metube "$GATE_POD" "$IMAGE" \
@@ -23,5 +24,6 @@ run_container metube "$GATE_POD" "$IMAGE" \
   -v "$DATA:/state:Z"
 
 pod_http metube http://127.0.0.1:8081 60 || warn "MeTube isn't answering yet; check podman logs metube"
+snapshot_personal_state metube
 done_msg metube https://metube.songofeo.com
 echo "    yt-dlp ages fast: when downloads start failing, UPDATE=1 ./metube.sh"

@@ -29,7 +29,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck the podman scripts
-        run: shellcheck scripts/podman/lib.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh apps/forms/gate/*.sh
+        run: shellcheck scripts/podman/lib.sh scripts/podman/state.sh scripts/podman/test-state.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh apps/forms/gate/*.sh
+      - name: personal-state snapshot round trip
+        run: bash scripts/podman/test-state.sh
   agent:
     runs-on: windows-latest
     steps:

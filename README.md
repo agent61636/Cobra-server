@@ -20,6 +20,7 @@ Start with the overview, then follow the parts in order.
 | 10. Home Assistant | [docs/manual/10-home-assistant.md](docs/manual/10-home-assistant.md) |
 | 11. Extra bling (lit buttons, marquee, pinball, CRT bezels) | [docs/manual/11-extra-bling.md](docs/manual/11-extra-bling.md) |
 | 12. Our own form service (forms.songofeo.com) | [docs/manual/12-forms.md](docs/manual/12-forms.md) |
+| 13. Personal state (favorites, progress, settings) | [docs/manual/13-personal-state.md](docs/manual/13-personal-state.md) |
 
 Not in a stage yet (distro and desktop choices, Wi-Fi APs, arcade GPU and tower upgrades, container ideas): [docs/future-builds/](docs/future-builds/README.md).
 

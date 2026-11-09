@@ -27,7 +27,7 @@ cd ~/cobra-server/scripts/podman/sgin     # gate/ on the gate
 podman ps --pod
 ```
 
-Every script is safe to run again. It removes that app's container and starts a fresh one. The app's data lives in the mounted folders, so nothing is lost. Each one ends by printing the app's URL and the setup steps you do once in its web page.
+Every script is safe to run again. It removes that app's container and starts a fresh one. The app's data lives in the mounted folders, so a recreate keeps it. Wiping that folder does not: [part 13](../../docs/manual/13-personal-state.md) snapshots favorites, progress and per-user settings, and the script puts them back. Each one ends by printing the app's URL and the setup steps you do once in its web page.
 
 | To... | Run |
 |---|---|
@@ -40,6 +40,9 @@ Every script is safe to run again. It removes that app's container and starts a 
 | Give one app extra settings | put `KEY=value` lines in `~/.config/cobra/<container>.env` and rerun its script, e.g. RomM's metadata keys in `romm.env` |
 | Change a pod's ports | edit `sgin/pod.sh` or `gate/pod.sh`, then `RECREATE_POD=1 ./up-all.sh` |
 | Read a generated password | `podman secret ls`, then `podman secret inspect --showsecret --format '{{.SecretData}}' romm-db-password` |
+| Snapshot favorites and per-user settings | `./state-backup.sh` (first run also enables the daily 03:10 timer). [Part 13](../../docs/manual/13-personal-state.md) |
+| Restore one wiped app | run its script again (`./navidrome.sh`), or `./state-restore.sh navidrome` |
+| Start one app empty on purpose | `SKIP_STATE_RESTORE=1 ./navidrome.sh` |
 
 ## How they work
 
@@ -74,7 +77,8 @@ The radio's Icecast passwords are new on every setup anyway, so `radio.sh` simpl
 ## Checking the scripts
 
 ```bash
-shellcheck scripts/podman/lib.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh
+shellcheck scripts/podman/lib.sh scripts/podman/state.sh scripts/podman/test-state.sh scripts/podman/sgin/*.sh scripts/podman/gate/*.sh
+bash scripts/podman/test-state.sh
 ```
 
-`COBRA_DISKS` and `COBRA_DATA` move the drives and data folders for a test run on another machine. Leave them unset on the real hosts.
+`COBRA_DISKS` and `COBRA_DATA` move the drives and data folders for a test run on another machine. `COBRA_STATE_BACKUP` moves the personal-state snapshots. Leave them unset on the real hosts.

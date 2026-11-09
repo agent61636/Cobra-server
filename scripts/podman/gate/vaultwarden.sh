@@ -15,6 +15,7 @@ DATA=$GATE_DATA/vaultwarden
 preflight
 gate_pod
 ensure_dir "$DATA"
+keep_personal_state vaultwarden
 
 if [ -z "${SIGNUPS_ALLOWED:-}" ]; then
   if [ -e "$DATA/db.sqlite3" ]; then SIGNUPS_ALLOWED=false; else SIGNUPS_ALLOWED=true; fi
@@ -27,6 +28,7 @@ run_container vaultwarden "$GATE_POD" "$IMAGE" \
   -v "$DATA:/data:Z"
 
 pod_http vaultwarden http://127.0.0.1:8222/alive 60 || warn "Vaultwarden isn't answering yet; check podman logs vaultwarden"
+snapshot_personal_state vaultwarden
 done_msg vaultwarden https://vault.songofeo.com
 if [ "$SIGNUPS_ALLOWED" = true ]; then
   echo "    Sign-ups are OPEN. Create your account now, then run ./vaultwarden.sh again to close them."

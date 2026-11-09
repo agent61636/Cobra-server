@@ -5,6 +5,7 @@
 #   UPDATE=1        pull a newer image before recreating the container
 #   COBRA_TZ=...    timezone for the containers (default: the host's)
 #   RECREATE_POD=1  delete and recreate the pod (removes every container in it; run up-all.sh after)
+#   SKIP_STATE_RESTORE=1  start an emptied app blank instead of restoring its snapshot (part 13)
 # Extra environment for one container: put KEY=value lines in ~/.config/cobra/<container>.env
 
 set -euo pipefail
@@ -170,3 +171,7 @@ done_msg() {
   echo "    logs:    podman logs -f $1"
   echo "    restart: podman restart $1      update: UPDATE=1 $0"
 }
+
+# Personal-state snapshots (favorites, progress, per-user settings). Part 13.
+# shellcheck source=state.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/state.sh"
