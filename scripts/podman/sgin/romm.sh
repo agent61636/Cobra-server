@@ -21,8 +21,10 @@ preflight
 need_folders "$ROMS_DIR"
 stream_pod
 ensure_dir "$DATA/resources" "$DATA/assets" "$DATA/config" "$DATA/redis" "$DATA/db"
+keep_personal_state romm
 
 # Passwords live in podman secrets, not in the script or in `podman inspect`.
+# After the restore, so a secret that came back with the snapshot is kept.
 ensure_secret romm-db-password "${ROMM_DB_PASSWORD:-}"
 ensure_secret romm-db-root-password "${ROMM_DB_PASSWORD:-}"
 ensure_secret romm-auth-secret "${ROMM_AUTH_SECRET:-$(random_hex 32)}"
@@ -51,6 +53,7 @@ for _ in $(seq 60); do
   sleep 2
 done
 [ "$(podman inspect -f '{{.State.Health.Status}}' romm-db)" = healthy ] || warn "MariaDB isn't healthy yet; RomM keeps retrying (podman logs romm-db)"
+state_import_staged romm
 
 # keep-groups: RomM writes into the shared roms folder (group media).
 # The roms mount has no :Z because Samba shares the same folder: the cabinet copies its ROMs in each night (manual 4.5).
@@ -66,6 +69,7 @@ run_container romm "$STREAM_POD" "$IMAGE" \
   -v "$DISKS/$ROMS_DIR:/romm/library/roms"
 
 wait_port 8080 120 || warn "RomM isn't answering on :8080 yet; check podman logs romm"
+snapshot_personal_state romm
 done_msg romm http://10.6.9.20:8080
 cat <<'TXT'
     Once (part 3.8b): first visit runs the setup wizard (admin user), then Scan.

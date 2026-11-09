@@ -17,6 +17,7 @@ REPO_APP=$here/../../../apps/hiscore/hiscore
 preflight
 gate_pod
 ensure_dir "$APP" "$DATA"
+keep_personal_state hiscore
 
 if [ -d "$REPO_APP" ]; then
   rm -rf "$APP/hiscore" && cp -r "$REPO_APP" "$APP/hiscore"
@@ -38,5 +39,6 @@ for _ in $(seq 20); do
   sleep 1
 done
 [ -n "$ok" ] || warn "hiscore isn't answering on /healthz yet; check podman logs hiscore"
+snapshot_personal_state hiscore
 done_msg hiscore https://scores.songofeo.com
 echo "    New cabinet key: cd $APP && podman run --rm -v \"\$PWD\":/app:ro,Z -w /app $IMAGE python -m hiscore hash-key cabinet"

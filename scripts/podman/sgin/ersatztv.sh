@@ -16,6 +16,7 @@ need_gpu
 need_folders "$FILLER_DIR"
 stream_pod
 ensure_dir "$DATA"
+keep_personal_state ersatztv
 
 # Same /media path as Jellyfin, so file paths Jellyfin reports open here too.
 # /transcode in RAM: ErsatzTV writes each channel's live segments there while someone watches.
@@ -27,6 +28,7 @@ run_container ersatztv "$STREAM_POD" "$IMAGE" \
   --tmpfs /transcode:rw,size=2g,mode=1777
 
 wait_port 8409 90 || warn "ErsatzTV isn't answering on :8409 yet; check podman logs ersatztv"
+snapshot_personal_state ersatztv
 done_msg ersatztv http://10.6.9.20:8409
 cat <<'TXT'
     Set up channels (part 3.8a):

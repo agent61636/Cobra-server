@@ -30,6 +30,7 @@ preflight
 need_folders "$MUSIC_DIR/eels" "$MUSIC_DIR/rachel"
 stream_pod
 ensure_dir "$DATA"
+keep_personal_state navidrome
 
 run_container "$NAME" "$STREAM_POD" "$IMAGE" \
   -e ND_PORT="$PORT" \
@@ -42,6 +43,7 @@ run_container "$NAME" "$STREAM_POD" "$IMAGE" \
   -v "$DISKS:/media:ro,rbind"
 
 wait_port "$PORT" 60 || warn "$NAME isn't answering on :$PORT yet; check podman logs $NAME"
+snapshot_personal_state navidrome
 done_msg "$NAME" "http://10.6.9.20:$PORT"
 echo "    Once: the first visit creates its admin (eels, same username as in Authelia's users file)."
 echo "    A later account is created when that person loads the web UI, not from a phone app's /rest/."
